@@ -2,24 +2,45 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['id', 'name', 'email', 'email_verified_at', 'password'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, HasUuids, Notifiable;
 
     /**
-     * Get the attributes that should be cast.
-     *
+     * @return BelongsToMany<Permission, $this>
+     */
+    public function permissions(): BelongsToMany
+    {
+        return $this->belongsToMany(Permission::class, 'user_permissions')
+            ->withTimestamps();
+    }
+
+    public function hasPermission(string $name): bool
+    {
+        return $this->permissions->contains('name', $name);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function permissionNames(): array
+    {
+        return $this->permissions->pluck('name')->values()->all();
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array
