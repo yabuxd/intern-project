@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Environment
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# PHP / Laravel
+.phpunit.result.cache
+.phpunit.cache/
+storage/*.key
+storage/pail/
+bootstrap/cache/*.php
+!bootstrap/cache/.gitignore
+public/hot
+public/storage
+Homestead.json
+Homestead.yaml
+auth.json
+
+# Coverage / caches
+coverage/
+.nyc_output/
+.cache/
+.eslintcache
+.vite/
+
+# Misc
+*.pem
+.vercel
+.next/
