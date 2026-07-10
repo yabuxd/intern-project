@@ -10,7 +10,8 @@
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
   },
   "include": ["index.ts", "types/**/*.ts", "constants/**/*.ts", "utils/**/*.ts"],
   "exclude": ["dist", "node_modules"]
