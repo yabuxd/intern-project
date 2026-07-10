@@ -4,7 +4,7 @@
 
 - **Node.js** 20+
 - **npm** 10+
-- **PHP** 8.2+ with extensions: `openssl`, `curl`, `mbstring`, `pdo_pgsql`, `pgsql`, `fileinfo`, `zip`
+- **PHP** 8.3+ with extensions: `openssl`, `curl`, `mbstring`, `pdo_pgsql`, `pgsql`, `fileinfo`, `zip`
 - **Composer** 2+
 - A **Supabase** project (URL, anon key, JWT secret, database password)
 
