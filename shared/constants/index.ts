@@ -1,4 +1,4 @@
-/** Placeholder API route prefixes — no domain logic. */
+/** API route prefixes and HTTP status helpers. */
 export const API_PREFIX = "/api" as const;
 
 export const HTTP_STATUS = {
@@ -6,6 +6,7 @@ export const HTTP_STATUS = {
   CREATED: 201,
   BAD_REQUEST: 400,
   UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
   NOT_FOUND: 404,
   SERVER_ERROR: 500,
 } as const;

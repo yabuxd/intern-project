@@ -10,11 +10,17 @@ From the repo root:
 npm install
 ```
 
-Copy env example:
+Copy env example and fill Supabase values:
 
 ```bash
 cp client/.env.example client/.env
 ```
+
+Required:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+- `VITE_API_BASE_URL` (default `http://localhost:8000/api`)
 
 ## Scripts
 
@@ -25,8 +31,8 @@ cp client/.env.example client/.env
 | `npm run lint -w client` | Run ESLint |
 | `npm run preview -w client` | Preview production build |
 
-Or from this directory: `npm run dev`, `npm run build`, `npm run lint`.
+## Auth flow
 
-## Shared package
-
-Imports types/constants from `@intern/shared` (workspace package).
+1. Sign up / sign in via Supabase Auth (`/signup`, `/login`)
+2. Client stores the session and calls Laravel `GET /api/me` with the access token
+3. Home page shows the user profile and assigned permissions
