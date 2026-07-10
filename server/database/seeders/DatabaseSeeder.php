@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             PermissionSeeder::class,
+            // AdminUserSeeder runs only when ADMIN_EMAIL is set in .env (optional)
             AdminUserSeeder::class,
         ]);
     }

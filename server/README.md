@@ -31,8 +31,7 @@ php artisan migrate
 php artisan db:seed
 ```
 
-Set `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` in `server/.env`.
-`AdminUserSeeder` creates that user in Supabase Auth (if missing) and grants all permissions.
+Create accounts in the app via `/signup`. To grant all permissions later, set `ADMIN_EMAIL` (and optional `ADMIN_USER_ID`) in `server/.env`, then run `php artisan db:seed --class=AdminUserSeeder`. Do not commit real passwords.
 
 ## Run
 
