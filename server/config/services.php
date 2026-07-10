@@ -43,4 +43,12 @@ return [
         'jwt_secret' => env('SUPABASE_JWT_SECRET'),
     ],
 
+    'admin' => [
+        'email' => env('ADMIN_EMAIL'),
+        'password' => env('ADMIN_PASSWORD'),
+        'name' => env('ADMIN_NAME', 'Restaurant Admin'),
+        // Optional: skip Auth create and only sync local permissions for this UUID
+        'user_id' => env('ADMIN_USER_ID'),
+    ],
+
 ];
