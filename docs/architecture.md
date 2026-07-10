@@ -48,6 +48,14 @@ React client  ──HTTP/JSON──►  Laravel API  ──SQL──►  Supabas
 4. Laravel reads/writes domain data in Supabase Postgres
 5. Client may subscribe to Supabase Realtime for live UI updates
 
-## Out of scope for this scaffold
+## Auth & permissions (Phase 1)
 
-Menu, orders, tables, auth middleware implementation, and migrations beyond Laravel defaults.
+- `VerifySupabaseJwt` middleware verifies HS256 tokens with `SUPABASE_JWT_SECRET`
+- Users are upserted into `users` using the Supabase `sub` UUID as primary key
+- Permissions live in `permissions` / `user_permissions` and are exposed via Laravel Gates
+- `GET /api/me` returns the current user and permission names
+- React client uses `@supabase/supabase-js` for sign-up/sign-in and calls `/api/me` after login
+
+## Out of scope until later phases
+
+Menu, orders, tables, reservations, realtime subscriptions, and the permission admin panel.
