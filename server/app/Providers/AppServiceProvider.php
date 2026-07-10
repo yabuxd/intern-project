@@ -16,7 +16,11 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(SupabaseJwtService::class, function () {
-            return new SupabaseJwtService((string) config('services.supabase.jwt_secret'));
+            return new SupabaseJwtService(
+                (string) config('services.supabase.url'),
+                (string) config('services.supabase.anon_key'),
+                (string) config('services.supabase.jwt_secret', ''),
+            );
         });
     }
 

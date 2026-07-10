@@ -38,6 +38,8 @@ return [
     'supabase' => [
         'url' => env('SUPABASE_URL'),
         'anon_key' => env('SUPABASE_ANON_KEY'),
+        'service_role_key' => env('SUPABASE_SERVICE_ROLE_KEY'),
+        // Optional: legacy HS256 secret. New projects use ES256 JWKS; verify via Auth API.
         'jwt_secret' => env('SUPABASE_JWT_SECRET'),
     ],
 

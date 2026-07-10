@@ -12,7 +12,11 @@ class SupabaseJwtServiceTest extends TestCase
 
     public function test_it_verifies_a_valid_hs256_token(): void
     {
-        $service = new SupabaseJwtService($this->secret);
+        $service = new SupabaseJwtService(
+            'https://example.supabase.co',
+            'test-anon-key',
+            $this->secret,
+        );
         $token = $this->makeToken([
             'sub' => '11111111-1111-1111-1111-111111111111',
             'email' => 'diner@example.com',
@@ -27,7 +31,11 @@ class SupabaseJwtServiceTest extends TestCase
 
     public function test_it_rejects_tampered_signatures(): void
     {
-        $service = new SupabaseJwtService($this->secret);
+        $service = new SupabaseJwtService(
+            'https://example.supabase.co',
+            'test-anon-key',
+            $this->secret,
+        );
         $token = $this->makeToken([
             'sub' => '11111111-1111-1111-1111-111111111111',
             'email' => 'diner@example.com',
@@ -40,7 +48,11 @@ class SupabaseJwtServiceTest extends TestCase
 
     public function test_it_rejects_expired_tokens(): void
     {
-        $service = new SupabaseJwtService($this->secret);
+        $service = new SupabaseJwtService(
+            'https://example.supabase.co',
+            'test-anon-key',
+            $this->secret,
+        );
         $token = $this->makeToken([
             'sub' => '11111111-1111-1111-1111-111111111111',
             'email' => 'diner@example.com',
