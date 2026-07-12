@@ -1,11 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  --color-ink: #0f241c;
+  --color-ink-soft: #1a3a2e;
+  --color-mist: #e8eee9;
+  --color-panel: #f5f7f5;
+  --color-brass: #c2a46b;
+  --color-brass-deep: #9a7d45;
+  --color-danger: #b42318;
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-body: "Figtree", "Segoe UI", sans-serif;
+
+  font-family: var(--font-body);
   line-height: 1.5;
   font-weight: 400;
-  color: #1a1a1a;
-  background-color: #f7f7f5;
+  color: var(--color-ink);
+  background-color: var(--color-mist);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
 }
 
 body {
@@ -16,4 +29,37 @@ body {
 
 #root {
   min-height: 100vh;
+}
+
+@keyframes auth-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auth-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.auth-rise {
+  animation: auth-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.auth-rise-delay {
+  animation: auth-rise 800ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
+}
+
+.auth-glow {
+  animation: auth-glow 8s ease-in-out infinite;
 }
