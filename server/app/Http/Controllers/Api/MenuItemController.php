@@ -10,11 +10,6 @@ use Illuminate\Http\JsonResponse;
 
 class MenuItemController extends Controller
 {
-    public function __construct()
-    {
-        $this->authorizeResource(MenuItem::class, 'menu_item');
-    }
-
     public function store(StoreMenuItemRequest $request): JsonResponse
     {
         $item = MenuItem::query()->create($request->validated());
@@ -29,6 +24,7 @@ class MenuItemController extends Controller
 
     public function show(MenuItem $menuItem): JsonResponse
     {
+        $this->authorize('view', $menuItem);
         $menuItem->load('category');
 
         return response()->json([
@@ -51,6 +47,7 @@ class MenuItemController extends Controller
 
     public function destroy(MenuItem $menuItem): JsonResponse
     {
+        $this->authorize('delete', $menuItem);
         $menuItem->delete();
 
         return response()->json([
