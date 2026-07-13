@@ -44,7 +44,13 @@ php artisan key:generate
 php artisan serve         # http://localhost:8000
 ```
 
-Configure `DB_*` in `server/.env` to point at Supabase Postgres before running migrations (migrations come later with domain features).
+Configure `DB_*` in `server/.env` to point at Supabase Postgres, then:
+
+```bash
+php artisan migrate
+php artisan db:seed
+php artisan serve         # http://localhost:8000
+```
 
 ### Supabase Postgres notes
 
@@ -54,7 +60,12 @@ Configure `DB_*` in `server/.env` to point at Supabase Postgres before running m
 
 ### JWT verification notes
 
-Set `SUPABASE_URL` and `SUPABASE_JWT_SECRET` in `server/.env` for future auth middleware. Do not implement verification in this scaffold.
+Set `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_JWT_SECRET` in `server/.env`.
+The JWT secret is under Supabase Dashboard → Project Settings → API → JWT Secret (HS256).
+
+Client needs matching `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `client/.env`.
+
+After sign-in, the client calls `GET /api/me` with the bearer token.
 
 ## 5. Verify
 

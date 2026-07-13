@@ -11,3 +11,21 @@ export interface PaginatedMeta {
   perPage: number;
   total: number;
 }
+
+/** Authenticated user returned by GET /api/me */
+export interface AuthUser {
+  id: string;
+  name: string | null;
+  email: string;
+  permissions: string[];
+}
+
+export const PERMISSIONS = {
+  CAN_MANAGE_MENU: "can_manage_menu",
+  CAN_VIEW_ALL_ORDERS: "can_view_all_orders",
+  CAN_UPDATE_ORDER_STATUS: "can_update_order_status",
+  CAN_MANAGE_TABLES: "can_manage_tables",
+  CAN_PLACE_ORDER: "can_place_order",
+} as const;
+
+export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

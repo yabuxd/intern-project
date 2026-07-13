@@ -35,4 +35,20 @@ return [
         ],
     ],
 
+    'supabase' => [
+        'url' => env('SUPABASE_URL'),
+        'anon_key' => env('SUPABASE_ANON_KEY'),
+        'service_role_key' => env('SUPABASE_SERVICE_ROLE_KEY'),
+        // Optional: legacy HS256 secret. New projects use ES256 JWKS; verify via Auth API.
+        'jwt_secret' => env('SUPABASE_JWT_SECRET'),
+    ],
+
+    'admin' => [
+        'email' => env('ADMIN_EMAIL'),
+        'password' => env('ADMIN_PASSWORD'),
+        'name' => env('ADMIN_NAME', 'Restaurant Admin'),
+        // Optional: skip Auth create and only sync local permissions for this UUID
+        'user_id' => env('ADMIN_USER_ID'),
+    ],
+
 ];
