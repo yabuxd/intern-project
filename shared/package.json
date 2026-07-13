@@ -1,0 +1,23 @@
+{
+  "name": "@intern/shared",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Shared TypeScript types and constants for the intern project",
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": {
+      "types": "./index.ts",
+      "import": "./index.ts",
+      "default": "./index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit false --outDir dist",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3"
+  }
+}

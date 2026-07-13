@@ -1,0 +1,23 @@
+{
+  "name": "intern-project",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Restaurant Order and Table Management — internship monorepo",
+  "workspaces": [
+    "client",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w client",
+    "build": "npm run build -w shared && npm run build -w client",
+    "lint": "npm run lint -w shared && npm run lint -w client",
+    "format": "prettier --write \"client/**/*.{ts,tsx,css,json}\" \"shared/**/*.{ts,json}\"",
+    "format:check": "prettier --check \"client/**/*.{ts,tsx,css,json}\" \"shared/**/*.{ts,json}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
