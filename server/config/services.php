@@ -41,6 +41,8 @@ return [
         'service_role_key' => env('SUPABASE_SERVICE_ROLE_KEY'),
         // Optional: legacy HS256 secret. New projects use ES256 JWKS; verify via Auth API.
         'jwt_secret' => env('SUPABASE_JWT_SECRET'),
+        // Optional CA bundle path (fixes Windows cURL error 60 / missing issuer cert).
+        'ssl_cert_file' => env('SSL_CERT_FILE'),
     ],
 
     'admin' => [

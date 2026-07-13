@@ -2,9 +2,14 @@
 
 namespace App\Services;
 
+use Firebase\JWT\JWK;
+use Firebase\JWT\JWT;
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use RuntimeException;
+use stdClass;
+use Throwable;
 use UnexpectedValueException;
 
 class SupabaseJwtService
@@ -13,6 +18,7 @@ class SupabaseJwtService
         private readonly string $supabaseUrl,
         private readonly string $anonKey,
         private readonly string $jwtSecret = '',
+        private readonly ?string $caBundle = null,
     ) {
         if ($this->supabaseUrl === '' || $this->anonKey === '') {
             throw new RuntimeException('SUPABASE_URL and SUPABASE_ANON_KEY must be configured.');
@@ -22,22 +28,85 @@ class SupabaseJwtService
     /**
      * Verify an access token and return auth claims.
      *
-     * Prefers Supabase Auth /user introspection (works with ES256 JWKS projects).
-     * Falls back to local HS256 verification when SUPABASE_JWT_SECRET is set (legacy / tests).
+     * HS256 (legacy / tests) uses SUPABASE_JWT_SECRET locally.
+     * ES256 (current Supabase default) uses JWKS, then Auth /user fallback.
      *
      * @return array<string, mixed>
      */
     public function verify(string $token): array
     {
-        if ($this->jwtSecret !== '') {
-            try {
-                return $this->verifyHs256($token);
-            } catch (UnexpectedValueException) {
-                // Fall through to Auth API for ES256 tokens on mixed setups.
+        $alg = $this->tokenAlg($token);
+
+        if ($alg === 'HS256') {
+            if ($this->jwtSecret === '') {
+                throw new UnexpectedValueException('HS256 token received but SUPABASE_JWT_SECRET is not configured.');
             }
+
+            return $this->verifyHs256($token);
         }
 
-        return $this->verifyViaAuthApi($token);
+        // Prefer Auth /user (always includes email). Fall back to JWKS local verify.
+        try {
+            return $this->verifyViaAuthApi($token);
+        } catch (ConnectionException $authConnectionError) {
+            try {
+                return $this->verifyViaJwks($token);
+            } catch (Throwable) {
+                throw new RuntimeException(
+                    'Unable to reach Supabase to verify the token. Check PHP SSL CA certificates (SSL_CERT_FILE / curl.cainfo).',
+                    0,
+                    $authConnectionError,
+                );
+            }
+        } catch (Throwable $authError) {
+            try {
+                return $this->verifyViaJwks($token);
+            } catch (Throwable) {
+                throw $authError instanceof UnexpectedValueException
+                    ? $authError
+                    : new UnexpectedValueException('Invalid or expired token.', 0, $authError);
+            }
+        }
+    }
+
+    private function tokenAlg(string $token): string
+    {
+        $parts = explode('.', $token);
+        if (count($parts) < 2) {
+            throw new UnexpectedValueException('Invalid JWT format.');
+        }
+
+        $header = json_decode($this->base64UrlDecode($parts[0]), true);
+        $alg = is_array($header) ? ($header['alg'] ?? null) : null;
+
+        if (! is_string($alg) || $alg === '') {
+            throw new UnexpectedValueException('JWT header is missing alg.');
+        }
+
+        return $alg;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function verifyViaJwks(string $token): array
+    {
+        $response = $this->supabaseHttp()
+            ->get(rtrim($this->supabaseUrl, '/').'/auth/v1/.well-known/jwks.json');
+
+        if (! $response->successful()) {
+            throw new UnexpectedValueException('Unable to load Supabase JWKS.');
+        }
+
+        $jwks = $response->json();
+        if (! is_array($jwks) || ! isset($jwks['keys']) || ! is_array($jwks['keys']) || $jwks['keys'] === []) {
+            throw new UnexpectedValueException('Supabase JWKS is empty.');
+        }
+
+        JWT::$leeway = 60;
+        $decoded = JWT::decode($token, JWK::parseKeySet($jwks));
+
+        return $this->claimsFromObject($decoded);
     }
 
     /**
@@ -45,10 +114,11 @@ class SupabaseJwtService
      */
     private function verifyViaAuthApi(string $token): array
     {
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.$token,
-            'apikey' => $this->anonKey,
-        ])->get(rtrim($this->supabaseUrl, '/').'/auth/v1/user');
+        $response = $this->supabaseHttp()
+            ->withHeaders([
+                'Authorization' => 'Bearer '.$token,
+            ])
+            ->get(rtrim($this->supabaseUrl, '/').'/auth/v1/user');
 
         if (! $response->successful()) {
             throw new UnexpectedValueException('Invalid or expired token.');
@@ -124,6 +194,52 @@ class SupabaseJwtService
         }
 
         return $claims;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function claimsFromObject(stdClass $decoded): array
+    {
+        /** @var array<string, mixed> $claims */
+        $claims = json_decode(json_encode($decoded, JSON_THROW_ON_ERROR), true, 512, JSON_THROW_ON_ERROR);
+
+        if (! isset($claims['sub']) || ! is_string($claims['sub']) || $claims['sub'] === '') {
+            throw new InvalidArgumentException('JWT is missing subject claim.');
+        }
+
+        $email = $claims['email'] ?? null;
+        if (! is_string($email) || $email === '') {
+            throw new InvalidArgumentException('JWT is missing an email claim.');
+        }
+
+        return $claims;
+    }
+
+    private function supabaseHttp(): \Illuminate\Http\Client\PendingRequest
+    {
+        $request = Http::withHeaders([
+            'apikey' => $this->anonKey,
+            'Accept' => 'application/json',
+        ]);
+
+        $ca = $this->resolveCaBundle();
+        if ($ca !== null) {
+            $request = $request->withOptions(['verify' => $ca]);
+        }
+
+        return $request;
+    }
+
+    private function resolveCaBundle(): ?string
+    {
+        foreach ([$this->caBundle, ini_get('curl.cainfo') ?: null, ini_get('openssl.cafile') ?: null] as $path) {
+            if (is_string($path) && $path !== '' && is_readable($path)) {
+                return $path;
+            }
+        }
+
+        return null;
     }
 
     private function base64UrlDecode(string $value): string
