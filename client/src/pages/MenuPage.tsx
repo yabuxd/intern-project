@@ -7,7 +7,11 @@ import { PERMISSIONS } from '@intern/shared';
 
 function formatPrice(price: string | number): string {
   const value = typeof price === 'string' ? Number(price) : price;
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(value);
+  return new Intl.NumberFormat('en-ET', {
+    style: 'currency',
+    currency: 'ETB',
+    minimumFractionDigits: 2,
+  }).format(value);
 }
 
 export function MenuPage() {
@@ -43,12 +47,12 @@ export function MenuPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-10 text-left">
+    <div className="mx-auto w-full max-w-5xl space-y-10 text-left">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Browse</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Ethiopian kitchen</p>
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">Menu</h1>
-          <p className="mt-2 text-stone-600">Available dishes by category.</p>
+          <p className="mt-2 text-stone-600">Traditional dishes, from sambusa to doro wat.</p>
         </div>
         {canManage && (
           <Link
@@ -71,16 +75,33 @@ export function MenuPage() {
               <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-900">
                 {category.name}
               </h2>
-              <ul className="divide-y divide-stone-200 overflow-hidden rounded-2xl border border-stone-200 bg-white">
+              <ul className="grid gap-4 sm:grid-cols-2">
                 {category.items.map((item) => (
-                  <li key={item.id} className="flex items-start justify-between gap-4 px-5 py-4">
-                    <div>
-                      <p className="font-semibold text-stone-900">{item.name}</p>
-                      {item.description && (
-                        <p className="mt-1 text-sm text-stone-600">{item.description}</p>
-                      )}
+                  <li
+                    key={item.id}
+                    className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+                  >
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="h-44 w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-44 items-center justify-center bg-stone-100 text-sm text-stone-500">
+                        No photo
+                      </div>
+                    )}
+                    <div className="flex items-start justify-between gap-3 p-4">
+                      <div>
+                        <p className="font-semibold text-stone-900">{item.name}</p>
+                        {item.description && (
+                          <p className="mt-1 text-sm leading-relaxed text-stone-600">{item.description}</p>
+                        )}
+                      </div>
+                      <p className="shrink-0 font-medium text-stone-800">{formatPrice(item.price)}</p>
                     </div>
-                    <p className="shrink-0 font-medium text-stone-800">{formatPrice(item.price)}</p>
                   </li>
                 ))}
               </ul>

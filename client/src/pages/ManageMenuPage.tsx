@@ -13,6 +13,7 @@ const emptyForm = {
   menu_category_id: 0,
   name: '',
   description: '',
+  image_url: '',
   price: '',
   is_available: true,
 };
@@ -92,6 +93,7 @@ export function ManageMenuPage() {
         menu_category_id: Number(form.menu_category_id),
         name: form.name.trim(),
         description: form.description.trim() || null,
+        image_url: form.image_url.trim() || null,
         price: Number(form.price),
         is_available: form.is_available,
       };
@@ -119,6 +121,7 @@ export function ManageMenuPage() {
       menu_category_id: item.menu_category_id,
       name: item.name,
       description: item.description ?? '',
+      image_url: item.image_url ?? '',
       price: String(item.price),
       is_available: item.is_available,
     });
@@ -192,7 +195,7 @@ export function ManageMenuPage() {
             />
           </label>
           <label className="block space-y-1 text-sm">
-            <span className="font-medium text-stone-700">Price</span>
+            <span className="font-medium text-stone-700">Price (ETB)</span>
             <input
               required
               type="number"
@@ -209,6 +212,15 @@ export function ManageMenuPage() {
               value={form.description}
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
               className="min-h-20 w-full rounded-xl border border-stone-300 px-3 py-2"
+            />
+          </label>
+          <label className="block space-y-1 text-sm md:col-span-2">
+            <span className="font-medium text-stone-700">Image URL</span>
+            <input
+              value={form.image_url}
+              onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))}
+              placeholder="/images/menu/doro-wat.jpg"
+              className="w-full rounded-xl border border-stone-300 px-3 py-2"
             />
           </label>
           <label className="flex items-center gap-2 text-sm md:col-span-2">
@@ -249,14 +261,27 @@ export function ManageMenuPage() {
         ) : (
           flatItems.map((item) => (
             <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <div>
-                <p className="font-semibold text-stone-900">
-                  {item.name}{' '}
-                  <span className="text-xs font-normal text-stone-500">({item.categoryName})</span>
-                </p>
-                <p className="text-sm text-stone-600">
-                  ${Number(item.price).toFixed(2)} · {item.is_available ? 'Available' : 'Hidden'}
-                </p>
+              <div className="flex items-center gap-3">
+                {item.image_url ? (
+                  <img
+                    src={item.image_url}
+                    alt={item.name}
+                    className="h-14 w-14 rounded-lg object-cover"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-stone-100 text-[10px] text-stone-400">
+                    N/A
+                  </div>
+                )}
+                <div>
+                  <p className="font-semibold text-stone-900">
+                    {item.name}{' '}
+                    <span className="text-xs font-normal text-stone-500">({item.categoryName})</span>
+                  </p>
+                  <p className="text-sm text-stone-600">
+                    {Number(item.price).toFixed(2)} ETB · {item.is_available ? 'Available' : 'Hidden'}
+                  </p>
+                </div>
               </div>
               <div className="flex gap-2">
                 <button

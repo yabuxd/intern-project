@@ -35,6 +35,7 @@ export interface MenuItem {
   menu_category_id: number;
   name: string;
   description: string | null;
+  image_url: string | null;
   price: string | number;
   is_available: boolean;
   sort_order: number;
@@ -57,6 +58,7 @@ export interface MenuItemInput {
   menu_category_id: number;
   name: string;
   description?: string | null;
+  image_url?: string | null;
   price: number;
   is_available?: boolean;
   sort_order?: number;
