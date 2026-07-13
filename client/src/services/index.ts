@@ -1,2 +1,11 @@
-export { apiFetch, ApiError, fetchMe } from './api';
+export {
+  apiFetch,
+  ApiError,
+  fetchMe,
+  fetchMenu,
+  fetchManageMenu,
+  createMenuItem,
+  updateMenuItem,
+  deleteMenuItem,
+} from './api';
 export { supabase } from './supabase';

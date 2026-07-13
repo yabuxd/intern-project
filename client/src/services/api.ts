@@ -1,4 +1,4 @@
-import type { ApiResponse, AuthUser } from '@intern/shared';
+import type { ApiResponse, AuthUser, MenuCategory, MenuItem, MenuItemInput } from '@intern/shared';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
 
@@ -43,4 +43,39 @@ export async function apiFetch<T>(
 
 export function fetchMe(token: string): Promise<AuthUser> {
   return apiFetch<AuthUser>('/me', { token });
+}
+
+export function fetchMenu(): Promise<MenuCategory[]> {
+  return apiFetch<MenuCategory[]>('/menu');
+}
+
+export function fetchManageMenu(token: string): Promise<MenuCategory[]> {
+  return apiFetch<MenuCategory[]>('/menu/manage', { token });
+}
+
+export function createMenuItem(token: string, input: MenuItemInput): Promise<MenuItem> {
+  return apiFetch<MenuItem>('/menu-items', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateMenuItem(
+  token: string,
+  id: number,
+  input: Partial<MenuItemInput>,
+): Promise<MenuItem> {
+  return apiFetch<MenuItem>(`/menu-items/${id}`, {
+    method: 'PUT',
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteMenuItem(token: string, id: number): Promise<null> {
+  return apiFetch<null>(`/menu-items/${id}`, {
+    method: 'DELETE',
+    token,
+  });
 }

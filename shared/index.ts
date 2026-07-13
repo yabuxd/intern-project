@@ -1,6 +1,9 @@
 export type {
   ApiResponse,
   AuthUser,
+  MenuCategory,
+  MenuItem,
+  MenuItemInput,
   PaginatedMeta,
   PermissionName,
 } from "./types/index";

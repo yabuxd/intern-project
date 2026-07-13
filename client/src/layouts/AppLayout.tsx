@@ -12,9 +12,12 @@ export function AppLayout({ children }: AppLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col bg-stone-50">
       <header className="flex items-center justify-between border-b border-stone-200 bg-white px-6 py-4">
-        <div>
+        <div className="flex items-center gap-5">
           <Link to="/" className="text-sm font-medium uppercase tracking-wide text-stone-500">
             Restaurant Order System
+          </Link>
+          <Link to="/menu" className="text-sm text-stone-700 hover:text-stone-900">
+            Menu
           </Link>
         </div>
         <nav className="flex items-center gap-3 text-sm">
@@ -45,7 +48,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           )}
         </nav>
       </header>
-      <main className="flex flex-1 items-center justify-center px-6 py-16">{children}</main>
+      <main className="flex flex-1 justify-center px-6 py-10 md:py-14">{children}</main>
     </div>
   );
 }

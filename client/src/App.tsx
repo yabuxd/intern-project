@@ -4,6 +4,8 @@ import { AppLayout } from './layouts/AppLayout';
 import { AuthLayout } from './layouts/AuthLayout';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
+import { ManageMenuPage } from './pages/ManageMenuPage';
+import { MenuPage } from './pages/MenuPage';
 import { SignupPage } from './pages/SignupPage';
 import { AuthProvider, useAuth } from './store';
 
@@ -40,6 +42,15 @@ function AppRoutes() {
     <AppLayout>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/menu" element={<MenuPage />} />
+        <Route
+          path="/menu/manage"
+          element={
+            <ProtectedRoute>
+              <ManageMenuPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/account"
           element={

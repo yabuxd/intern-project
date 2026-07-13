@@ -29,3 +29,35 @@ export const PERMISSIONS = {
 } as const;
 
 export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+export interface MenuItem {
+  id: number;
+  menu_category_id: number;
+  name: string;
+  description: string | null;
+  price: string | number;
+  is_available: boolean;
+  sort_order: number;
+  category?: {
+    id: number;
+    name: string;
+    slug: string;
+  } | null;
+}
+
+export interface MenuCategory {
+  id: number;
+  name: string;
+  slug: string;
+  sort_order: number;
+  items: MenuItem[];
+}
+
+export interface MenuItemInput {
+  menu_category_id: number;
+  name: string;
+  description?: string | null;
+  price: number;
+  is_available?: boolean;
+  sort_order?: number;
+}
