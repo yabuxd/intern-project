@@ -6,11 +6,15 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => array_filter([
-        env('CLIENT_URL', 'http://localhost:5173'),
-    ]),
+    'allowed_origins' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('CLIENT_URL', 'http://localhost:5173')),
+    ))),
 
-    'allowed_origins_patterns' => [],
+    // Vite may fall back to 5174/5175 when 5173 is busy.
+    'allowed_origins_patterns' => [
+        '#^http://(localhost|127\.0\.0\.1):\d+$#',
+    ],
 
     'allowed_headers' => ['*'],
 
