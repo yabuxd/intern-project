@@ -45,21 +45,26 @@ class SupabaseJwtService
             return $this->verifyHs256($token);
         }
 
+        // Prefer Auth /user (always includes email). Fall back to JWKS local verify.
         try {
-            return $this->verifyViaJwks($token);
-        } catch (Throwable $jwksError) {
+            return $this->verifyViaAuthApi($token);
+        } catch (ConnectionException $authConnectionError) {
             try {
-                return $this->verifyViaAuthApi($token);
-            } catch (ConnectionException $e) {
+                return $this->verifyViaJwks($token);
+            } catch (Throwable) {
                 throw new RuntimeException(
                     'Unable to reach Supabase to verify the token. Check PHP SSL CA certificates (SSL_CERT_FILE / curl.cainfo).',
                     0,
-                    $e,
+                    $authConnectionError,
                 );
+            }
+        } catch (Throwable $authError) {
+            try {
+                return $this->verifyViaJwks($token);
             } catch (Throwable) {
-                throw $jwksError instanceof UnexpectedValueException
-                    ? $jwksError
-                    : new UnexpectedValueException('Invalid or expired token.', 0, $jwksError);
+                throw $authError instanceof UnexpectedValueException
+                    ? $authError
+                    : new UnexpectedValueException('Invalid or expired token.', 0, $authError);
             }
         }
     }
