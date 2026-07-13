@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             // AdminUserSeeder runs only when ADMIN_EMAIL is set in .env (optional)
             AdminUserSeeder::class,
             MenuCategorySeeder::class,
+            EthiopianMenuSeeder::class,
         ]);
     }
 }
