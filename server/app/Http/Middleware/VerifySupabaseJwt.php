@@ -42,9 +42,13 @@ class VerifySupabaseJwt
         try {
             $claims = $this->jwtService->verify($token);
         } catch (Throwable $e) {
+            $message = $e instanceof \RuntimeException
+                ? $e->getMessage()
+                : 'Invalid or expired token.';
+
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid or expired token.',
+                'message' => $message,
             ], 401);
         }
 
