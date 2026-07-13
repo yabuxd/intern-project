@@ -20,6 +20,7 @@ class UpdateMenuItemRequest extends FormRequest
             'menu_category_id' => ['sometimes', 'integer', 'exists:menu_categories,id'],
             'name' => ['sometimes', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
+            'image_url' => ['nullable', 'string', 'max:2048'],
             'price' => ['sometimes', 'numeric', 'min:0', 'max:999999.99'],
             'is_available' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
