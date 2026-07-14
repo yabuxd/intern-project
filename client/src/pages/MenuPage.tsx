@@ -108,12 +108,12 @@ export function MenuPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-10 text-left">
+    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 text-left sm:space-y-10 sm:px-6 sm:py-10 md:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Ethiopian kitchen</p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">Menu</h1>
-          <p className="mt-2 text-stone-600">Traditional dishes, from sambusa to doro wat.</p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-stone-900 sm:text-4xl">Menu</h1>
+          <p className="mt-2 text-sm text-stone-600 sm:text-base">Traditional dishes, from sambusa to doro wat.</p>
         </div>
         {canManage && (
           <Link
@@ -138,35 +138,37 @@ export function MenuPage() {
                   <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-900">
                     {category.name}
                   </h2>
-                  <ul className="grid gap-4 sm:grid-cols-2">
+                  <ul className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
                     {category.items.map((item) => (
                       <li
                         key={item.id}
-                        className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+                        className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm sm:rounded-2xl"
                       >
                         {item.image_url ? (
                           <img
                             src={item.image_url}
                             alt={item.name}
-                            className="h-44 w-full object-cover"
+                            className="h-24 w-full object-cover sm:h-40 md:h-44"
                             loading="lazy"
                           />
                         ) : (
-                          <div className="flex h-44 items-center justify-center bg-stone-100 text-sm text-stone-500">
+                          <div className="flex h-24 items-center justify-center bg-stone-100 text-xs text-stone-500 sm:h-40 sm:text-sm md:h-44">
                             No photo
                           </div>
                         )}
-                        <div className="p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <p className="font-semibold text-stone-900">{item.name}</p>
+                        <div className="p-2.5 sm:p-4">
+                          <div className="flex items-start justify-between gap-2 sm:gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-semibold leading-snug text-stone-900 sm:text-base">
+                                {item.name}
+                              </p>
                               {item.description && (
-                                <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-600 sm:text-sm">
                                   {item.description}
                                 </p>
                               )}
                             </div>
-                            <p className="shrink-0 font-medium text-stone-800">
+                            <p className="shrink-0 text-xs font-medium text-stone-800 sm:text-sm">
                               {formatEtb(item.price)}
                             </p>
                           </div>
@@ -174,9 +176,9 @@ export function MenuPage() {
                             <button
                               type="button"
                               onClick={() => addToCart(item)}
-                              className="mt-3 w-full rounded-xl border border-stone-300 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
+                              className="mt-2 w-full rounded-lg border border-stone-300 py-1.5 text-xs font-medium text-stone-800 hover:bg-stone-50 sm:mt-3 sm:rounded-xl sm:py-2 sm:text-sm"
                             >
-                              Add to cart
+                              Add
                             </button>
                           )}
                         </div>

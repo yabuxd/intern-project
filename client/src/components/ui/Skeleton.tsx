@@ -71,18 +71,18 @@ export function MenuSkeleton() {
       {Array.from({ length: 2 }, (_, section) => (
         <section key={section} className="space-y-5">
           <SkeletonBlock className="h-7 w-36" />
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-3">
             {Array.from({ length: 3 }, (_, i) => (
               <li
                 key={i}
                 className="overflow-hidden border border-[var(--color-brass)]/15 bg-[var(--color-umber)]/60"
               >
-                <SkeletonBlock className="h-40 w-full rounded-none" />
-                <div className="space-y-3 p-4">
-                  <SkeletonBlock className="h-5 w-32" />
+                <SkeletonBlock className="h-24 w-full rounded-none sm:h-40" />
+                <div className="space-y-2 p-2.5 sm:space-y-3 sm:p-4">
+                  <SkeletonBlock className="h-4 w-24 sm:h-5 sm:w-32" />
                   <SkeletonBlock className="h-3 w-full" />
                   <SkeletonBlock className="h-3 w-[66%]" />
-                  <SkeletonBlock className="h-8 w-24" />
+                  <SkeletonBlock className="h-7 w-16 sm:h-8 sm:w-24" />
                 </div>
               </li>
             ))}
