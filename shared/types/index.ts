@@ -26,6 +26,8 @@ export const PERMISSIONS = {
   CAN_UPDATE_ORDER_STATUS: "can_update_order_status",
   CAN_MANAGE_TABLES: "can_manage_tables",
   CAN_PLACE_ORDER: "can_place_order",
+  CAN_CREATE_RESERVATION: "can_create_reservation",
+  CAN_MANAGE_PERMISSIONS: "can_manage_permissions",
 } as const;
 
 export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -119,4 +121,49 @@ export interface OrderLineInput {
 export interface CreateOrderInput {
   items: OrderLineInput[];
   table_id?: number | null;
+}
+
+export type ReservationStatus = "confirmed" | "cancelled";
+
+export interface Reservation {
+  id: number;
+  user_id: string;
+  table_id: number;
+  party_size: number;
+  starts_at: string;
+  ends_at: string;
+  status: ReservationStatus;
+  notes: string | null;
+  created_at: string | null;
+  table?: {
+    id: number;
+    name: string;
+    capacity: number | null;
+  } | null;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+export interface CreateReservationInput {
+  table_id: number;
+  party_size: number;
+  starts_at: string;
+  ends_at?: string;
+  notes?: string | null;
+}
+
+export interface PermissionRecord {
+  id: number;
+  name: PermissionName;
+  description: string | null;
+}
+
+export interface AdminUser {
+  id: string;
+  name: string | null;
+  email: string;
+  permissions: PermissionName[];
 }
