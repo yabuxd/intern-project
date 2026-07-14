@@ -62,17 +62,56 @@ class MeEndpointTest extends TestCase
             'user_metadata' => ['name' => 'New Diner'],
         ]);
 
-        $this->withHeader('Authorization', 'Bearer '.$token)
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
             ->getJson('/api/me')
             ->assertOk()
             ->assertJsonPath('data.id', $supabaseId)
-            ->assertJsonPath('data.email', 'new@example.com')
-            ->assertJsonPath('data.permissions', []);
+            ->assertJsonPath('data.email', 'new@example.com');
+
+        $this->assertEqualsCanonicalizing(
+            [
+                Permission::CAN_CREATE_RESERVATION,
+                Permission::CAN_PLACE_ORDER,
+                Permission::CAN_VIEW_ALL_ORDERS,
+            ],
+            $response->json('data.permissions'),
+        );
 
         $this->assertDatabaseHas('users', [
             'id' => $supabaseId,
             'email' => 'new@example.com',
         ]);
+    }
+
+    public function test_existing_user_keeps_custom_permissions_on_authentication(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'custom@example.com',
+            'name' => 'Custom User',
+        ]);
+
+        $customPermission = Permission::query()
+            ->where('name', Permission::CAN_MANAGE_MENU)
+            ->firstOrFail();
+        $user->permissions()->attach($customPermission);
+
+        $token = $this->makeToken([
+            'sub' => $user->id,
+            'email' => $user->email,
+            'exp' => time() + 3600,
+            'user_metadata' => ['full_name' => 'Custom User'],
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/me')
+            ->assertOk()
+            ->assertJsonPath('data.permissions', [Permission::CAN_MANAGE_MENU]);
+
+        $user->load('permissions');
+        $this->assertTrue($user->hasPermission(Permission::CAN_MANAGE_MENU));
+        $this->assertFalse($user->hasPermission(Permission::CAN_PLACE_ORDER));
+        $this->assertFalse($user->hasPermission(Permission::CAN_CREATE_RESERVATION));
+        $this->assertFalse($user->hasPermission(Permission::CAN_VIEW_ALL_ORDERS));
     }
 
     /**
