@@ -2,6 +2,9 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store';
 
+const inputClass =
+  'w-full rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-4 py-3 text-[var(--color-cream)] outline-none transition placeholder:text-[var(--color-cream-muted)] focus:border-[var(--color-brass)] focus:ring-1 focus:ring-[var(--color-brass)]/40';
+
 export function LoginPage() {
   const { signIn, error } = useAuth();
   const navigate = useNavigate();
@@ -27,42 +30,44 @@ export function LoginPage() {
   return (
     <div className="grid w-full flex-1 lg:grid-cols-2">
       <section className="auth-rise flex flex-col justify-end px-6 pb-12 pt-8 md:px-10 lg:justify-center lg:pb-24 lg:pt-0">
-        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-brass)]">
-          Staff & guests
+        <p className="mb-4 text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+          Evening service
         </p>
-        <h1 className="max-w-lg font-[family-name:var(--font-display)] text-5xl leading-[1.05] text-[var(--color-mist)] md:text-6xl lg:text-7xl">
-          Restaurant Order System
+        <h1 className="max-w-lg font-[family-name:var(--font-display)] text-5xl leading-[1.05] text-[var(--color-cream)] md:text-6xl lg:text-7xl">
+          Buna House
         </h1>
-        <p className="mt-5 max-w-md text-base text-[var(--color-mist)]/75 md:text-lg">
-          Sign in to place orders, follow the kitchen queue, and manage tables in one place.
+        <p className="mt-5 max-w-md text-base text-[var(--color-cream-muted)] md:text-lg">
+          Sign in for candlelight dining — reserve a table, order from the kitchen, and follow your ticket.
         </p>
       </section>
 
       <section className="auth-rise-delay flex items-end justify-center px-6 pb-10 md:px-10 lg:items-center lg:pb-0">
         <form
           onSubmit={onSubmit}
-          className="w-full max-w-md space-y-5 rounded-2xl bg-[var(--color-panel)] p-7 text-[var(--color-ink)] shadow-[0_30px_80px_rgba(0,0,0,0.28)] md:p-8"
+          className="w-full max-w-md space-y-5 border border-[var(--color-brass)]/20 bg-[var(--color-umber)] p-7 shadow-[0_30px_80px_rgba(0,0,0,0.45)] md:p-8"
         >
           <div className="space-y-1">
-            <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight">Welcome back</h2>
-            <p className="text-sm text-[var(--color-ink)]/65">Enter your account details to continue.</p>
+            <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--color-cream)]">
+              Welcome back
+            </h2>
+            <p className="text-sm text-[var(--color-cream-muted)]">Enter your account details to continue.</p>
           </div>
 
           <label className="block space-y-2 text-left text-sm">
-            <span className="font-medium text-[var(--color-ink)]/80">Email</span>
+            <span className="font-medium text-[var(--color-cream)]">Email</span>
             <input
               type="email"
               required
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-[var(--color-ink)]/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--color-ink-soft)] focus:ring-2 focus:ring-[var(--color-ink-soft)]/20"
+              className={inputClass}
               placeholder="you@example.com"
             />
           </label>
 
           <label className="block space-y-2 text-left text-sm">
-            <span className="font-medium text-[var(--color-ink)]/80">Password</span>
+            <span className="font-medium text-[var(--color-cream)]">Password</span>
             <input
               type="password"
               required
@@ -70,13 +75,16 @@ export function LoginPage() {
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-[var(--color-ink)]/10 bg-white px-4 py-3 outline-none transition focus:border-[var(--color-ink-soft)] focus:ring-2 focus:ring-[var(--color-ink-soft)]/20"
+              className={inputClass}
               placeholder="••••••••"
             />
           </label>
 
           {(localError || error) && (
-            <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-[var(--color-danger)]" role="alert">
+            <p
+              className="rounded-md border border-[var(--color-wine)]/40 bg-[var(--color-wine)]/20 px-3 py-2 text-sm text-[#e8a0a0]"
+              role="alert"
+            >
               {localError || error}
             </p>
           )}
@@ -84,14 +92,17 @@ export function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl bg-[var(--color-ink)] px-4 py-3 text-sm font-semibold text-[var(--color-mist)] transition hover:-translate-y-0.5 hover:bg-[var(--color-ink-soft)] disabled:translate-y-0 disabled:opacity-60"
+            className="w-full rounded-md bg-[var(--color-brass)] px-4 py-3 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
           >
             {submitting ? 'Signing in…' : 'Sign in'}
           </button>
 
-          <p className="text-center text-sm text-[var(--color-ink)]/65">
+          <p className="text-center text-sm text-[var(--color-cream-muted)]">
             No account?{' '}
-            <Link to="/signup" className="font-semibold text-[var(--color-ink)] underline decoration-[var(--color-brass)] underline-offset-4">
+            <Link
+              to="/signup"
+              className="font-semibold text-[var(--color-brass)] underline decoration-[var(--color-brass)]/40 underline-offset-4 hover:decoration-[var(--color-brass)]"
+            >
               Create one
             </Link>
           </p>
