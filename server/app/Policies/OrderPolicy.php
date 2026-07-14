@@ -27,4 +27,14 @@ class OrderPolicy
     {
         return $user->can(Permission::CAN_UPDATE_ORDER_STATUS);
     }
+
+    public function cancel(User $user, Order $order): bool
+    {
+        if (! $order->isCancellable()) {
+            return false;
+        }
+
+        return $user->id === $order->user_id
+            || $user->can(Permission::CAN_UPDATE_ORDER_STATUS);
+    }
 }

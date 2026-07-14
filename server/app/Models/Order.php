@@ -35,20 +35,27 @@ class Order extends Model
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, list<string>>
      */
     public static function allowedTransitions(): array
     {
         return [
-            self::STATUS_PENDING => self::STATUS_PREPARING,
-            self::STATUS_PREPARING => self::STATUS_READY,
-            self::STATUS_READY => self::STATUS_SERVED,
+            self::STATUS_PENDING => [self::STATUS_PREPARING, self::STATUS_CANCELLED],
+            self::STATUS_PREPARING => [self::STATUS_READY, self::STATUS_CANCELLED],
+            self::STATUS_READY => [self::STATUS_SERVED, self::STATUS_CANCELLED],
         ];
     }
 
     public function canTransitionTo(string $nextStatus): bool
     {
-        return (self::allowedTransitions()[$this->status] ?? null) === $nextStatus;
+        $allowed = self::allowedTransitions()[$this->status] ?? [];
+
+        return in_array($nextStatus, $allowed, true);
+    }
+
+    public function isCancellable(): bool
+    {
+        return $this->canTransitionTo(self::STATUS_CANCELLED);
     }
 
     /**

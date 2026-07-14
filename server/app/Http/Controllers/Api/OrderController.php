@@ -129,6 +129,26 @@ class OrderController extends Controller
         ]);
     }
 
+    public function cancel(Request $request, Order $order): JsonResponse
+    {
+        $this->authorize('cancel', $order);
+
+        if (! $order->canTransitionTo(Order::STATUS_CANCELLED)) {
+            throw ValidationException::withMessages([
+                'status' => ["Cannot cancel an order with status {$order->status}."],
+            ]);
+        }
+
+        $order->update(['status' => Order::STATUS_CANCELLED]);
+        $order->load(['items.menuItem', 'table']);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->transform($order),
+            'message' => 'Order cancelled.',
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */

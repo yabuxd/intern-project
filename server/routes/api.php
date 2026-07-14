@@ -26,6 +26,7 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::get('/orders/queue', [OrderController::class, 'queue']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
+    Route::delete('/orders/{order}', [OrderController::class, 'cancel']);
     Route::get('/me', MeController::class);
     Route::get('/menu/manage', [MenuController::class, 'manage']);
     Route::apiResource('menu-items', MenuItemController::class)->except(['index']);
