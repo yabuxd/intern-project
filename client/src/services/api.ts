@@ -140,6 +140,13 @@ export function updateOrderStatus(
   });
 }
 
+export function cancelOrder(token: string, orderId: number): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export function fetchReservations(token: string): Promise<Reservation[]> {
   return apiFetch<Reservation[]>('/reservations', { token });
 }

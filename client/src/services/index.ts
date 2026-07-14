@@ -13,6 +13,7 @@ export {
   fetchOrderQueue,
   createOrder,
   updateOrderStatus,
+  cancelOrder,
   fetchReservations,
   createReservation,
   cancelReservation,
