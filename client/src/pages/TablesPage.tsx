@@ -10,10 +10,16 @@ const STATUS_LABELS: Record<TableStatus, string> = {
   occupied: 'Occupied',
 };
 
-const STATUS_COLORS: Record<TableStatus, string> = {
-  free: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-  reserved: 'bg-amber-100 text-amber-800 border-amber-200',
-  occupied: 'bg-rose-100 text-rose-800 border-rose-200',
+const STATUS_STYLES: Record<TableStatus, string> = {
+  free: 'border-emerald-500/35 bg-emerald-500/10',
+  reserved: 'border-[var(--color-brass)]/45 bg-[var(--color-brass)]/10',
+  occupied: 'border-[var(--color-wine)]/45 bg-[var(--color-wine)]/15',
+};
+
+const STATUS_DOT: Record<TableStatus, string> = {
+  free: 'bg-emerald-400',
+  reserved: 'bg-[var(--color-brass)]',
+  occupied: 'bg-[var(--color-wine)]',
 };
 
 const NEXT_STATUS: Record<TableStatus, TableStatus> = {
@@ -81,50 +87,66 @@ export function TablesPage() {
   }
 
   if (loading) {
-    return <p className="text-stone-600">Loading tables…</p>;
+    return (
+      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Reading the floor plan…</p>
+    );
   }
 
   if (error && tables.length === 0) {
-    return <p className="text-red-600">{error}</p>;
+    return <p className="px-6 py-16 text-center text-[#e8a0a0]">{error}</p>;
   }
 
+  const freeCount = tables.filter((t) => t.status === 'free').length;
+
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 text-left">
+    <div className="mx-auto w-full max-w-5xl space-y-10 px-6 py-12 text-left sm:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Dining floor</p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">Tables</h1>
-          <p className="mt-2 text-stone-600">
-            {canManage
-              ? 'Tap a table to cycle status, or set reserved/occupied tables free immediately.'
-              : 'Current table availability across the restaurant.'}
+        <header className="bistro-fade-up">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+            Dining floor
           </p>
-        </div>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-[var(--color-cream)] sm:text-5xl">
+            Tables
+          </h1>
+          <p className="mt-3 max-w-lg text-[var(--color-cream-muted)]">
+            {canManage
+              ? 'Tap a table to advance status, or free a reserved seat for the next guest.'
+              : `${freeCount} of ${tables.length} tables open for the evening.`}
+          </p>
+        </header>
         <button
           type="button"
           onClick={() => void reload()}
-          className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800"
+          className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:border-[var(--color-brass)] hover:bg-[var(--color-umber)]"
         >
           Refresh
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
 
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tables.map((table) => (
-          <li key={table.id} className={`rounded-2xl border p-5 shadow-sm ${STATUS_COLORS[table.status]}`}>
+          <li
+            key={table.id}
+            className={`border p-5 transition ${STATUS_STYLES[table.status]}`}
+          >
             <button
               type="button"
               disabled={!canManage || updatingId === table.id}
               onClick={() => void cycleStatus(table)}
-              className="w-full text-left transition hover:opacity-90 disabled:cursor-default disabled:opacity-70"
+              className="w-full text-left disabled:cursor-default"
             >
-              <p className="font-[family-name:var(--font-display)] text-xl">{table.name}</p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
+                  {table.name}
+                </p>
+                <span className={`h-2.5 w-2.5 rounded-full ${STATUS_DOT[table.status]}`} />
+              </div>
               {table.capacity && (
-                <p className="mt-1 text-sm opacity-80">Seats {table.capacity}</p>
+                <p className="mt-2 text-sm text-[var(--color-cream-muted)]">Seats {table.capacity}</p>
               )}
-              <p className="mt-3 text-sm font-semibold uppercase tracking-wide">
+              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-cream)]">
                 {STATUS_LABELS[table.status]}
               </p>
             </button>
@@ -133,7 +155,7 @@ export function TablesPage() {
                 type="button"
                 disabled={updatingId === table.id}
                 onClick={() => void releaseTable(table)}
-                className="mt-3 w-full rounded-xl border border-current/20 bg-white/70 px-3 py-2 text-sm font-medium disabled:opacity-60"
+                className="mt-4 w-full rounded-md border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/40 px-3 py-2 text-sm font-medium text-[var(--color-cream)] transition hover:border-[var(--color-brass)]/50 disabled:opacity-60"
               >
                 {table.status === 'reserved' ? 'Cancel reservation' : 'Set free'}
               </button>

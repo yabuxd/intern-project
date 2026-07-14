@@ -23,10 +23,10 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
 
 const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready'];
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'border-amber-200 bg-amber-50',
-  preparing: 'border-blue-200 bg-blue-50',
-  ready: 'border-emerald-200 bg-emerald-50',
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'border-[var(--color-brass)]/40 bg-[var(--color-brass)]/10',
+  preparing: 'border-[var(--color-cream)]/25 bg-[var(--color-umber)]',
+  ready: 'border-emerald-500/40 bg-emerald-500/10',
 };
 
 export function OrderQueuePage() {
@@ -112,72 +112,79 @@ export function OrderQueuePage() {
   }
 
   if (loading) {
-    return <p className="text-stone-600">Loading kitchen queue…</p>;
+    return (
+      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Warming the pass…</p>
+    );
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8 text-left">
+    <div className="mx-auto w-full max-w-5xl space-y-10 px-6 py-12 text-left sm:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Kitchen</p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">
-            Order queue
-          </h1>
-          <p className="mt-2 text-stone-600">
-            Live updates via Supabase Realtime when configured; polls every 5s on local SQLite.
+        <header className="bistro-fade-up">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+            The pass
           </p>
-        </div>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-[var(--color-cream)] sm:text-5xl">
+            Kitchen queue
+          </h1>
+          <p className="mt-3 max-w-lg text-[var(--color-cream-muted)]">
+            Live tickets for tonight — advance each order through the line.
+          </p>
+        </header>
         <button
           type="button"
           onClick={() => void reload()}
-          className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800"
+          className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
         >
           Refresh
         </button>
       </div>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
 
       {orders.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600">
-          No active orders in the queue.
+        <p className="border border-dashed border-[var(--color-brass)]/30 bg-[var(--color-umber)]/40 px-8 py-12 text-center text-[var(--color-cream-muted)]">
+          Quiet on the pass — no active tickets.
         </p>
       ) : (
         <ul className="space-y-4">
           {orders.map((order) => (
             <li
               key={order.id}
-              className={`rounded-2xl border p-5 shadow-sm ${STATUS_COLORS[order.status] ?? 'bg-white'}`}
+              className={`border p-5 transition ${STATUS_STYLES[order.status] ?? 'border-[var(--color-brass)]/15 bg-[var(--color-umber)]'}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                  <p className="font-semibold text-stone-900">Order #{order.id}</p>
-                  <p className="mt-1 text-sm text-stone-600">
+                  <p className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
+                    Order #{order.id}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
                     {order.table?.name ?? 'No table'} · {formatEtb(order.total)}
                   </p>
                   {order.user && (
-                    <p className="text-sm text-stone-500">{order.user.email}</p>
+                    <p className="mt-0.5 text-sm text-[var(--color-brass)]">{order.user.email}</p>
                   )}
                 </div>
-                <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold uppercase tracking-wide text-stone-700">
+                <span className="border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-cream)]">
                   {STATUS_LABELS[order.status]}
                 </span>
               </div>
-              <ul className="mt-4 space-y-1 text-sm text-stone-700">
+              <ul className="mt-4 space-y-1.5 border-t border-[var(--color-brass)]/15 pt-4 text-sm text-[var(--color-cream-muted)]">
                 {order.items.map((item) => (
                   <li key={item.id}>
-                    {item.quantity}× {item.menu_item?.name ?? `Item #${item.menu_item_id}`}
+                    <span className="text-[var(--color-brass)]">{item.quantity}×</span>{' '}
+                    {item.menu_item?.name ?? `Item #${item.menu_item_id}`}
                   </li>
                 ))}
               </ul>
               {canUpdate && (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-5 flex flex-wrap gap-2">
                   {NEXT_STATUS[order.status] && (
                     <button
                       type="button"
                       disabled={updatingId === order.id}
                       onClick={() => void advanceStatus(order)}
-                      className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
                     >
                       Mark as {STATUS_LABELS[NEXT_STATUS[order.status]!]}
                     </button>
@@ -187,7 +194,7 @@ export function OrderQueuePage() {
                       type="button"
                       disabled={updatingId === order.id}
                       onClick={() => void handleCancel(order)}
-                      className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                      className="rounded-md border border-[var(--color-wine)]/50 px-4 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/20 disabled:opacity-60"
                     >
                       Cancel order
                     </button>
@@ -199,7 +206,10 @@ export function OrderQueuePage() {
         </ul>
       )}
 
-      <Link to="/orders" className="text-sm text-stone-600 hover:text-stone-900">
+      <Link
+        to="/orders"
+        className="inline-block text-sm text-[var(--color-cream-muted)] transition hover:text-[var(--color-brass)]"
+      >
         ← My orders
       </Link>
     </div>

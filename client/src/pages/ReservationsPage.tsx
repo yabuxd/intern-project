@@ -16,6 +16,9 @@ function formatWhen(iso: string): string {
   });
 }
 
+const fieldClass =
+  'mt-1.5 w-full border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2.5 text-[var(--color-cream)] outline-none transition focus:border-[var(--color-brass)]';
+
 export function ReservationsPage() {
   const { session, hasPermission } = useAuth();
   const [tables, setTables] = useState<RestaurantTable[]>([]);
@@ -110,44 +113,54 @@ export function ReservationsPage() {
   }
 
   if (loading) {
-    return <p className="text-stone-600">Loading reservations…</p>;
+    return (
+      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Opening the book…</p>
+    );
   }
 
   if (!canCreate && !canManageAll) {
     return (
-      <div className="max-w-lg text-center">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-stone-900">Reservations</h1>
-        <p className="mt-3 text-stone-600">You need the can_create_reservation permission to book a table.</p>
+      <div className="mx-auto max-w-lg px-6 py-16 text-center">
+        <h1 className="font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)]">
+          Reservations
+        </h1>
+        <p className="mt-3 text-[var(--color-cream-muted)]">
+          You need booking permission to reserve a table.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-10 text-left">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Book a table</p>
-        <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">Reservations</h1>
-        <p className="mt-2 text-stone-600">
-          {canManageAll
-            ? 'View all bookings or create your own. Overlapping slots are blocked server-side.'
-            : 'Pick a table and time. Availability is checked when you submit.'}
+    <div className="mx-auto w-full max-w-5xl space-y-12 px-6 py-12 text-left sm:px-10">
+      <header className="bistro-fade-up">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+          Book a seat
         </p>
-      </div>
+        <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-[var(--color-cream)] sm:text-5xl">
+          Reservations
+        </h1>
+        <p className="mt-3 max-w-lg text-[var(--color-cream-muted)]">
+          {canManageAll
+            ? 'Hold a table for the night — overlapping bookings are blocked automatically.'
+            : 'Choose a table and time. We hold the evening for two hours by default.'}
+        </p>
+      </header>
 
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
 
       {canCreate && (
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="grid gap-4 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:grid-cols-2"
+          className="grid gap-5 border border-[var(--color-brass)]/20 bg-[var(--color-umber)] p-6 sm:grid-cols-2 sm:p-8"
         >
           <label className="block text-sm">
-            <span className="font-medium text-stone-700">Table</span>
+            <span className="font-medium text-[var(--color-cream)]">Table</span>
             <select
               value={tableId}
               onChange={(e) => setTableId(e.target.value ? Number(e.target.value) : '')}
               required
-              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={fieldClass}
             >
               <option value="">Select a table</option>
               {tables.map((table) => (
@@ -160,7 +173,7 @@ export function ReservationsPage() {
           </label>
 
           <label className="block text-sm">
-            <span className="font-medium text-stone-700">Party size</span>
+            <span className="font-medium text-[var(--color-cream)]">Party size</span>
             <input
               type="number"
               min={1}
@@ -168,29 +181,29 @@ export function ReservationsPage() {
               value={partySize}
               onChange={(e) => setPartySize(Number(e.target.value))}
               required
-              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={fieldClass}
             />
           </label>
 
           <label className="block text-sm sm:col-span-2">
-            <span className="font-medium text-stone-700">Start time</span>
+            <span className="font-medium text-[var(--color-cream)]">Start time</span>
             <input
               type="datetime-local"
               value={startsAt}
               onChange={(e) => setStartsAt(e.target.value)}
               required
-              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={`${fieldClass} [color-scheme:dark]`}
             />
           </label>
 
           <label className="block text-sm sm:col-span-2">
-            <span className="font-medium text-stone-700">Notes (optional)</span>
+            <span className="font-medium text-[var(--color-cream)]">Notes (optional)</span>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               maxLength={500}
-              className="mt-1 w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={fieldClass}
             />
           </label>
 
@@ -198,7 +211,7 @@ export function ReservationsPage() {
             <button
               type="submit"
               disabled={submitting || tableId === ''}
-              className="rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-medium text-white disabled:opacity-60"
+              className="rounded-md bg-[var(--color-brass)] px-6 py-3 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
             >
               {submitting ? 'Booking…' : 'Book table'}
             </button>
@@ -206,41 +219,49 @@ export function ReservationsPage() {
         </form>
       )}
 
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-stone-900">
-            {canManageAll ? 'All reservations' : 'Your reservations'}
+      <section className="space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
+            {canManageAll ? 'Tonight’s book' : 'Your bookings'}
           </h2>
           <button
             type="button"
             onClick={() => void reload()}
-            className="rounded-xl border border-stone-300 px-4 py-2 text-sm font-medium text-stone-800"
+            className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
           >
             Refresh
           </button>
         </div>
 
         {reservations.length === 0 ? (
-          <p className="text-stone-600">No reservations yet.</p>
+          <p className="border border-dashed border-[var(--color-brass)]/25 bg-[var(--color-umber)]/40 px-6 py-10 text-center text-[var(--color-cream-muted)]">
+            No reservations yet. The book is open.
+          </p>
         ) : (
           <ul className="space-y-3">
             {reservations.map((reservation) => (
               <li
                 key={reservation.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm"
+                className="flex flex-wrap items-center justify-between gap-4 border border-[var(--color-brass)]/15 bg-[var(--color-umber)] p-5"
               >
                 <div>
-                  <p className="font-medium text-stone-900">
-                    {reservation.table?.name ?? `Table #${reservation.table_id}`} · {reservation.party_size}{' '}
-                    guests
+                  <p className="font-[family-name:var(--font-display)] text-xl text-[var(--color-cream)]">
+                    {reservation.table?.name ?? `Table #${reservation.table_id}`} ·{' '}
+                    {reservation.party_size} guests
                   </p>
-                  <p className="text-sm text-stone-600">
+                  <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
                     {formatWhen(reservation.starts_at)} – {formatWhen(reservation.ends_at)}
                   </p>
                   {canManageAll && reservation.user && (
-                    <p className="text-sm text-stone-500">{reservation.user.email}</p>
+                    <p className="mt-1 text-sm text-[var(--color-brass)]">{reservation.user.email}</p>
                   )}
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                  <p
+                    className={`mt-2 inline-block px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+                      reservation.status === 'confirmed'
+                        ? 'bg-[var(--color-brass)]/20 text-[var(--color-brass)]'
+                        : 'bg-[var(--color-wine)]/25 text-[#e8a0a0]'
+                    }`}
+                  >
                     {reservation.status}
                   </p>
                 </div>
@@ -249,7 +270,7 @@ export function ReservationsPage() {
                     type="button"
                     disabled={cancellingId === reservation.id}
                     onClick={() => void handleCancel(reservation)}
-                    className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    className="rounded-md border border-[var(--color-wine)]/50 px-4 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/20 disabled:opacity-60"
                   >
                     {cancellingId === reservation.id ? 'Cancelling…' : 'Cancel reservation'}
                   </button>
