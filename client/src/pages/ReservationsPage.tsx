@@ -249,9 +249,9 @@ export function ReservationsPage() {
                     type="button"
                     disabled={cancellingId === reservation.id}
                     onClick={() => void handleCancel(reservation)}
-                    className="rounded-xl border border-stone-300 px-4 py-2 text-sm text-stone-800"
+                    className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
                   >
-                    Cancel
+                    {cancellingId === reservation.id ? 'Cancelling…' : 'Cancel reservation'}
                   </button>
                 )}
               </li>

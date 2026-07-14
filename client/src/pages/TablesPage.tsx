@@ -57,18 +57,27 @@ export function TablesPage() {
     };
   }, []);
 
-  async function cycleStatus(table: RestaurantTable) {
+  async function setStatus(table: RestaurantTable, status: TableStatus) {
     if (!session?.access_token || !canManage) return;
     setUpdatingId(table.id);
     try {
-      const next = NEXT_STATUS[table.status];
-      const updated = await updateTableStatus(session.access_token, table.id, next);
+      const updated = await updateTableStatus(session.access_token, table.id, status);
       setTables((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update table');
     } finally {
       setUpdatingId(null);
     }
+  }
+
+  async function cycleStatus(table: RestaurantTable) {
+    await setStatus(table, NEXT_STATUS[table.status]);
+  }
+
+  async function releaseTable(table: RestaurantTable) {
+    if (table.status === 'free') return;
+    await setStatus(table, 'free');
   }
 
   if (loading) {
@@ -87,7 +96,7 @@ export function TablesPage() {
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">Tables</h1>
           <p className="mt-2 text-stone-600">
             {canManage
-              ? 'Tap a table to cycle its status: free → reserved → occupied.'
+              ? 'Tap a table to cycle status, or set reserved/occupied tables free immediately.'
               : 'Current table availability across the restaurant.'}
           </p>
         </div>
@@ -104,12 +113,12 @@ export function TablesPage() {
 
       <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {tables.map((table) => (
-          <li key={table.id}>
+          <li key={table.id} className={`rounded-2xl border p-5 shadow-sm ${STATUS_COLORS[table.status]}`}>
             <button
               type="button"
               disabled={!canManage || updatingId === table.id}
               onClick={() => void cycleStatus(table)}
-              className={`w-full rounded-2xl border p-5 text-left shadow-sm transition hover:shadow-md disabled:cursor-default disabled:opacity-70 ${STATUS_COLORS[table.status]}`}
+              className="w-full text-left transition hover:opacity-90 disabled:cursor-default disabled:opacity-70"
             >
               <p className="font-[family-name:var(--font-display)] text-xl">{table.name}</p>
               {table.capacity && (
@@ -119,6 +128,16 @@ export function TablesPage() {
                 {STATUS_LABELS[table.status]}
               </p>
             </button>
+            {canManage && table.status !== 'free' && (
+              <button
+                type="button"
+                disabled={updatingId === table.id}
+                onClick={() => void releaseTable(table)}
+                className="mt-3 w-full rounded-xl border border-current/20 bg-white/70 px-3 py-2 text-sm font-medium disabled:opacity-60"
+              >
+                {table.status === 'reserved' ? 'Cancel reservation' : 'Set free'}
+              </button>
+            )}
           </li>
         ))}
       </ul>
