@@ -186,6 +186,100 @@ class OrdersApiTest extends TestCase
             ->assertUnprocessable();
     }
 
+    public function test_customer_can_cancel_own_pending_order(): void
+    {
+        $customer = $this->userWithPermission(Permission::CAN_PLACE_ORDER);
+
+        $order = Order::query()->create([
+            'user_id' => $customer->id,
+            'status' => Order::STATUS_PENDING,
+            'total' => 10,
+        ]);
+
+        $token = $this->makeToken([
+            'sub' => $customer->id,
+            'email' => $customer->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status', Order::STATUS_CANCELLED)
+            ->assertJsonPath('message', 'Order cancelled.');
+
+        $this->assertDatabaseHas('orders', [
+            'id' => $order->id,
+            'status' => Order::STATUS_CANCELLED,
+        ]);
+    }
+
+    public function test_customer_cannot_cancel_another_users_order(): void
+    {
+        $customer = $this->userWithPermission(Permission::CAN_PLACE_ORDER);
+        $other = User::factory()->create();
+
+        $order = Order::query()->create([
+            'user_id' => $other->id,
+            'status' => Order::STATUS_PENDING,
+            'total' => 10,
+        ]);
+
+        $token = $this->makeToken([
+            'sub' => $customer->id,
+            'email' => $customer->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/orders/{$order->id}")
+            ->assertForbidden();
+    }
+
+    public function test_staff_can_cancel_any_order(): void
+    {
+        $staff = $this->userWithPermission(Permission::CAN_UPDATE_ORDER_STATUS);
+        $customer = User::factory()->create();
+
+        $order = Order::query()->create([
+            'user_id' => $customer->id,
+            'status' => Order::STATUS_PREPARING,
+            'total' => 10,
+        ]);
+
+        $token = $this->makeToken([
+            'sub' => $staff->id,
+            'email' => $staff->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/orders/{$order->id}")
+            ->assertOk()
+            ->assertJsonPath('data.status', Order::STATUS_CANCELLED);
+    }
+
+    public function test_served_order_cannot_be_cancelled(): void
+    {
+        $customer = $this->userWithPermission(Permission::CAN_PLACE_ORDER);
+
+        $order = Order::query()->create([
+            'user_id' => $customer->id,
+            'status' => Order::STATUS_SERVED,
+            'total' => 10,
+        ]);
+
+        $token = $this->makeToken([
+            'sub' => $customer->id,
+            'email' => $customer->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/orders/{$order->id}")
+            ->assertForbidden();
+    }
+
     public function test_user_without_permission_cannot_place_order(): void
     {
         $user = User::factory()->create();
