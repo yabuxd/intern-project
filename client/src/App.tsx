@@ -6,6 +6,8 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { ManageMenuPage } from './pages/ManageMenuPage';
 import { MenuPage } from './pages/MenuPage';
+import { OrderQueuePage } from './pages/OrderQueuePage';
+import { OrdersPage } from './pages/OrdersPage';
 import { TablesPage } from './pages/TablesPage';
 import { SignupPage } from './pages/SignupPage';
 import { AuthProvider, useAuth } from './store';
@@ -45,6 +47,22 @@ function AppRoutes() {
         <Route path="/" element={<HomePage />} />
         <Route path="/menu" element={<MenuPage />} />
         <Route path="/tables" element={<TablesPage />} />
+        <Route
+          path="/orders"
+          element={
+            <ProtectedRoute>
+              <OrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/queue"
+          element={
+            <ProtectedRoute>
+              <OrderQueuePage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/menu/manage"
           element={

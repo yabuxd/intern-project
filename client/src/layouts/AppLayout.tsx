@@ -10,6 +10,8 @@ interface AppLayoutProps {
 export function AppLayout({ children }: AppLayoutProps) {
   const { session, user, signOut, loading, hasPermission } = useAuth();
   const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
+  const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
+  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
 
   return (
     <div className="flex min-h-screen flex-col bg-stone-50">
@@ -24,6 +26,16 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Link to="/tables" className="text-sm text-stone-700 hover:text-stone-900">
             Tables
           </Link>
+          {session && canPlaceOrder && (
+            <Link to="/orders" className="text-sm text-stone-700 hover:text-stone-900">
+              Orders
+            </Link>
+          )}
+          {session && canViewQueue && (
+            <Link to="/orders/queue" className="text-sm text-stone-700 hover:text-stone-900">
+              Queue
+            </Link>
+          )}
           {canManageTables && (
             <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-600">Staff</span>
           )}

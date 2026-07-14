@@ -1,32 +1,39 @@
-import { useEffect, useState } from 'react';
-import type { MenuCategory } from '@intern/shared';
-import { Link } from 'react-router-dom';
-import { fetchMenu } from '../services';
+import { useEffect, useMemo, useState } from 'react';
+import type { MenuCategory, MenuItem, RestaurantTable } from '@intern/shared';
+import { Link, useNavigate } from 'react-router-dom';
+import { createOrder, fetchMenu, fetchTables } from '../services';
 import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
+import { formatEtb } from '../utils/format';
 
-function formatPrice(price: string | number): string {
-  const value = typeof price === 'string' ? Number(price) : price;
-  return new Intl.NumberFormat('en-ET', {
-    style: 'currency',
-    currency: 'ETB',
-    minimumFractionDigits: 2,
-  }).format(value);
+interface CartLine {
+  item: MenuItem;
+  quantity: number;
 }
 
 export function MenuPage() {
-  const { hasPermission } = useAuth();
+  const navigate = useNavigate();
+  const { session, hasPermission } = useAuth();
   const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [tables, setTables] = useState<RestaurantTable[]>([]);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [tableId, setTableId] = useState<number | ''>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [placing, setPlacing] = useState(false);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
 
   useEffect(() => {
     let mounted = true;
     void (async () => {
       try {
-        const data = await fetchMenu();
-        if (mounted) setCategories(data);
+        const [menuData, tablesData] = await Promise.all([fetchMenu(), fetchTables()]);
+        if (mounted) {
+          setCategories(menuData);
+          setTables(tablesData);
+        }
       } catch (err) {
         if (mounted) setError(err instanceof Error ? err.message : 'Failed to load menu');
       } finally {
@@ -38,6 +45,59 @@ export function MenuPage() {
     };
   }, []);
 
+  const cartTotal = useMemo(
+    () =>
+      cart.reduce((sum, line) => {
+        const price = typeof line.item.price === 'string' ? Number(line.item.price) : line.item.price;
+        return sum + price * line.quantity;
+      }, 0),
+    [cart],
+  );
+
+  function addToCart(item: MenuItem) {
+    setCart((prev) => {
+      const existing = prev.find((line) => line.item.id === item.id);
+      if (existing) {
+        return prev.map((line) =>
+          line.item.id === item.id ? { ...line, quantity: line.quantity + 1 } : line,
+        );
+      }
+      return [...prev, { item, quantity: 1 }];
+    });
+  }
+
+  function updateQuantity(itemId: number, delta: number) {
+    setCart((prev) =>
+      prev
+        .map((line) =>
+          line.item.id === itemId ? { ...line, quantity: line.quantity + delta } : line,
+        )
+        .filter((line) => line.quantity > 0),
+    );
+  }
+
+  async function checkout() {
+    if (!session?.access_token || cart.length === 0) return;
+    setPlacing(true);
+    setCheckoutError(null);
+    try {
+      await createOrder(session.access_token, {
+        items: cart.map((line) => ({
+          menu_item_id: line.item.id,
+          quantity: line.quantity,
+        })),
+        table_id: tableId === '' ? null : tableId,
+      });
+      setCart([]);
+      setTableId('');
+      navigate('/orders');
+    } catch (err) {
+      setCheckoutError(err instanceof Error ? err.message : 'Failed to place order');
+    } finally {
+      setPlacing(false);
+    }
+  }
+
   if (loading) {
     return <p className="text-stone-600">Loading menu…</p>;
   }
@@ -47,7 +107,7 @@ export function MenuPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-10 text-left">
+    <div className="mx-auto w-full max-w-6xl space-y-10 text-left">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Ethiopian kitchen</p>
@@ -64,51 +124,140 @@ export function MenuPage() {
         )}
       </div>
 
-      {categories.every((c) => c.items.length === 0) ? (
-        <p className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600">
-          No available items yet.
-        </p>
-      ) : (
-        categories.map((category) =>
-          category.items.length === 0 ? null : (
-            <section key={category.id} className="space-y-4">
-              <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-900">
-                {category.name}
-              </h2>
-              <ul className="grid gap-4 sm:grid-cols-2">
-                {category.items.map((item) => (
-                  <li
-                    key={item.id}
-                    className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
-                  >
-                    {item.image_url ? (
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        className="h-44 w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex h-44 items-center justify-center bg-stone-100 text-sm text-stone-500">
-                        No photo
-                      </div>
-                    )}
-                    <div className="flex items-start justify-between gap-3 p-4">
-                      <div>
-                        <p className="font-semibold text-stone-900">{item.name}</p>
-                        {item.description && (
-                          <p className="mt-1 text-sm leading-relaxed text-stone-600">{item.description}</p>
+      <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
+        <div className="space-y-10">
+          {categories.every((c) => c.items.length === 0) ? (
+            <p className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600">
+              No available items yet.
+            </p>
+          ) : (
+            categories.map((category) =>
+              category.items.length === 0 ? null : (
+                <section key={category.id} className="space-y-4">
+                  <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-900">
+                    {category.name}
+                  </h2>
+                  <ul className="grid gap-4 sm:grid-cols-2">
+                    {category.items.map((item) => (
+                      <li
+                        key={item.id}
+                        className="overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
+                      >
+                        {item.image_url ? (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="h-44 w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="flex h-44 items-center justify-center bg-stone-100 text-sm text-stone-500">
+                            No photo
+                          </div>
                         )}
-                      </div>
-                      <p className="shrink-0 font-medium text-stone-800">{formatPrice(item.price)}</p>
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-stone-900">{item.name}</p>
+                              {item.description && (
+                                <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                                  {item.description}
+                                </p>
+                              )}
+                            </div>
+                            <p className="shrink-0 font-medium text-stone-800">
+                              {formatEtb(item.price)}
+                            </p>
+                          </div>
+                          {canPlaceOrder && session && (
+                            <button
+                              type="button"
+                              onClick={() => addToCart(item)}
+                              className="mt-3 w-full rounded-xl border border-stone-300 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50"
+                            >
+                              Add to cart
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ),
+            )
+          )}
+        </div>
+
+        <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
+          <h2 className="font-[family-name:var(--font-display)] text-xl text-stone-900">Cart</h2>
+          {!session ? (
+            <p className="mt-3 text-sm text-stone-600">
+              <Link to="/login" className="font-medium text-stone-900 underline">
+                Sign in
+              </Link>{' '}
+              to place an order.
+            </p>
+          ) : !canPlaceOrder ? (
+            <p className="mt-3 text-sm text-stone-600">You do not have permission to place orders.</p>
+          ) : cart.length === 0 ? (
+            <p className="mt-3 text-sm text-stone-600">Your cart is empty.</p>
+          ) : (
+            <>
+              <ul className="mt-4 space-y-3">
+                {cart.map((line) => (
+                  <li key={line.item.id} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="flex-1 text-stone-800">{line.item.name}</span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(line.item.id, -1)}
+                        className="h-7 w-7 rounded border border-stone-300 text-stone-700"
+                      >
+                        −
+                      </button>
+                      <span className="w-5 text-center">{line.quantity}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateQuantity(line.item.id, 1)}
+                        className="h-7 w-7 rounded border border-stone-300 text-stone-700"
+                      >
+                        +
+                      </button>
                     </div>
                   </li>
                 ))}
               </ul>
-            </section>
-          ),
-        )
-      )}
+              <p className="mt-4 font-semibold text-stone-900">{formatEtb(cartTotal)}</p>
+              <label className="mt-4 block text-sm text-stone-600">
+                Table (optional)
+                <select
+                  value={tableId}
+                  onChange={(e) =>
+                    setTableId(e.target.value === '' ? '' : Number(e.target.value))
+                  }
+                  className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                >
+                  <option value="">No table</option>
+                  {tables.map((table) => (
+                    <option key={table.id} value={table.id}>
+                      {table.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {checkoutError && <p className="mt-2 text-sm text-red-600">{checkoutError}</p>}
+              <button
+                type="button"
+                disabled={placing}
+                onClick={() => void checkout()}
+                className="mt-4 w-full rounded-xl bg-stone-900 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {placing ? 'Placing…' : 'Place order'}
+              </button>
+            </>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
