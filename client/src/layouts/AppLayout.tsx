@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { PERMISSIONS } from '@intern/shared';
 import { useAuth } from '../store';
 
 interface AppLayoutProps {
@@ -7,7 +8,8 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { session, user, signOut, loading } = useAuth();
+  const { session, user, signOut, loading, hasPermission } = useAuth();
+  const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
 
   return (
     <div className="flex min-h-screen flex-col bg-stone-50">
@@ -19,6 +21,12 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Link to="/menu" className="text-sm text-stone-700 hover:text-stone-900">
             Menu
           </Link>
+          <Link to="/tables" className="text-sm text-stone-700 hover:text-stone-900">
+            Tables
+          </Link>
+          {canManageTables && (
+            <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-600">Staff</span>
+          )}
         </div>
         <nav className="flex items-center gap-3 text-sm">
           {!loading && !session && (

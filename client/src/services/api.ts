@@ -1,4 +1,4 @@
-import type { ApiResponse, AuthUser, MenuCategory, MenuItem, MenuItemInput } from '@intern/shared';
+import type { ApiResponse, AuthUser, MenuCategory, MenuItem, MenuItemInput, RestaurantTable, TableStatus } from '@intern/shared';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
 
@@ -77,5 +77,21 @@ export function deleteMenuItem(token: string, id: number): Promise<null> {
   return apiFetch<null>(`/menu-items/${id}`, {
     method: 'DELETE',
     token,
+  });
+}
+
+export function fetchTables(): Promise<RestaurantTable[]> {
+  return apiFetch<RestaurantTable[]>('/tables');
+}
+
+export function updateTableStatus(
+  token: string,
+  id: number,
+  status: TableStatus,
+): Promise<RestaurantTable> {
+  return apiFetch<RestaurantTable>(`/tables/${id}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ status }),
   });
 }

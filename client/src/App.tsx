@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { ManageMenuPage } from './pages/ManageMenuPage';
 import { MenuPage } from './pages/MenuPage';
+import { TablesPage } from './pages/TablesPage';
 import { SignupPage } from './pages/SignupPage';
 import { AuthProvider, useAuth } from './store';
 
@@ -43,6 +44,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/menu" element={<MenuPage />} />
+        <Route path="/tables" element={<TablesPage />} />
         <Route
           path="/menu/manage"
           element={
