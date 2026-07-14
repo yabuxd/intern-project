@@ -1,4 +1,15 @@
-import type { ApiResponse, AuthUser, MenuCategory, MenuItem, MenuItemInput, RestaurantTable, TableStatus } from '@intern/shared';
+import type {
+  ApiResponse,
+  AuthUser,
+  CreateOrderInput,
+  MenuCategory,
+  MenuItem,
+  MenuItemInput,
+  Order,
+  OrderStatus,
+  RestaurantTable,
+  TableStatus,
+} from '@intern/shared';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
 
@@ -90,6 +101,34 @@ export function updateTableStatus(
   status: TableStatus,
 ): Promise<RestaurantTable> {
   return apiFetch<RestaurantTable>(`/tables/${id}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function fetchOrders(token: string): Promise<Order[]> {
+  return apiFetch<Order[]>('/orders', { token });
+}
+
+export function fetchOrderQueue(token: string): Promise<Order[]> {
+  return apiFetch<Order[]>('/orders/queue', { token });
+}
+
+export function createOrder(token: string, input: CreateOrderInput): Promise<Order> {
+  return apiFetch<Order>('/orders', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateOrderStatus(
+  token: string,
+  orderId: number,
+  status: OrderStatus,
+): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/status`, {
     method: 'PATCH',
     token,
     body: JSON.stringify({ status }),
