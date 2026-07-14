@@ -1,21 +1,30 @@
 @import "tailwindcss";
 
 :root {
-  --color-ink: #0f241c;
-  --color-ink-soft: #1a3a2e;
-  --color-mist: #e8eee9;
-  --color-panel: #f5f7f5;
-  --color-brass: #c2a46b;
-  --color-brass-deep: #9a7d45;
-  --color-danger: #b42318;
+  /* Late-night bistro */
+  --color-espresso: #1f1b18;
+  --color-umber: #2a2420;
+  --color-brass: #c8853a;
+  --color-brass-deep: #a86c2e;
+  --color-wine: #8a2e2e;
+  --color-cream: #f3ece0;
+  --color-cream-muted: rgba(243, 236, 224, 0.72);
+
+  /* Back-compat aliases used across the app */
+  --color-ink: #1f1b18;
+  --color-ink-soft: #2a2420;
+  --color-mist: #f3ece0;
+  --color-panel: #2a2420;
+  --color-danger: #8a2e2e;
+
   --font-display: "Instrument Serif", Georgia, serif;
   --font-body: "Figtree", "Segoe UI", sans-serif;
 
   font-family: var(--font-body);
   line-height: 1.5;
   font-weight: 400;
-  color: var(--color-ink);
-  background-color: var(--color-mist);
+  color: var(--color-cream);
+  background-color: var(--color-espresso);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -25,6 +34,8 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--color-espresso);
+  color: var(--color-cream);
 }
 
 #root {
@@ -52,6 +63,27 @@ body {
   }
 }
 
+@keyframes bistro-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bistro-candle {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
 .auth-rise {
   animation: auth-rise 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -62,4 +94,20 @@ body {
 
 .auth-glow {
   animation: auth-glow 8s ease-in-out infinite;
+}
+
+.bistro-fade-up {
+  animation: bistro-fade-up 800ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.bistro-fade-up-delay {
+  animation: bistro-fade-up 900ms cubic-bezier(0.22, 1, 0.36, 1) 140ms both;
+}
+
+.bistro-fade-up-delay-2 {
+  animation: bistro-fade-up 900ms cubic-bezier(0.22, 1, 0.36, 1) 280ms both;
+}
+
+.bistro-candle {
+  animation: bistro-candle 7s ease-in-out infinite;
 }

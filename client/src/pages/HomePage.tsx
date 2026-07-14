@@ -66,160 +66,179 @@ export function HomePage() {
   const displayName = user?.name ?? user?.email?.split('@')[0] ?? 'Guest';
 
   if (loading) {
-    return <p className="text-stone-600">Loading session…</p>;
+    return (
+      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Lighting the candles…</p>
+    );
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-14 text-left">
-      <section className="relative overflow-hidden rounded-2xl bg-[var(--color-ink)] px-6 py-12 text-[var(--color-mist)] shadow-lg sm:px-10 sm:py-16">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(194,164,107,0.35),transparent_70%)]"
+    <div className="w-full text-left">
+      {/* Full-bleed hero */}
+      <section className="relative min-h-[min(92vh,820px)] w-full overflow-hidden">
+        <img
+          src="/images/menu/doro-wat.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-20 -left-10 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(46,110,84,0.4),transparent_70%)]"
+          className="absolute inset-0 bg-gradient-to-r from-[var(--color-espresso)] via-[var(--color-espresso)]/88 to-[var(--color-espresso)]/45"
         />
-        <div className="relative z-10 max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[var(--color-brass)]">
-            Ethiopian kitchen
+        <div
+          aria-hidden
+          className="bistro-candle pointer-events-none absolute -left-20 top-1/4 h-72 w-72 rounded-full bg-[radial-gradient(circle,rgba(200,133,58,0.28),transparent_70%)]"
+        />
+        <div
+          aria-hidden
+          className="bistro-candle pointer-events-none absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(138,46,46,0.22),transparent_70%)]"
+          style={{ animationDelay: '2s' }}
+        />
+
+        <div className="relative z-10 mx-auto flex min-h-[min(92vh,820px)] max-w-6xl flex-col justify-center px-6 py-20 sm:px-10">
+          <p className="bistro-fade-up font-[family-name:var(--font-display)] text-4xl tracking-tight text-[var(--color-cream)] sm:text-5xl md:text-6xl">
+            Buna House
           </p>
-          <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl leading-tight sm:text-5xl">
+          <h1 className="bistro-fade-up-delay mt-5 max-w-xl font-[family-name:var(--font-display)] text-3xl italic leading-snug text-[var(--color-brass)] sm:text-4xl">
             {session ? (
-              <>
-                Welcome back, <span className="italic text-[var(--color-brass)]">{displayName}</span>
-              </>
+              <>Welcome back, {displayName}</>
             ) : (
-              <>Flavors of Addis, served fresh</>
+              <>Candlelight, injera, and a late tableside pour</>
             )}
           </h1>
-          <p className="mt-4 max-w-lg text-base leading-relaxed text-[var(--color-mist)]/85 sm:text-lg">
+          <p className="bistro-fade-up-delay-2 mt-4 max-w-md text-base leading-relaxed text-[var(--color-cream-muted)] sm:text-lg">
             {session
-              ? 'Explore our menu, reserve a table, or check on your order — everything you need is right here.'
-              : 'Injera, berbere spice, and slow-cooked stews. Sign in to browse the menu, reserve a table, and place orders.'}
+              ? 'Reserve a corner table, order from the kitchen, or settle into the evening service.'
+              : 'An Ethiopian dining room after dark — berbere warmth, slow stews, and quiet wine.'}
           </p>
-          {error && <p className="mt-3 text-sm text-red-300">{error}</p>}
-          {!session ? (
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to="/login"
-                className="rounded-xl bg-[var(--color-brass)] px-5 py-2.5 text-sm font-semibold text-[var(--color-ink)] transition hover:bg-[var(--color-brass-deep)]"
-              >
-                Sign in
-              </Link>
-              <Link
-                to="/signup"
-                className="rounded-xl border border-[var(--color-mist)]/30 px-5 py-2.5 text-sm font-semibold text-[var(--color-mist)] transition hover:border-[var(--color-brass)] hover:text-[var(--color-brass)]"
-              >
-                Create account
-              </Link>
-              <Link
-                to="/menu"
-                className="rounded-xl px-5 py-2.5 text-sm font-medium text-[var(--color-mist)]/80 underline-offset-4 hover:text-[var(--color-brass)] hover:underline"
-              >
-                View menu
-              </Link>
-            </div>
-          ) : (
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link
-                to="/menu"
-                className="rounded-xl bg-[var(--color-brass)] px-5 py-2.5 text-sm font-semibold text-[var(--color-ink)] transition hover:bg-[var(--color-brass-deep)]"
-              >
-                Browse menu
-              </Link>
-              {(hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION) ||
-                hasPermission(PERMISSIONS.CAN_MANAGE_TABLES)) && (
+          {error && <p className="mt-3 text-sm text-[var(--color-wine)]">{error}</p>}
+          <div className="bistro-fade-up-delay-2 mt-9 flex flex-wrap gap-3">
+            {!session ? (
+              <>
                 <Link
-                  to="/reservations"
-                  className="rounded-xl border border-[var(--color-mist)]/30 px-5 py-2.5 text-sm font-semibold text-[var(--color-mist)] transition hover:border-[var(--color-brass)] hover:text-[var(--color-brass)]"
+                  to="/login"
+                  className="rounded-md bg-[var(--color-brass)] px-6 py-3 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)]"
                 >
-                  Reserve a table
+                  Sign in
                 </Link>
-              )}
-            </div>
-          )}
+                <Link
+                  to="/menu"
+                  className="rounded-md border border-[var(--color-cream)]/25 px-6 py-3 text-sm font-semibold text-[var(--color-cream)] transition hover:border-[var(--color-brass)] hover:text-[var(--color-brass)]"
+                >
+                  View menu
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/menu"
+                  className="rounded-md bg-[var(--color-brass)] px-6 py-3 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)]"
+                >
+                  Browse menu
+                </Link>
+                {(hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION) ||
+                  hasPermission(PERMISSIONS.CAN_MANAGE_TABLES)) && (
+                  <Link
+                    to="/reservations"
+                    className="rounded-md border border-[var(--color-cream)]/25 px-6 py-3 text-sm font-semibold text-[var(--color-cream)] transition hover:border-[var(--color-brass)] hover:text-[var(--color-brass)]"
+                  >
+                    Reserve a table
+                  </Link>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </section>
 
-      <section className="space-y-5">
+      {/* Featured dishes */}
+      <section className="mx-auto max-w-6xl space-y-8 px-6 py-16 sm:px-10">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">From our kitchen</p>
-          <h2 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-stone-900">
-            Taste Ethiopia
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+            From the kitchen
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)] sm:text-4xl">
+            Tonight’s favorites
           </h2>
+          <p className="mt-2 max-w-lg text-[var(--color-cream-muted)]">
+            Plates that belong with soft light and a long evening.
+          </p>
         </div>
-        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURED_DISHES.map((dish) => (
-            <li
-              key={dish.name}
-              className="group overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm"
-            >
+            <li key={dish.name} className="group overflow-hidden bg-[var(--color-umber)]">
               <div className="relative overflow-hidden">
                 <img
                   src={dish.image}
                   alt={dish.name}
-                  className="h-40 w-full object-cover transition duration-300 group-hover:scale-105"
+                  className="h-44 w-full object-cover transition duration-500 group-hover:scale-105"
                   loading="lazy"
                 />
-                <span className="absolute bottom-2 left-2 rounded-full bg-[var(--color-ink)]/75 px-2.5 py-0.5 text-xs font-medium text-[var(--color-mist)]">
+                <span className="absolute bottom-3 left-3 bg-[var(--color-wine)] px-2.5 py-0.5 text-xs font-medium tracking-wide text-[var(--color-cream)]">
                   {dish.tag}
                 </span>
               </div>
-              <p className="px-4 py-3 font-semibold text-stone-900">{dish.name}</p>
+              <p className="px-4 py-4 font-[family-name:var(--font-display)] text-xl text-[var(--color-cream)]">
+                {dish.name}
+              </p>
             </li>
           ))}
         </ul>
       </section>
 
       {session && quickLinks.length > 0 && (
-        <section className="space-y-5">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Quick access</p>
-            <h2 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-stone-900">
-              Where to next?
-            </h2>
+        <section className="border-t border-[var(--color-brass)]/15 bg-[var(--color-umber)]/40 px-6 py-16 sm:px-10">
+          <div className="mx-auto max-w-6xl space-y-8">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+                Your evening
+              </p>
+              <h2 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)]">
+                Where to next?
+              </h2>
+            </div>
+            <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {quickLinks.map((link) => (
+                <li key={link.to}>
+                  <Link
+                    to={link.to}
+                    className="flex h-full flex-col border border-[var(--color-brass)]/20 bg-[var(--color-umber)] p-5 transition hover:border-[var(--color-brass)]/55 hover:bg-[var(--color-umber)]"
+                  >
+                    <span className="font-[family-name:var(--font-display)] text-xl text-[var(--color-cream)]">
+                      {link.title}
+                    </span>
+                    <span className="mt-1 text-sm text-[var(--color-cream-muted)]">{link.description}</span>
+                    <span className="mt-auto pt-4 text-sm font-medium text-[var(--color-brass)]">Open →</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {quickLinks.map((link) => (
-              <li key={link.to}>
-                <Link
-                  to={link.to}
-                  className="flex h-full flex-col rounded-2xl border border-stone-200 bg-white p-5 shadow-sm transition hover:border-[var(--color-brass)] hover:shadow-md"
-                >
-                  <span className="font-semibold text-stone-900">{link.title}</span>
-                  <span className="mt-1 text-sm text-stone-600">{link.description}</span>
-                  <span className="mt-auto pt-4 text-sm font-medium text-[var(--color-brass-deep)]">
-                    Go →
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
         </section>
       )}
 
       {!session && (
-        <section className="rounded-2xl border border-stone-200 bg-white p-8 text-center shadow-sm">
-          <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-900">
-            Ready to dine with us?
-          </h2>
-          <p className="mx-auto mt-2 max-w-md text-stone-600">
-            Create an account to place orders, reserve tables, and enjoy the full restaurant experience.
-          </p>
-          <div className="mt-6 flex justify-center gap-3">
-            <Link
-              to="/signup"
-              className="rounded-xl bg-stone-900 px-5 py-2.5 text-sm font-semibold text-white"
-            >
-              Get started
-            </Link>
-            <Link
-              to="/login"
-              className="rounded-xl border border-stone-300 px-5 py-2.5 text-sm font-semibold text-stone-800"
-            >
-              Sign in
-            </Link>
+        <section className="border-t border-[var(--color-brass)]/15 px-6 py-16 sm:px-10">
+          <div className="mx-auto max-w-xl text-center">
+            <h2 className="font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)]">
+              Join the evening service
+            </h2>
+            <p className="mt-3 text-[var(--color-cream-muted)]">
+              Create an account to reserve a table and place orders under candlelight.
+            </p>
+            <div className="mt-8 flex justify-center gap-3">
+              <Link
+                to="/signup"
+                className="rounded-md bg-[var(--color-wine)] px-6 py-3 text-sm font-semibold text-[var(--color-cream)] transition hover:brightness-110"
+              >
+                Get started
+              </Link>
+              <Link
+                to="/login"
+                className="rounded-md border border-[var(--color-brass)]/35 px-6 py-3 text-sm font-semibold text-[var(--color-brass)] transition hover:border-[var(--color-brass)]"
+              >
+                Sign in
+              </Link>
+            </div>
           </div>
         </section>
       )}
