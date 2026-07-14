@@ -63,3 +63,16 @@ export interface MenuItemInput {
   is_available?: boolean;
   sort_order?: number;
 }
+
+export type TableStatus = "free" | "reserved" | "occupied";
+
+export interface RestaurantTable {
+  id: number;
+  name: string;
+  capacity: number | null;
+  status: TableStatus;
+}
+
+export interface UpdateTableInput {
+  status: TableStatus;
+}
