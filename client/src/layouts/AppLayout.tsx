@@ -12,6 +12,8 @@ export function AppLayout({ children }: AppLayoutProps) {
   const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
   const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
   const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
+  const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
+  const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
 
   return (
     <div className="flex min-h-screen flex-col bg-stone-50">
@@ -26,6 +28,11 @@ export function AppLayout({ children }: AppLayoutProps) {
           <Link to="/tables" className="text-sm text-stone-700 hover:text-stone-900">
             Tables
           </Link>
+          {session && (canReserve || canManageTables) && (
+            <Link to="/reservations" className="text-sm text-stone-700 hover:text-stone-900">
+              Reservations
+            </Link>
+          )}
           {session && canPlaceOrder && (
             <Link to="/orders" className="text-sm text-stone-700 hover:text-stone-900">
               Orders
@@ -38,6 +45,11 @@ export function AppLayout({ children }: AppLayoutProps) {
           )}
           {canManageTables && (
             <span className="rounded-full bg-stone-200 px-2 py-0.5 text-xs text-stone-600">Staff</span>
+          )}
+          {canManagePermissions && (
+            <Link to="/admin/permissions" className="text-sm text-stone-700 hover:text-stone-900">
+              Permissions
+            </Link>
           )}
         </div>
         <nav className="flex items-center gap-3 text-sm">

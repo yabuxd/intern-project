@@ -2,12 +2,14 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { AuthLayout } from './layouts/AuthLayout';
+import { AdminPermissionsPage } from './pages/AdminPermissionsPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { ManageMenuPage } from './pages/ManageMenuPage';
 import { MenuPage } from './pages/MenuPage';
 import { OrderQueuePage } from './pages/OrderQueuePage';
 import { OrdersPage } from './pages/OrdersPage';
+import { ReservationsPage } from './pages/ReservationsPage';
 import { TablesPage } from './pages/TablesPage';
 import { SignupPage } from './pages/SignupPage';
 import { AuthProvider, useAuth } from './store';
@@ -68,6 +70,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <ManageMenuPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reservations"
+          element={
+            <ProtectedRoute>
+              <ReservationsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/permissions"
+          element={
+            <ProtectedRoute>
+              <AdminPermissionsPage />
             </ProtectedRoute>
           }
         />
