@@ -76,3 +76,47 @@ export interface RestaurantTable {
 export interface UpdateTableInput {
   status: TableStatus;
 }
+
+export type OrderStatus = "pending" | "preparing" | "ready" | "served" | "cancelled";
+
+export interface OrderItem {
+  id: number;
+  menu_item_id: number;
+  quantity: number;
+  unit_price: string | number;
+  line_total: string | number;
+  menu_item?: {
+    id: number;
+    name: string;
+  } | null;
+}
+
+export interface Order {
+  id: number;
+  user_id: string;
+  table_id: number | null;
+  status: OrderStatus;
+  total: string | number;
+  created_at: string | null;
+  updated_at: string | null;
+  table?: {
+    id: number;
+    name: string;
+  } | null;
+  items: OrderItem[];
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  } | null;
+}
+
+export interface OrderLineInput {
+  menu_item_id: number;
+  quantity: number;
+}
+
+export interface CreateOrderInput {
+  items: OrderLineInput[];
+  table_id?: number | null;
+}
