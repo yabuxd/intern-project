@@ -19,6 +19,10 @@ class Permission extends Model
 
     public const CAN_PLACE_ORDER = 'can_place_order';
 
+    public const CAN_CREATE_RESERVATION = 'can_create_reservation';
+
+    public const CAN_MANAGE_PERMISSIONS = 'can_manage_permissions';
+
     /**
      * @return list<string>
      */
@@ -30,6 +34,8 @@ class Permission extends Model
             self::CAN_UPDATE_ORDER_STATUS,
             self::CAN_MANAGE_TABLES,
             self::CAN_PLACE_ORDER,
+            self::CAN_CREATE_RESERVATION,
+            self::CAN_MANAGE_PERMISSIONS,
         ];
     }
 
