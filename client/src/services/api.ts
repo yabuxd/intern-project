@@ -1,12 +1,17 @@
 import type {
+  AdminUser,
   ApiResponse,
   AuthUser,
   CreateOrderInput,
+  CreateReservationInput,
   MenuCategory,
   MenuItem,
   MenuItemInput,
   Order,
   OrderStatus,
+  PermissionName,
+  PermissionRecord,
+  Reservation,
   RestaurantTable,
   TableStatus,
 } from '@intern/shared';
@@ -132,5 +137,47 @@ export function updateOrderStatus(
     method: 'PATCH',
     token,
     body: JSON.stringify({ status }),
+  });
+}
+
+export function fetchReservations(token: string): Promise<Reservation[]> {
+  return apiFetch<Reservation[]>('/reservations', { token });
+}
+
+export function createReservation(
+  token: string,
+  input: CreateReservationInput,
+): Promise<Reservation> {
+  return apiFetch<Reservation>('/reservations', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export function cancelReservation(token: string, id: number): Promise<Reservation> {
+  return apiFetch<Reservation>(`/reservations/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
+export function fetchAdminUsers(token: string): Promise<AdminUser[]> {
+  return apiFetch<AdminUser[]>('/admin/users', { token });
+}
+
+export function fetchPermissionCatalog(token: string): Promise<PermissionRecord[]> {
+  return apiFetch<PermissionRecord[]>('/admin/permissions', { token });
+}
+
+export function updateUserPermissions(
+  token: string,
+  userId: string,
+  permissions: PermissionName[],
+): Promise<AdminUser> {
+  return apiFetch<AdminUser>(`/admin/users/${userId}/permissions`, {
+    method: 'PUT',
+    token,
+    body: JSON.stringify({ permissions }),
   });
 }

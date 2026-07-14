@@ -13,5 +13,11 @@ export {
   fetchOrderQueue,
   createOrder,
   updateOrderStatus,
+  fetchReservations,
+  createReservation,
+  cancelReservation,
+  fetchAdminUsers,
+  fetchPermissionCatalog,
+  updateUserPermissions,
 } from './api';
 export { supabase } from './supabase';
