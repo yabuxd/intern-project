@@ -3,6 +3,7 @@ import type { CreateReservationInput, Reservation, RestaurantTable } from '@inte
 import { PERMISSIONS } from '@intern/shared';
 import { cancelReservation, createReservation, fetchReservations, fetchTables } from '../services';
 import { useAuth } from '../store';
+import { ReservationsPageSkeleton } from '../components/ui';
 
 function toLocalInputValue(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -113,9 +114,7 @@ export function ReservationsPage() {
   }
 
   if (loading) {
-    return (
-      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Opening the book…</p>
-    );
+    return <ReservationsPageSkeleton />;
   }
 
   if (!canCreate && !canManageAll) {

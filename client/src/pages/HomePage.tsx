@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PERMISSIONS } from '@intern/shared';
 import { useAuth } from '../store';
+import { HeroSkeleton } from '../components/ui';
 
 const FEATURED_DISHES = [
   { name: 'Doro Wat', image: '/images/menu/doro-wat.jpg', tag: 'Signature stew' },
@@ -66,9 +67,7 @@ export function HomePage() {
   const displayName = user?.name ?? user?.email?.split('@')[0] ?? 'Guest';
 
   if (loading) {
-    return (
-      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Lighting the candles…</p>
-    );
+    return <HeroSkeleton />;
   }
 
   return (

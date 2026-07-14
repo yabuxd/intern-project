@@ -8,6 +8,7 @@ import {
   updateMenuItem,
 } from '../services';
 import { useAuth } from '../store';
+import { MenuSkeleton } from '../components/ui';
 
 const emptyForm = {
   menu_category_id: 0,
@@ -70,13 +71,13 @@ export function ManageMenuPage() {
     };
   }, [token, canManage]);
 
-  if (authLoading) return <p className="text-stone-600">Loading…</p>;
+  if (authLoading) return <MenuSkeleton />;
   if (!session) return <Navigate to="/login" replace />;
   if (!canManage) {
     return (
-      <div className="space-y-3 text-center">
-        <p className="text-stone-700">You need the can_manage_menu permission.</p>
-        <Link to="/menu" className="text-sm font-semibold underline">
+      <div className="space-y-3 px-6 py-16 text-center text-[var(--color-cream)]">
+        <p className="text-[var(--color-cream-muted)]">You need the can_manage_menu permission.</p>
+        <Link to="/menu" className="text-sm font-semibold text-[var(--color-brass)] underline">
           Back to menu
         </Link>
       </div>
@@ -143,7 +144,7 @@ export function ManageMenuPage() {
     }
   }
 
-  if (loading) return <p className="text-stone-600">Loading manager…</p>;
+  if (loading) return <MenuSkeleton />;
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 text-left">

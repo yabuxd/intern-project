@@ -5,6 +5,7 @@ import { createOrder, fetchMenu, fetchTables } from '../services';
 import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
 import { formatEtb } from '../utils/format';
+import { MenuSkeleton } from '../components/ui';
 
 interface CartLine {
   item: MenuItem;
@@ -99,7 +100,7 @@ export function MenuPage() {
   }
 
   if (loading) {
-    return <p className="text-stone-600">Loading menu…</p>;
+    return <MenuSkeleton />;
   }
 
   if (error) {

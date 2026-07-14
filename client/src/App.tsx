@@ -13,12 +13,13 @@ import { ReservationsPage } from './pages/ReservationsPage';
 import { TablesPage } from './pages/TablesPage';
 import { SignupPage } from './pages/SignupPage';
 import { AuthProvider, useAuth } from './store';
+import { HeroSkeleton } from './components/ui';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
 
   if (loading) {
-    return <p className="text-stone-600">Loading…</p>;
+    return <HeroSkeleton />;
   }
 
   if (!session) {

@@ -3,6 +3,7 @@ import type { AdminUser, PermissionName, PermissionRecord } from '@intern/shared
 import { PERMISSIONS } from '@intern/shared';
 import { fetchAdminUsers, fetchPermissionCatalog, updateUserPermissions } from '../services';
 import { useAuth } from '../store';
+import { AdminPageSkeleton } from '../components/ui';
 
 export function AdminPermissionsPage() {
   const { session, hasPermission, refreshMe, user: currentUser } = useAuth();
@@ -87,7 +88,7 @@ export function AdminPermissionsPage() {
   }
 
   if (loading) {
-    return <p className="text-stone-600">Loading users…</p>;
+    return <AdminPageSkeleton />;
   }
 
   if (!canManage) {

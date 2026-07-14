@@ -6,6 +6,7 @@ import { cancelOrder, fetchOrderQueue, updateOrderStatus } from '../services';
 import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
+import { QueuePageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Pending',
@@ -112,9 +113,7 @@ export function OrderQueuePage() {
   }
 
   if (loading) {
-    return (
-      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Warming the pass…</p>
-    );
+    return <QueuePageSkeleton />;
   }
 
   return (

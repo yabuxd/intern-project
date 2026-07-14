@@ -111,3 +111,23 @@ body {
 .bistro-candle {
   animation: bistro-candle 7s ease-in-out infinite;
 }
+
+@keyframes bistro-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.bistro-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(42, 36, 32, 0.95) 0%,
+    rgba(200, 133, 58, 0.14) 45%,
+    rgba(42, 36, 32, 0.95) 90%
+  );
+  background-size: 200% 100%;
+  animation: bistro-shimmer 1.4s ease-in-out infinite;
+}

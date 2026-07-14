@@ -3,6 +3,7 @@ import type { RestaurantTable, TableStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import { fetchTables, updateTableStatus } from '../services';
 import { useAuth } from '../store';
+import { TablesPageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<TableStatus, string> = {
   free: 'Free',
@@ -87,9 +88,7 @@ export function TablesPage() {
   }
 
   if (loading) {
-    return (
-      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Reading the floor plan…</p>
-    );
+    return <TablesPageSkeleton />;
   }
 
   if (error && tables.length === 0) {

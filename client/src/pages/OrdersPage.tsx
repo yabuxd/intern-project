@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { cancelOrder, fetchOrders } from '../services';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
+import { OrdersPageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Pending',
@@ -63,9 +64,7 @@ export function OrdersPage() {
   }
 
   if (loading) {
-    return (
-      <p className="px-6 py-16 text-center text-[var(--color-cream-muted)]">Fetching your orders…</p>
-    );
+    return <OrdersPageSkeleton />;
   }
 
   return (
