@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Order, OrderStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import { Link, Navigate } from 'react-router-dom';
-import { fetchOrderQueue, updateOrderStatus } from '../services';
+import { cancelOrder, fetchOrderQueue, updateOrderStatus } from '../services';
 import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
@@ -20,6 +20,8 @@ const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   preparing: 'ready',
   ready: 'served',
 };
+
+const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready'];
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'border-amber-200 bg-amber-50',
@@ -94,6 +96,21 @@ export function OrderQueuePage() {
     }
   }
 
+  async function handleCancel(order: Order) {
+    if (!session?.access_token || !canUpdate || !CANCELLABLE.includes(order.status)) return;
+
+    setUpdatingId(order.id);
+    try {
+      await cancelOrder(session.access_token, order.id);
+      setOrders((prev) => prev.filter((o) => o.id !== order.id));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel order');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   if (loading) {
     return <p className="text-stone-600">Loading kitchen queue…</p>;
   }
@@ -153,15 +170,29 @@ export function OrderQueuePage() {
                   </li>
                 ))}
               </ul>
-              {canUpdate && NEXT_STATUS[order.status] && (
-                <button
-                  type="button"
-                  disabled={updatingId === order.id}
-                  onClick={() => void advanceStatus(order)}
-                  className="mt-4 rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
-                >
-                  Mark as {STATUS_LABELS[NEXT_STATUS[order.status]!]}
-                </button>
+              {canUpdate && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {NEXT_STATUS[order.status] && (
+                    <button
+                      type="button"
+                      disabled={updatingId === order.id}
+                      onClick={() => void advanceStatus(order)}
+                      className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                    >
+                      Mark as {STATUS_LABELS[NEXT_STATUS[order.status]!]}
+                    </button>
+                  )}
+                  {CANCELLABLE.includes(order.status) && (
+                    <button
+                      type="button"
+                      disabled={updatingId === order.id}
+                      onClick={() => void handleCancel(order)}
+                      className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                    >
+                      Cancel order
+                    </button>
+                  )}
+                </div>
               )}
             </li>
           ))}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Order, OrderStatus } from '@intern/shared';
 import { Link } from 'react-router-dom';
-import { fetchOrders } from '../services';
+import { cancelOrder, fetchOrders } from '../services';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 
@@ -21,11 +21,14 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
   cancelled: 'text-red-600',
 };
 
+const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready'];
+
 export function OrdersPage() {
   const { session } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -45,12 +48,22 @@ export function OrdersPage() {
     };
   }, [session?.access_token]);
 
-  if (loading) {
-    return <p className="text-stone-600">Loading your orders…</p>;
+  async function handleCancel(order: Order) {
+    if (!session?.access_token || !CANCELLABLE.includes(order.status)) return;
+    setCancellingId(order.id);
+    setError(null);
+    try {
+      const updated = await cancelOrder(session.access_token, order.id);
+      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to cancel order');
+    } finally {
+      setCancellingId(null);
+    }
   }
 
-  if (error) {
-    return <p className="text-red-600">{error}</p>;
+  if (loading) {
+    return <p className="text-stone-600">Loading your orders…</p>;
   }
 
   return (
@@ -62,6 +75,8 @@ export function OrdersPage() {
         </h1>
         <p className="mt-2 text-stone-600">Track status of orders you have placed.</p>
       </div>
+
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
       {orders.length === 0 ? (
         <div className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center">
@@ -104,6 +119,16 @@ export function OrdersPage() {
                   </li>
                 ))}
               </ul>
+              {CANCELLABLE.includes(order.status) && (
+                <button
+                  type="button"
+                  disabled={cancellingId === order.id}
+                  onClick={() => void handleCancel(order)}
+                  className="mt-4 rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+                >
+                  {cancellingId === order.id ? 'Cancelling…' : 'Cancel order'}
+                </button>
+              )}
             </li>
           ))}
         </ul>
