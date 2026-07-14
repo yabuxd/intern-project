@@ -6,33 +6,27 @@ import { useAuth } from '../store';
 import { TablesPageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<TableStatus, string> = {
-  free: 'Open',
-  reserved: 'Held',
-  occupied: 'Seated',
+  free: 'Free',
+  reserved: 'Reserved',
+  occupied: 'Occupied',
 };
 
 const STATUS_HINT: Record<TableStatus, string> = {
   free: 'Ready for the next party',
-  reserved: 'Booked for later',
-  occupied: 'Guests at the table',
-};
-
-const RING: Record<TableStatus, string> = {
-  free: 'border-emerald-400/70 shadow-[0_0_0_1px_rgba(52,211,153,0.25),0_12px_40px_rgba(0,0,0,0.35)]',
-  reserved: 'border-[var(--color-brass)] shadow-[0_0_0_1px_rgba(200,133,58,0.35),0_12px_40px_rgba(0,0,0,0.35)]',
-  occupied: 'border-[var(--color-wine)] shadow-[0_0_0_1px_rgba(138,46,46,0.45),0_12px_40px_rgba(0,0,0,0.35)]',
-};
-
-const FILL: Record<TableStatus, string> = {
-  free: 'from-emerald-500/20 via-[var(--color-umber)] to-[var(--color-espresso)]',
-  reserved: 'from-[var(--color-brass)]/25 via-[var(--color-umber)] to-[var(--color-espresso)]',
-  occupied: 'from-[var(--color-wine)]/30 via-[var(--color-umber)] to-[var(--color-espresso)]',
+  reserved: 'Booked for later tonight',
+  occupied: 'Guests are dining',
 };
 
 const BADGE: Record<TableStatus, string> = {
-  free: 'bg-emerald-500/20 text-emerald-300',
-  reserved: 'bg-[var(--color-brass)]/20 text-[var(--color-brass)]',
-  occupied: 'bg-[var(--color-wine)]/30 text-[#e8a0a0]',
+  free: 'bg-emerald-500/90 text-[var(--color-espresso)]',
+  reserved: 'bg-[var(--color-brass)] text-[var(--color-espresso)]',
+  occupied: 'bg-[var(--color-wine)] text-[var(--color-cream)]',
+};
+
+const FRAME: Record<TableStatus, string> = {
+  free: 'border-emerald-400/50',
+  reserved: 'border-[var(--color-brass)]',
+  occupied: 'border-[var(--color-wine)]',
 };
 
 const NEXT_STATUS: Record<TableStatus, TableStatus> = {
@@ -41,11 +35,10 @@ const NEXT_STATUS: Record<TableStatus, TableStatus> = {
   occupied: 'free',
 };
 
-function tableShapeClass(capacity: number | null): string {
-  if (capacity && capacity >= 4) {
-    return 'aspect-[4/3] w-full max-w-[220px] rounded-[40%]';
-  }
-  return 'aspect-square w-full max-w-[180px] rounded-full';
+function tableImage(capacity: number | null): string {
+  return capacity && capacity >= 4
+    ? '/images/tables/table-rect.svg'
+    : '/images/tables/table-round.svg';
 }
 
 export function TablesPage() {
@@ -107,14 +100,15 @@ export function TablesPage() {
     await setStatus(table, 'free');
   }
 
-  const counts = useMemo(() => {
-    return {
+  const counts = useMemo(
+    () => ({
       all: tables.length,
       free: tables.filter((t) => t.status === 'free').length,
       reserved: tables.filter((t) => t.status === 'reserved').length,
       occupied: tables.filter((t) => t.status === 'occupied').length,
-    };
-  }, [tables]);
+    }),
+    [tables],
+  );
 
   const visible = filter === 'all' ? tables : tables.filter((t) => t.status === filter);
 
@@ -123,61 +117,57 @@ export function TablesPage() {
   }
 
   if (error && tables.length === 0) {
-    return <p className="px-6 py-16 text-center text-[#e8a0a0]">{error}</p>;
+    return <p className="px-4 py-16 text-center text-[#e8a0a0] sm:px-6">{error}</p>;
   }
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-10 px-6 py-12 text-left sm:px-10">
+    <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-10 text-left sm:space-y-10 sm:px-6 sm:py-12 md:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
-        <header className="bistro-fade-up">
+        <header className="bistro-fade-up min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
             Dining floor
           </p>
-          <h1 className="mt-2 font-[family-name:var(--font-display)] text-4xl text-[var(--color-cream)] sm:text-5xl">
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)] sm:text-4xl md:text-5xl">
             Tables
           </h1>
-          <p className="mt-3 max-w-lg text-[var(--color-cream-muted)]">
+          <p className="mt-3 max-w-lg text-sm text-[var(--color-cream-muted)] sm:text-base">
             {canManage
-              ? 'Tap a table to advance the evening — open → held → seated — or free a seat at once.'
-              : `${counts.free} open of ${counts.all} for tonight’s service.`}
+              ? 'Tap a table to cycle Free → Reserved → Occupied, or clear it for the next guest.'
+              : `${counts.free} free of ${counts.all} for tonight’s service.`}
           </p>
         </header>
         <button
           type="button"
           onClick={() => void reload()}
-          className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:border-[var(--color-brass)] hover:bg-[var(--color-umber)]"
+          className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
         >
-          Refresh floor
+          Refresh
         </button>
       </div>
 
-      {/* Status summary */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {(
           [
-            ['free', counts.free, 'Open tables'],
-            ['reserved', counts.reserved, 'Held tonight'],
-            ['occupied', counts.occupied, 'Currently seated'],
+            ['free', counts.free, 'Free'],
+            ['reserved', counts.reserved, 'Reserved'],
+            ['occupied', counts.occupied, 'Occupied'],
           ] as const
         ).map(([status, count, label]) => (
           <button
             key={status}
             type="button"
             onClick={() => setFilter((prev) => (prev === status ? 'all' : status))}
-            className={`border px-4 py-4 text-left transition ${
+            className={`border px-2 py-3 text-left transition sm:px-4 sm:py-4 ${
               filter === status
                 ? 'border-[var(--color-brass)] bg-[var(--color-umber)]'
                 : 'border-[var(--color-brass)]/15 bg-[var(--color-umber)]/40 hover:border-[var(--color-brass)]/40'
             }`}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--color-cream-muted)]">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-cream-muted)] sm:text-xs sm:tracking-[0.2em]">
               {label}
             </p>
-            <p className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)]">
+            <p className="mt-1 font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)] sm:mt-2 sm:text-3xl">
               {count}
-            </p>
-            <p className={`mt-2 inline-block px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${BADGE[status]}`}>
-              {STATUS_LABELS[status]}
             </p>
           </button>
         ))}
@@ -195,8 +185,7 @@ export function TablesPage() {
 
       {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
 
-      {/* Floor canvas */}
-      <section className="relative overflow-hidden border border-[var(--color-brass)]/15 bg-[var(--color-umber)]/50 px-4 py-10 sm:px-8">
+      <section className="relative overflow-hidden border border-[var(--color-brass)]/15 bg-[var(--color-umber)]/50 px-3 py-8 sm:px-8 sm:py-10">
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -206,71 +195,60 @@ export function TablesPage() {
             backgroundSize: '28px 28px',
           }}
         />
-        <div
-          aria-hidden
-          className="bistro-candle pointer-events-none absolute left-1/2 top-0 h-40 w-40 -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,133,58,0.2),transparent_70%)]"
-        />
 
         {visible.length === 0 ? (
           <p className="relative z-10 py-16 text-center text-[var(--color-cream-muted)]">
             No tables in this view.
           </p>
         ) : (
-          <ul className="relative z-10 grid justify-items-center gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          <ul className="relative z-10 grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4">
             {visible.map((table) => {
               const busy = updatingId === table.id;
               return (
-                <li key={table.id} className="flex w-full max-w-[240px] flex-col items-center gap-4">
+                <li key={table.id} className="flex flex-col items-center gap-3">
                   <button
                     type="button"
                     disabled={!canManage || busy}
                     onClick={() => void cycleStatus(table)}
                     className={[
-                      'group relative flex items-center justify-center border-2 bg-gradient-to-b transition duration-300',
-                      tableShapeClass(table.capacity),
-                      RING[table.status],
-                      FILL[table.status],
-                      canManage ? 'cursor-pointer hover:scale-[1.03]' : 'cursor-default',
+                      'group relative w-full overflow-hidden border-2 bg-[var(--color-espresso)] transition duration-300',
+                      FRAME[table.status],
+                      canManage ? 'cursor-pointer hover:scale-[1.02]' : 'cursor-default',
                       busy ? 'opacity-60' : '',
                     ].join(' ')}
                     aria-label={`${table.name}, ${STATUS_LABELS[table.status]}`}
                   >
-                    <span
-                      aria-hidden
-                      className="absolute inset-[18%] rounded-[inherit] border border-[var(--color-cream)]/10 bg-[var(--color-espresso)]/35"
+                    <img
+                      src={tableImage(table.capacity)}
+                      alt=""
+                      className="aspect-[5/4] w-full object-contain p-3 sm:p-4"
                     />
-                    <span className="relative z-10 text-center">
-                      <span className="block font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)] sm:text-3xl">
-                        {table.name.replace(/^Table\s+/i, '')}
-                      </span>
-                      {table.capacity && (
-                        <span className="mt-1 block text-xs uppercase tracking-[0.18em] text-[var(--color-cream-muted)]">
-                          {table.capacity} seats
-                        </span>
-                      )}
-                    </span>
-                  </button>
-
-                  <div className="w-full text-center">
-                    <p
-                      className={`inline-block px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${BADGE[table.status]}`}
+                    <span
+                      className={`absolute left-2 top-2 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] sm:left-3 sm:top-3 sm:text-xs ${BADGE[table.status]}`}
                     >
                       {STATUS_LABELS[table.status]}
-                    </p>
-                    <p className="mt-2 text-sm text-[var(--color-cream-muted)]">
-                      {STATUS_HINT[table.status]}
-                    </p>
-                    {canManage && table.status !== 'free' && (
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => void releaseTable(table)}
-                        className="mt-3 w-full rounded-md border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/50 px-3 py-2 text-sm font-medium text-[var(--color-cream)] transition hover:border-[var(--color-brass)]/50 disabled:opacity-60"
-                      >
-                        {table.status === 'reserved' ? 'Cancel hold' : 'Clear table'}
-                      </button>
+                    </span>
+                    {table.capacity && (
+                      <span className="absolute bottom-2 right-2 bg-[var(--color-espresso)]/80 px-2 py-0.5 text-[10px] uppercase tracking-wide text-[var(--color-cream-muted)] sm:bottom-3 sm:right-3 sm:text-xs">
+                        {table.capacity} seats
+                      </span>
                     )}
-                  </div>
+                  </button>
+
+                  <p className="text-center text-sm text-[var(--color-cream-muted)]">
+                    {STATUS_HINT[table.status]}
+                  </p>
+
+                  {canManage && table.status !== 'free' && (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void releaseTable(table)}
+                      className="w-full rounded-md border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/50 px-3 py-2 text-sm font-medium text-[var(--color-cream)] transition hover:border-[var(--color-brass)]/50 disabled:opacity-60"
+                    >
+                      {table.status === 'reserved' ? 'Cancel reservation' : 'Set free'}
+                    </button>
+                  )}
                 </li>
               );
             })}
@@ -280,7 +258,7 @@ export function TablesPage() {
 
       {canManage && (
         <p className="text-center text-xs text-[var(--color-cream-muted)]">
-          Host tip: tap the table surface to cycle Open → Held → Seated.
+          Host tip: tap the table image to cycle Free → Reserved → Occupied.
         </p>
       )}
     </div>

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 200" fill="none">
+  <defs>
+    <linearGradient id="top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3d342e"/>
+      <stop offset="100%" stop-color="#1f1b18"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c8853a" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#8a2e2e" stop-opacity="0.18"/>
+    </linearGradient>
+  </defs>
+  <!-- chairs -->
+  <rect x="52" y="8" width="48" height="22" rx="8" fill="#2a2420" stroke="#c8853a" stroke-opacity="0.35" stroke-width="2"/>
+  <rect x="180" y="8" width="48" height="22" rx="8" fill="#2a2420" stroke="#c8853a" stroke-opacity="0.35" stroke-width="2"/>
+  <rect x="52" y="170" width="48" height="22" rx="8" fill="#2a2420" stroke="#c8853a" stroke-opacity="0.35" stroke-width="2"/>
+  <rect x="180" y="170" width="48" height="22" rx="8" fill="#2a2420" stroke="#c8853a" stroke-opacity="0.35" stroke-width="2"/>
+  <rect x="8" y="70" width="22" height="60" rx="8" fill="#2a2420" stroke="#c8853a" stroke-opacity="0.35" stroke-width="2"/>
+  <rect x="250" y="70" width="22" height="60" rx="8" fill="#2a2420" stroke="#c8853a" stroke-opacity="0.35" stroke-width="2"/>
+  <!-- table -->
+  <rect x="42" y="42" width="196" height="116" rx="28" fill="url(#top)" stroke="#c8853a" stroke-width="3"/>
+  <rect x="58" y="56" width="164" height="88" rx="20" fill="url(#wood)" stroke="#f3ece0" stroke-opacity="0.12" stroke-width="1.5"/>
+  <circle cx="140" cy="100" r="6" fill="#c8853a" fill-opacity="0.55"/>
+</svg>
