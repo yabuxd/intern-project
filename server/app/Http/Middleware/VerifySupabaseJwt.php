@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\DefaultPermissionService;
 use App\Services\SupabaseJwtService;
 use Closure;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ class VerifySupabaseJwt
 {
     public function __construct(
         private readonly SupabaseJwtService $jwtService,
+        private readonly DefaultPermissionService $defaultPermissionService,
     ) {}
 
     /**
@@ -78,6 +80,10 @@ class VerifySupabaseJwt
                 'email_verified_at' => $emailVerified ? now() : null,
             ],
         );
+
+        if ($user->wasRecentlyCreated) {
+            $this->defaultPermissionService->grantToNewUser($user);
+        }
 
         Auth::setUser($user);
         $request->setUserResolver(static fn () => $user);
