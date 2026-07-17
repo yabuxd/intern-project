@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let mounted = true;
+    let initialLoadDone = false;
 
     void (async () => {
       const { data } = await supabase.auth.getSession();
@@ -54,22 +55,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
         }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          initialLoadDone = true;
+          setLoading(false);
+        }
       }
     })();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      // getSession() already loaded the profile; skip the duplicate INITIAL_SESSION / first TOKEN_REFRESHED hit.
+      if (!initialLoadDone && (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED')) {
+        setSession(nextSession);
+        return;
+      }
+
       setSession(nextSession);
       setError(null);
       void (async () => {
         try {
           const me = await loadProfile(nextSession?.access_token);
-          setUser(me);
+          if (mounted) setUser(me);
         } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load profile');
-          setUser(null);
+          if (mounted) {
+            setError(err instanceof Error ? err.message : 'Failed to load profile');
+            setUser(null);
+          }
         } finally {
-          setLoading(false);
+          if (mounted) setLoading(false);
         }
       })();
     });
