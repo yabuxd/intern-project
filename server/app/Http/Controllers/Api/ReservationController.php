@@ -24,7 +24,7 @@ class ReservationController extends Controller
             $query->where('user_id', $user->id);
         }
 
-        $reservations = $query->get()->map(fn (Reservation $reservation) => $this->transform($reservation));
+        $reservations = $query->limit(100)->get()->map(fn (Reservation $reservation) => $this->transform($reservation));
 
         return response()->json([
             'success' => true,
