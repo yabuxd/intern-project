@@ -23,6 +23,7 @@ class OrderController extends Controller
             ->with(['items.menuItem', 'table'])
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
+            ->limit(50)
             ->get()
             ->map(fn (Order $order) => $this->transform($order));
 
@@ -44,6 +45,7 @@ class OrderController extends Controller
                 Order::STATUS_READY,
             ])
             ->orderBy('created_at')
+            ->limit(100)
             ->get()
             ->map(fn (Order $order) => $this->transform($order, includeUser: true));
 
