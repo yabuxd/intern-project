@@ -48,7 +48,7 @@ export function OrderQueuePage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load queue');
     }
-  }, [session?.access_token]);
+  }, [session]);
 
   useOrdersRealtime(() => {
     void reload();
@@ -70,7 +70,7 @@ export function OrderQueuePage() {
     return () => {
       mounted = false;
     };
-  }, [session?.access_token]);
+  }, [session]);
 
   if (!canView) {
     return <Navigate to="/" replace />;

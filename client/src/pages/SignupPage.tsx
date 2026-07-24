@@ -54,13 +54,16 @@ export function SignupPage() {
             <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--color-cream)]">
               Create account
             </h2>
-            <p className="text-sm text-[var(--color-cream-muted)]">Join to start ordering and booking tables.</p>
+            <p className="text-sm text-[var(--color-cream-muted)]">
+              Join to start ordering and booking tables.
+            </p>
           </div>
 
           <label className="block space-y-2 text-left text-sm">
             <span className="font-medium text-[var(--color-cream)]">Full name</span>
             <input
               type="text"
+              required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               className={inputClass}

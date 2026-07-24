@@ -37,7 +37,8 @@ export function LoginPage() {
           Buna House
         </h1>
         <p className="mt-5 max-w-md text-base text-[var(--color-cream-muted)] md:text-lg">
-          Sign in for candlelight dining — reserve a table, order from the kitchen, and follow your ticket.
+          Sign in for candlelight dining — reserve a table, order from the kitchen, and follow your
+          ticket.
         </p>
       </section>
 
@@ -50,7 +51,9 @@ export function LoginPage() {
             <h2 className="font-[family-name:var(--font-display)] text-3xl tracking-tight text-[var(--color-cream)]">
               Welcome back
             </h2>
-            <p className="text-sm text-[var(--color-cream-muted)]">Enter your account details to continue.</p>
+            <p className="text-sm text-[var(--color-cream-muted)]">
+              Enter your account details to continue.
+            </p>
           </div>
 
           <label className="block space-y-2 text-left text-sm">

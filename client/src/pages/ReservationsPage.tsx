@@ -54,7 +54,7 @@ export function ReservationsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load reservations');
     }
-  }, [session?.access_token]);
+  }, [session]);
 
   useEffect(() => {
     let mounted = true;
@@ -75,7 +75,7 @@ export function ReservationsPage() {
     return () => {
       mounted = false;
     };
-  }, [session?.access_token]);
+  }, [session]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -252,7 +252,9 @@ export function ReservationsPage() {
                     {formatWhen(reservation.starts_at)} – {formatWhen(reservation.ends_at)}
                   </p>
                   {canManageAll && reservation.user && (
-                    <p className="mt-1 text-sm text-[var(--color-brass)]">{reservation.user.email}</p>
+                    <p className="mt-1 text-sm text-[var(--color-brass)]">
+                      {reservation.user.email}
+                    </p>
                   )}
                   <p
                     className={`mt-2 inline-block px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${

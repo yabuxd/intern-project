@@ -21,13 +21,13 @@ export interface AuthUser {
 }
 
 export const PERMISSIONS = {
-  CAN_MANAGE_MENU: "can_manage_menu",
-  CAN_VIEW_ALL_ORDERS: "can_view_all_orders",
-  CAN_UPDATE_ORDER_STATUS: "can_update_order_status",
-  CAN_MANAGE_TABLES: "can_manage_tables",
-  CAN_PLACE_ORDER: "can_place_order",
-  CAN_CREATE_RESERVATION: "can_create_reservation",
-  CAN_MANAGE_PERMISSIONS: "can_manage_permissions",
+  CAN_MANAGE_MENU: 'can_manage_menu',
+  CAN_VIEW_ALL_ORDERS: 'can_view_all_orders',
+  CAN_UPDATE_ORDER_STATUS: 'can_update_order_status',
+  CAN_MANAGE_TABLES: 'can_manage_tables',
+  CAN_PLACE_ORDER: 'can_place_order',
+  CAN_CREATE_RESERVATION: 'can_create_reservation',
+  CAN_MANAGE_PERMISSIONS: 'can_manage_permissions',
 } as const;
 
 export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -66,7 +66,7 @@ export interface MenuItemInput {
   sort_order?: number;
 }
 
-export type TableStatus = "free" | "reserved" | "occupied";
+export type TableStatus = 'free' | 'reserved' | 'occupied';
 
 export interface RestaurantTable {
   id: number;
@@ -79,7 +79,7 @@ export interface UpdateTableInput {
   status: TableStatus;
 }
 
-export type OrderStatus = "pending" | "preparing" | "ready" | "served" | "cancelled";
+export type OrderStatus = 'pending' | 'preparing' | 'ready' | 'served' | 'cancelled';
 
 export interface OrderItem {
   id: number;
@@ -123,7 +123,7 @@ export interface CreateOrderInput {
   table_id?: number | null;
 }
 
-export type ReservationStatus = "confirmed" | "cancelled";
+export type ReservationStatus = 'confirmed' | 'cancelled';
 
 export interface Reservation {
   id: number;

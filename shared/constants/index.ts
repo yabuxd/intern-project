@@ -1,5 +1,5 @@
 /** API route prefixes and HTTP status helpers. */
-export const API_PREFIX = "/api" as const;
+export const API_PREFIX = '/api' as const;
 
 export const HTTP_STATUS = {
   OK: 200,

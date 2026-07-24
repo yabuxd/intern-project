@@ -49,7 +49,8 @@ export function MenuPage() {
   const cartTotal = useMemo(
     () =>
       cart.reduce((sum, line) => {
-        const price = typeof line.item.price === 'string' ? Number(line.item.price) : line.item.price;
+        const price =
+          typeof line.item.price === 'string' ? Number(line.item.price) : line.item.price;
         return sum + price * line.quantity;
       }, 0),
     [cart],
@@ -111,9 +112,15 @@ export function MenuPage() {
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 text-left sm:space-y-10 sm:px-6 sm:py-10 md:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Ethiopian kitchen</p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-stone-900 sm:text-4xl">Menu</h1>
-          <p className="mt-2 text-sm text-stone-600 sm:text-base">Traditional dishes, from sambusa to doro wat.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+            Ethiopian kitchen
+          </p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-stone-900 sm:text-4xl">
+            Menu
+          </h1>
+          <p className="mt-2 text-sm text-stone-600 sm:text-base">
+            Traditional dishes, from sambusa to doro wat.
+          </p>
         </div>
         {canManage && (
           <Link
@@ -201,14 +208,19 @@ export function MenuPage() {
               to place an order.
             </p>
           ) : !canPlaceOrder ? (
-            <p className="mt-3 text-sm text-stone-600">You do not have permission to place orders.</p>
+            <p className="mt-3 text-sm text-stone-600">
+              You do not have permission to place orders.
+            </p>
           ) : cart.length === 0 ? (
             <p className="mt-3 text-sm text-stone-600">Your cart is empty.</p>
           ) : (
             <>
               <ul className="mt-4 space-y-3">
                 {cart.map((line) => (
-                  <li key={line.item.id} className="flex items-center justify-between gap-2 text-sm">
+                  <li
+                    key={line.item.id}
+                    className="flex items-center justify-between gap-2 text-sm"
+                  >
                     <span className="flex-1 text-stone-800">{line.item.name}</span>
                     <div className="flex items-center gap-2">
                       <button
@@ -235,9 +247,7 @@ export function MenuPage() {
                 Table (optional)
                 <select
                   value={tableId}
-                  onChange={(e) =>
-                    setTableId(e.target.value === '' ? '' : Number(e.target.value))
-                  }
+                  onChange={(e) => setTableId(e.target.value === '' ? '' : Number(e.target.value))}
                   className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
                 >
                   <option value="">No table</option>
