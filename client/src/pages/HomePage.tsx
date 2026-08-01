@@ -72,10 +72,18 @@ function useQuickLinks(
     links.push({ to: '/orders', title: 'Your orders', description: 'Track and place orders' });
   }
   if (canViewQueue) {
-    links.push({ to: '/orders/queue', title: 'Kitchen queue', description: 'Orders waiting to be served' });
+    links.push({
+      to: '/orders/queue',
+      title: 'Kitchen queue',
+      description: 'Orders waiting to be served',
+    });
   }
   if (canManageMenu) {
-    links.push({ to: '/menu/manage', title: 'Manage menu', description: 'Update dishes and pricing' });
+    links.push({
+      to: '/menu/manage',
+      title: 'Manage menu',
+      description: 'Update dishes and pricing',
+    });
   }
   if (canManagePermissions) {
     links.push({
@@ -222,7 +230,9 @@ export function HomePage() {
                 <h3 className="font-[family-name:var(--font-display)] text-xl text-[var(--color-cream)]">
                   {item.title}
                 </h3>
-                <p className="mt-2 flex-1 text-sm text-[var(--color-cream-muted)]">{item.description}</p>
+                <p className="mt-2 flex-1 text-sm text-[var(--color-cream-muted)]">
+                  {item.description}
+                </p>
                 <Link
                   to={item.to}
                   className="mt-5 text-sm font-medium text-[var(--color-brass)] underline-offset-4 hover:underline"
@@ -344,8 +354,12 @@ export function HomePage() {
                     <span className="font-[family-name:var(--font-display)] text-xl text-[var(--color-cream)]">
                       {link.title}
                     </span>
-                    <span className="mt-1 text-sm text-[var(--color-cream-muted)]">{link.description}</span>
-                    <span className="mt-auto pt-4 text-sm font-medium text-[var(--color-brass)]">Open →</span>
+                    <span className="mt-1 text-sm text-[var(--color-cream-muted)]">
+                      {link.description}
+                    </span>
+                    <span className="mt-auto pt-4 text-sm font-medium text-[var(--color-brass)]">
+                      Open →
+                    </span>
                   </Link>
                 </li>
               ))}

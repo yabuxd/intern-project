@@ -12,7 +12,10 @@ const POLL_INTERVAL_MS = 5000;
  */
 export function useOrdersRealtime(onChange: () => void) {
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
   const trigger = useCallback(() => {
     onChangeRef.current();
@@ -41,11 +44,7 @@ export function useOrdersRealtime(onChange: () => void) {
 
     channel = supabase
       .channel('orders-queue')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        () => trigger(),
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => trigger())
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           stopPolling();

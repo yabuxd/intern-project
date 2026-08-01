@@ -121,7 +121,9 @@ export function OrdersPage() {
                   >
                     {STATUS_LABELS[order.status]}
                   </span>
-                  <p className="mt-2 font-medium text-[var(--color-brass)]">{formatEtb(order.total)}</p>
+                  <p className="mt-2 font-medium text-[var(--color-brass)]">
+                    {formatEtb(order.total)}
+                  </p>
                 </div>
               </div>
               <ul className="mt-4 space-y-2 border-t border-[var(--color-brass)]/15 pt-4 text-sm text-[var(--color-cream-muted)]">

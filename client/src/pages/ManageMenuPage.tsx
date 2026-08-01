@@ -1,12 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { PERMISSIONS, type MenuCategory, type MenuItem } from '@intern/shared';
-import {
-  createMenuItem,
-  deleteMenuItem,
-  fetchManageMenu,
-  updateMenuItem,
-} from '../services';
+import { createMenuItem, deleteMenuItem, fetchManageMenu, updateMenuItem } from '../services';
 import { useAuth } from '../store';
 import { MenuSkeleton } from '../components/ui';
 
@@ -32,7 +27,10 @@ export function ManageMenuPage() {
   const [saving, setSaving] = useState(false);
 
   const flatItems = useMemo(
-    () => categories.flatMap((category) => category.items.map((item) => ({ ...item, categoryName: category.name }))),
+    () =>
+      categories.flatMap((category) =>
+        category.items.map((item) => ({ ...item, categoryName: category.name })),
+      ),
     [categories],
   );
 
@@ -46,12 +44,12 @@ export function ManageMenuPage() {
   }
 
   useEffect(() => {
-    if (!token || !canManage) {
-      setLoading(false);
-      return;
-    }
     let mounted = true;
     void (async () => {
+      if (!token || !canManage) {
+        if (mounted) setLoading(false);
+        return;
+      }
       try {
         const data = await fetchManageMenu(token);
         if (!mounted) return;
@@ -166,7 +164,10 @@ export function ManageMenuPage() {
         </p>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6">
+      <form
+        onSubmit={onSubmit}
+        className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6"
+      >
         <h2 className="text-lg font-semibold text-stone-900">
           {editingId ? 'Edit item' : 'Add item'}
         </h2>
@@ -176,7 +177,9 @@ export function ManageMenuPage() {
             <select
               required
               value={form.menu_category_id}
-              onChange={(e) => setForm((prev) => ({ ...prev, menu_category_id: Number(e.target.value) }))}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, menu_category_id: Number(e.target.value) }))
+              }
               className="w-full rounded-xl border border-stone-300 px-3 py-2"
             >
               {categories.map((category) => (
@@ -261,7 +264,10 @@ export function ManageMenuPage() {
           <li className="px-5 py-8 text-center text-stone-600">No items yet. Create one above.</li>
         ) : (
           flatItems.map((item) => (
-            <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <li
+              key={item.id}
+              className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+            >
               <div className="flex items-center gap-3">
                 {item.image_url ? (
                   <img
@@ -277,10 +283,13 @@ export function ManageMenuPage() {
                 <div>
                   <p className="font-semibold text-stone-900">
                     {item.name}{' '}
-                    <span className="text-xs font-normal text-stone-500">({item.categoryName})</span>
+                    <span className="text-xs font-normal text-stone-500">
+                      ({item.categoryName})
+                    </span>
                   </p>
                   <p className="text-sm text-stone-600">
-                    {Number(item.price).toFixed(2)} ETB · {item.is_available ? 'Available' : 'Hidden'}
+                    {Number(item.price).toFixed(2)} ETB ·{' '}
+                    {item.is_available ? 'Available' : 'Hidden'}
                   </p>
                 </div>
               </div>

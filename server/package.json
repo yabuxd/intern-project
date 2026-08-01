@@ -4,7 +4,7 @@
     "type": "module",
     "scripts": {
         "build": "vite build",
-        "dev": "vite"
+        "dev": "node -e \"console.error('\\n  This monorepo serves the React app from the repo root, not from server/.\\n\\n  Laravel API:  cd server && php artisan serve\\n  React client: npm run dev        (from repo root)\\n\\n  Only run npm run build here if you need Laravel welcome-page assets (requires npm install in server/ first).\\n'); process.exit(1)\""
     },
     "devDependencies": {
         "@tailwindcss/vite": "^4.0.0",

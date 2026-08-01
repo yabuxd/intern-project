@@ -70,14 +70,39 @@ class VerifySupabaseJwt
         $emailVerified = isset($claims['email_confirmed_at'])
             || filter_var($claims['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
-        $user = User::query()->updateOrCreate(
-            ['id' => $claims['sub']],
-            [
+        $user = User::query()->find($claims['sub']);
+
+        if ($user === null) {
+            $user = User::query()->create([
+                'id' => $claims['sub'],
                 'email' => $email,
                 'name' => $name,
                 'email_verified_at' => $emailVerified ? now() : null,
-            ],
-        );
+            ]);
+        } else {
+            $dirty = false;
+
+            if ($user->email !== $email) {
+                $user->email = $email;
+                $dirty = true;
+            }
+
+            if ($user->name !== $name) {
+                $user->name = $name;
+                $dirty = true;
+            }
+
+            if ($emailVerified && $user->email_verified_at === null) {
+                $user->email_verified_at = now();
+                $dirty = true;
+            }
+
+            if ($dirty) {
+                $user->save();
+            }
+        }
+
+        $user->loadMissing('permissions');
 
         Auth::setUser($user);
         $request->setUserResolver(static fn () => $user);

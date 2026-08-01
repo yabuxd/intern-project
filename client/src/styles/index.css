@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   /* Late-night bistro */
@@ -17,8 +17,8 @@
   --color-panel: #2a2420;
   --color-danger: #8a2e2e;
 
-  --font-display: "Instrument Serif", Georgia, serif;
-  --font-body: "Figtree", "Segoe UI", sans-serif;
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-body: 'Figtree', 'Segoe UI', sans-serif;
 
   font-family: var(--font-body);
   line-height: 1.5;

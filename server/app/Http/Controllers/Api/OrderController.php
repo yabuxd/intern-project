@@ -23,6 +23,7 @@ class OrderController extends Controller
             ->with(['items.menuItem', 'table'])
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
+            ->limit(50)
             ->get()
             ->map(fn (Order $order) => $this->transform($order));
 
@@ -44,6 +45,7 @@ class OrderController extends Controller
                 Order::STATUS_READY,
             ])
             ->orderBy('created_at')
+            ->limit(100)
             ->get()
             ->map(fn (Order $order) => $this->transform($order, includeUser: true));
 
@@ -80,22 +82,28 @@ class OrderController extends Controller
             ]);
 
             $total = 0;
+            $rows = [];
+            $now = now();
 
             foreach ($validated['items'] as $line) {
                 $menuItem = $menuItems->get($line['menu_item_id']);
                 $unitPrice = (float) $menuItem->price;
                 $lineTotal = round($unitPrice * $line['quantity'], 2);
 
-                OrderItem::query()->create([
+                $rows[] = [
                     'order_id' => $order->id,
                     'menu_item_id' => $menuItem->id,
                     'quantity' => $line['quantity'],
                     'unit_price' => $unitPrice,
                     'line_total' => $lineTotal,
-                ]);
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
 
                 $total += $lineTotal;
             }
+
+            OrderItem::query()->insert($rows);
 
             $order->update(['total' => round($total, 2)]);
 

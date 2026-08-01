@@ -27,15 +27,15 @@ export function AdminPermissionsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load users');
     }
-  }, [session?.access_token]);
+  }, [session]);
 
   useEffect(() => {
-    if (!session?.access_token || !canManage) {
-      setLoading(false);
-      return;
-    }
     let mounted = true;
     void (async () => {
+      if (!session?.access_token || !canManage) {
+        if (mounted) setLoading(false);
+        return;
+      }
       try {
         const [usersData, catalogData] = await Promise.all([
           fetchAdminUsers(session.access_token),
@@ -54,7 +54,7 @@ export function AdminPermissionsPage() {
     return () => {
       mounted = false;
     };
-  }, [session?.access_token, canManage]);
+  }, [session, canManage]);
 
   function togglePermission(user: AdminUser, permission: PermissionName, enabled: boolean) {
     const next = enabled
@@ -70,11 +70,7 @@ export function AdminPermissionsPage() {
     setSavingId(user.id);
     setError(null);
     try {
-      const updated = await updateUserPermissions(
-        session.access_token,
-        user.id,
-        user.permissions,
-      );
+      const updated = await updateUserPermissions(session.access_token, user.id, user.permissions);
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       if (currentUser?.id === updated.id) {
         await refreshMe();
@@ -94,8 +90,12 @@ export function AdminPermissionsPage() {
   if (!canManage) {
     return (
       <div className="max-w-lg text-center">
-        <h1 className="font-[family-name:var(--font-display)] text-3xl text-stone-900">Permissions</h1>
-        <p className="mt-3 text-stone-600">You need the can_manage_permissions permission to access this panel.</p>
+        <h1 className="font-[family-name:var(--font-display)] text-3xl text-stone-900">
+          Permissions
+        </h1>
+        <p className="mt-3 text-stone-600">
+          You need the can_manage_permissions permission to access this panel.
+        </p>
       </div>
     );
   }
@@ -103,7 +103,9 @@ export function AdminPermissionsPage() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-8 text-left">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Administration</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
+          Administration
+        </p>
         <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">
           Permission management
         </h1>
@@ -116,10 +118,7 @@ export function AdminPermissionsPage() {
 
       <ul className="space-y-6">
         {users.map((user) => (
-          <li
-            key={user.id}
-            className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm"
-          >
+          <li key={user.id} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <p className="font-medium text-stone-900">{user.name ?? user.email}</p>
@@ -150,9 +149,13 @@ export function AdminPermissionsPage() {
                       className="mt-1"
                     />
                     <span>
-                      <span className="block text-sm font-medium text-stone-800">{permission.name}</span>
+                      <span className="block text-sm font-medium text-stone-800">
+                        {permission.name}
+                      </span>
                       {permission.description && (
-                        <span className="block text-xs text-stone-500">{permission.description}</span>
+                        <span className="block text-xs text-stone-500">
+                          {permission.description}
+                        </span>
                       )}
                     </span>
                   </label>

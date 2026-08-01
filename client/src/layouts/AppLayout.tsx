@@ -93,7 +93,9 @@ export function AppLayout({ children }: AppLayoutProps) {
                 <span
                   className={`h-0.5 w-5 bg-current transition ${menuOpen ? 'translate-y-2 rotate-45' : ''}`}
                 />
-                <span className={`h-0.5 w-5 bg-current transition ${menuOpen ? 'opacity-0' : ''}`} />
+                <span
+                  className={`h-0.5 w-5 bg-current transition ${menuOpen ? 'opacity-0' : ''}`}
+                />
                 <span
                   className={`h-0.5 w-5 bg-current transition ${menuOpen ? '-translate-y-2 -rotate-45' : ''}`}
                 />
