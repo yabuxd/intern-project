@@ -19,17 +19,21 @@ class User extends Authenticatable
     use HasFactory, HasUuids, Notifiable;
 
     /**
-     * @return BelongsToMany<Permission, $this>
+     * @return BelongsToMany<Role, $this>
      */
-    public function permissions(): BelongsToMany
+    public function roles(): BelongsToMany
     {
-        return $this->belongsToMany(Permission::class, 'user_permissions')
+        return $this->belongsToMany(Role::class, 'user_roles')
             ->withTimestamps();
     }
 
     public function hasPermission(string $name): bool
     {
-        return $this->permissions->contains('name', $name);
+        $this->loadMissing('roles.permissions');
+
+        return $this->roles
+            ->flatMap(fn (Role $role) => $role->permissions)
+            ->contains('name', $name);
     }
 
     /**
@@ -37,7 +41,24 @@ class User extends Authenticatable
      */
     public function permissionNames(): array
     {
-        return $this->permissions->pluck('name')->values()->all();
+        $this->loadMissing('roles.permissions');
+
+        return $this->roles
+            ->flatMap(fn (Role $role) => $role->permissions->pluck('name'))
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function roleNames(): array
+    {
+        $this->loadMissing('roles');
+
+        return $this->roles->pluck('name')->sort()->values()->all();
     }
 
     /**

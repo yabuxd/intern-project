@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Http;
@@ -23,7 +23,7 @@ class AdminUserSeeder extends Seeder
             return;
         }
 
-        $this->call(PermissionSeeder::class);
+        $this->call([PermissionSeeder::class, RoleSeeder::class]);
 
         $supabaseUser = $knownId !== ''
             ? ['id' => $knownId, 'email' => $email]
@@ -38,10 +38,10 @@ class AdminUserSeeder extends Seeder
             ],
         );
 
-        $permissionIds = Permission::query()->pluck('id');
-        $user->permissions()->syncWithoutDetaching($permissionIds);
+        $adminRole = Role::query()->where('name', Role::ADMIN)->firstOrFail();
+        $user->roles()->syncWithoutDetaching([$adminRole->id]);
 
-        $this->command?->info("Admin user ready: {$email} (all permissions granted).");
+        $this->command?->info("Admin user ready: {$email} (admin role granted).");
     }
 
     /**

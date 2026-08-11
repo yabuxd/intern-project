@@ -68,8 +68,8 @@ export function AppLayout({ children }: AppLayoutProps) {
         </NavLink>
       )}
       {canManagePermissions && (
-        <NavLink to="/admin/permissions" className={navLinkClass} onClick={closeMenu}>
-          Permissions
+        <NavLink to="/admin/roles" className={navLinkClass} onClick={closeMenu}>
+          Roles
         </NavLink>
       )}
     </>

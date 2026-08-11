@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AppLayout } from './layouts/AppLayout';
 import { AuthLayout } from './layouts/AuthLayout';
-import { AdminPermissionsPage } from './pages/AdminPermissionsPage';
+import { AdminRolesPage } from './pages/AdminRolesPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { ManageMenuPage } from './pages/ManageMenuPage';
@@ -83,13 +83,14 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/admin/permissions"
+          path="/admin/roles"
           element={
             <ProtectedRoute>
-              <AdminPermissionsPage />
+              <AdminRolesPage />
             </ProtectedRoute>
           }
         />
+        <Route path="/admin/permissions" element={<Navigate to="/admin/roles" replace />} />
         <Route
           path="/account"
           element={

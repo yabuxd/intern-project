@@ -78,9 +78,9 @@ function useQuickLinks(
   }
   if (canManagePermissions) {
     links.push({
-      to: '/admin/permissions',
-      title: 'Permissions',
-      description: 'Manage staff access',
+      to: '/admin/roles',
+      title: 'Roles',
+      description: 'Assign roles and edit role permissions',
     });
   }
 

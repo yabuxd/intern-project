@@ -17,6 +17,7 @@ export interface AuthUser {
   id: string;
   name: string | null;
   email: string;
+  roles: string[];
   permissions: string[];
 }
 
@@ -31,6 +32,16 @@ export const PERMISSIONS = {
 } as const;
 
 export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
+
+export const ROLES = {
+  CUSTOMER: "customer",
+  KITCHEN: "kitchen",
+  HOST: "host",
+  MANAGER: "manager",
+  ADMIN: "admin",
+} as const;
+
+export type RoleName = (typeof ROLES)[keyof typeof ROLES];
 
 export interface MenuItem {
   id: number;
@@ -161,9 +172,17 @@ export interface PermissionRecord {
   description: string | null;
 }
 
+export interface RoleRecord {
+  id: number;
+  name: RoleName | string;
+  description: string | null;
+  permissions: PermissionName[];
+}
+
 export interface AdminUser {
   id: string;
   name: string | null;
   email: string;
+  roles: string[];
   permissions: PermissionName[];
 }

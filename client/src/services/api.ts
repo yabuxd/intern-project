@@ -13,6 +13,7 @@ import type {
   PermissionRecord,
   Reservation,
   RestaurantTable,
+  RoleRecord,
   TableStatus,
 } from '@intern/shared';
 
@@ -177,12 +178,28 @@ export function fetchPermissionCatalog(token: string): Promise<PermissionRecord[
   return apiFetch<PermissionRecord[]>('/admin/permissions', { token });
 }
 
-export function updateUserPermissions(
+export function fetchAdminRoles(token: string): Promise<RoleRecord[]> {
+  return apiFetch<RoleRecord[]>('/admin/roles', { token });
+}
+
+export function updateUserRoles(
   token: string,
   userId: string,
-  permissions: PermissionName[],
+  roles: string[],
 ): Promise<AdminUser> {
-  return apiFetch<AdminUser>(`/admin/users/${userId}/permissions`, {
+  return apiFetch<AdminUser>(`/admin/users/${userId}/roles`, {
+    method: 'PUT',
+    token,
+    body: JSON.stringify({ roles }),
+  });
+}
+
+export function updateRolePermissions(
+  token: string,
+  roleId: number,
+  permissions: PermissionName[],
+): Promise<RoleRecord> {
+  return apiFetch<RoleRecord>(`/admin/roles/${roleId}/permissions`, {
     method: 'PUT',
     token,
     body: JSON.stringify({ permissions }),
