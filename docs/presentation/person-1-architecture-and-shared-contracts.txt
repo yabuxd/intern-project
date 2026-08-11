@@ -1,0 +1,96 @@
+================================================================================
+PERSON 1 — Product Overview, System Architecture & Shared Contracts
+================================================================================
+Project: Restaurant Order & Table Management (intern-project monorepo)
+Audience: Internship / university team presentation
+Total presentation: 20 minutes
+Suggested speaking time: 3 minutes
+Presentation order: 1 of 5 (opens the talk)
+
+--------------------------------------------------------------------------------
+SECTION TITLE
+--------------------------------------------------------------------------------
+"What We Built and How the Pieces Fit Together"
+
+--------------------------------------------------------------------------------
+INTRODUCTION (opens the presentation)
+--------------------------------------------------------------------------------
+"Hi everyone — today our team of five will walk you through our Restaurant Order
+and Table Management system. I'll start with the problem we solve and the overall
+architecture, then each teammate will dive into one layer of the stack, ending
+with how the UI and CI deliver the product."
+
+--------------------------------------------------------------------------------
+DETAILED TALKING POINTS / SCRIPT
+--------------------------------------------------------------------------------
+
+1) The problem (30–40 sec)
+   - Digitize a restaurant floor: browse an Ethiopian menu, place orders, manage
+     tables, run a kitchen queue, and (where implemented) handle reservations.
+   - Two audiences in one app: customers and staff (host, kitchen, managers).
+   - Point to README.md feature table: Auth, Menu, Tables, Orders, Realtime.
+
+2) Monorepo layout (45 sec)
+   - client/     → React 19 + TypeScript + Vite + Tailwind SPA
+   - server/     → Laravel 12 API (PHP 8.3+)
+   - shared/     → @intern/shared TypeScript contracts (types + permission names)
+   - docs/       → architecture.md, setup.md
+   - .github/workflows/ci.yml → automated checks
+
+3) High-level request flow (45 sec) — walk the diagram
+   - User signs in with Supabase Auth in the React client.
+   - Client calls Laravel at /api/* with Authorization: Bearer <access_token>.
+   - Laravel verifies JWT, enforces permissions, reads/writes the database
+     (SQLite locally, Supabase PostgreSQL in production).
+   - Kitchen queue optionally listens to Supabase Realtime on the orders table.
+   - Cite docs/architecture.md and the architecture ASCII diagram in README.md.
+
+4) Shared contracts package (40 sec)
+   - shared/types/index.ts defines the API envelope ApiResponse<T>, AuthUser,
+     MenuItem, Order, RestaurantTable, Reservation, and PERMISSIONS constants
+     (can_place_order, can_manage_menu, can_manage_tables, can_view_all_orders,
+     can_update_order_status, can_create_reservation, can_manage_permissions).
+   - Client imports these so frontend and backend stay aligned on shapes and
+     permission string names (mirrored by Laravel Gates).
+   - Root package.json npm workspaces: npm run build builds shared then client.
+
+5) Why this architecture (20 sec)
+   - Supabase handles identity and optional realtime; Laravel owns domain rules
+     (orders, menu CRUD, table status, reservation availability).
+   - Clear separation lets five presenters own distinct seams without overlap.
+
+--------------------------------------------------------------------------------
+KEY TECHNICAL DECISIONS / CHALLENGES
+--------------------------------------------------------------------------------
+- Decision: Monorepo with a shared TypeScript package instead of duplicating DTO
+  shapes in the React app.
+- Decision: Laravel as the system of record for restaurant domain logic; Supabase
+  for Auth (+ Realtime), not as a full BaaS for orders/menu.
+- Challenge: Keeping docs/architecture.md from lagging the README as features
+  landed (menu, orders, tables, reservations, admin permissions).
+
+--------------------------------------------------------------------------------
+CLOSING / TRANSITION TO PERSON 2
+--------------------------------------------------------------------------------
+"So that's the big picture: React talks to Laravel with a JWT, and Laravel talks
+to the database. Next, [Person 2] will show how we designed that database —
+tables, relationships, migrations, and seed data that make the rest of the app
+possible."
+
+--------------------------------------------------------------------------------
+ANTICIPATED AUDIENCE QUESTIONS
+--------------------------------------------------------------------------------
+Q1: Why not put all business logic in Supabase (Edge Functions / RLS only)?
+A1: We wanted Laravel policies, form requests, and PHPUnit feature tests around
+    order workflows and reservation overlap rules. Supabase is excellent for Auth
+    and Realtime; Laravel owns transactional domain rules.
+
+Q2: What does the shared package actually prevent?
+A2: Drift between permission string names and API response shapes. For example
+    PERMISSIONS.CAN_PLACE_ORDER in shared/types/index.ts matches Gate names
+    registered in AppServiceProvider and Permission::catalog().
+
+Q3: Is the API public or private?
+A3: Mixed. Public: GET /api/health, GET /api/menu, GET /api/tables. Everything
+    else under VerifySupabaseJwt in server/routes/api.php requires a Bearer token.
+================================================================================

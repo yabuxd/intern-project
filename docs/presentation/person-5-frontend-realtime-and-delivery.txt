@@ -1,0 +1,114 @@
+================================================================================
+PERSON 5 — Frontend UI, Realtime & Delivery (Testing / CI / Ops)
+================================================================================
+Project: Restaurant Order & Table Management (intern-project monorepo)
+Audience: Internship / university team presentation
+Total presentation: 20 minutes
+Suggested speaking time: 4.5 minutes
+Presentation order: 5 of 5 (closes the talk)
+
+--------------------------------------------------------------------------------
+SECTION TITLE
+--------------------------------------------------------------------------------
+"From API to Screen: React UX, Live Kitchen Queue & How We Ship Safely"
+
+--------------------------------------------------------------------------------
+INTRODUCTION (connects from Person 4)
+--------------------------------------------------------------------------------
+"Person 4 exposed the Laravel endpoints. I'll close by showing how the React
+client turns those APIs into customer and staff experiences, how the kitchen
+queue stays fresh with Realtime or polling, and how CI + setup docs keep the
+project runnable for the whole team."
+
+--------------------------------------------------------------------------------
+DETAILED TALKING POINTS / SCRIPT
+--------------------------------------------------------------------------------
+
+1) Client architecture (40 sec)
+   - Vite React SPA: client/src/main.tsx → App.tsx
+   - Layouts: AppLayout.tsx (main shell), AuthLayout.tsx (login/signup)
+   - AuthProvider (store/AuthContext.tsx) wraps routes; ProtectedRoute gates
+     authenticated pages.
+   - HTTP helper: client/src/services/api.ts attaches Bearer token from session
+     and talks to VITE_API_BASE_URL (default http://localhost:8000/api).
+
+2) Page tour mapped to roles (70 sec) — client/src/pages/
+   Customers / public:
+     HomePage.tsx        → landing + profile/permissions when signed in
+     MenuPage.tsx        → browse Ethiopian menu, cart, checkout
+                           (checkout needs can_place_order)
+     TablesPage.tsx      → see floor status
+     OrdersPage.tsx      → personal order history
+     ReservationsPage.tsx→ book / manage reservations
+     LoginPage / SignupPage
+   Staff:
+     OrderQueuePage.tsx  → kitchen queue + status buttons
+     ManageMenuPage.tsx  → menu CRUD
+     TablesPage.tsx      → status updates when can_manage_tables
+     AdminPermissionsPage.tsx → grant/revoke permissions
+   Routing table lives in App.tsx; nav visibility should follow /api/me permissions.
+
+3) Realtime kitchen updates (50 sec)
+   - Hook: client/src/hooks/useOrdersRealtime.ts
+   - Prefer Supabase Realtime subscription on the orders table.
+   - Fallback: 5-second polling when Realtime URL is missing/placeholder or the
+     channel fails — critical for local SQLite where Supabase cannot push DB
+     changes.
+   - Call out demo tip: enable Realtime for orders in Supabase dashboard for
+     production-like live updates.
+
+4) UX polish & shared types (25 sec)
+   - Types from @intern/shared keep Order/Menu shapes aligned with the API.
+   - UI primitives (e.g. Skeleton.tsx), format helpers in utils/format.ts (ETB).
+   - Permission-aware UI: disable checkout / hide staff links when Gates wouldn't
+     pass — still backed by server 401/403.
+
+5) Delivery: setup, tests, CI (55 sec)
+   - Local two-terminal run: php artisan serve + npm run dev (README Quick start).
+   - Server tests: php artisan test (Feature + Unit, e.g.
+     SupabaseJwtServiceTest, OrdersApiTest).
+   - Client: npm run lint / npm run build (shared then client).
+   - CI: .github/workflows/ci.yml
+       Job "Client & shared (Node)": npm ci, lint, build
+       Job "Server (Laravel)": Composer, Pint --test, php artisan test on SQLite
+   - Docs: docs/setup.md for env/DB details; never commit secrets (.env.example
+     only).
+
+6) Closing demo suggestion (20 sec)
+   - Optional live path: sign in → grant can_place_order → order from /menu →
+     open /orders/queue as kitchen user → advance pending → preparing → ready.
+
+--------------------------------------------------------------------------------
+KEY TECHNICAL DECISIONS / CHALLENGES
+--------------------------------------------------------------------------------
+- Decision: Realtime with polling fallback so local SQLite demos still feel live.
+- Decision: Permission-driven navigation instead of separate staff/customer apps.
+- Challenge: CORS + CLIENT_URL must match Vite origin (http://localhost:5173).
+- Challenge: Sign-up rate limits / email confirmation in Supabase during demos;
+  README troubleshooting covers 429 and JWT/SSL issues.
+
+--------------------------------------------------------------------------------
+CLOSING (end of presentation — no handoff)
+--------------------------------------------------------------------------------
+"That completes the vertical slice: architecture and shared contracts, the
+database, auth and permissions, the Laravel domain API, and the React + CI
+delivery layer. Happy to take questions as a team — or walk a live order from
+menu to kitchen queue."
+
+--------------------------------------------------------------------------------
+ANTICIPATED AUDIENCE QUESTIONS
+--------------------------------------------------------------------------------
+Q1: Why polling if you already have Supabase Realtime?
+A1: Local development often uses SQLite, which does not emit Supabase Realtime
+    events. useOrdersRealtime starts a 5s poll when the Supabase URL is unset or
+    the channel fails, so the kitchen UI still refreshes.
+
+Q2: How do you keep frontend types from drifting from the API?
+A2: Domain TypeScript interfaces and PERMISSIONS live in shared/types/index.ts
+    (@intern/shared). The client imports them; CI builds shared before client.
+
+Q3: What does CI guarantee before merge?
+A3: On push/PR to main (and feature/fix/chore branches), GitHub Actions lints
+    and builds the Node workspace and runs Laravel Pint + the full PHPUnit suite
+    against SQLite — catching broken contracts and API regressions early.
+================================================================================

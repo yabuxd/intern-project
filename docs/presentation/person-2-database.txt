@@ -1,0 +1,112 @@
+================================================================================
+PERSON 2 — Database (Schema, Models, Migrations, Seeders & Relationships)
+================================================================================
+Project: Restaurant Order & Table Management (intern-project monorepo)
+Audience: Internship / university team presentation
+Total presentation: 20 minutes
+Suggested speaking time: 4 minutes
+Presentation order: 2 of 5
+
+--------------------------------------------------------------------------------
+SECTION TITLE
+--------------------------------------------------------------------------------
+"The Data Model Behind Menu, Tables, Orders & Permissions"
+
+--------------------------------------------------------------------------------
+INTRODUCTION (connects from Person 1)
+--------------------------------------------------------------------------------
+"Building on that architecture — React to Laravel to the database — I'll walk
+through how we actually store restaurant data: the schema, Eloquent models,
+migrations, relationships, and the seeders that give us a realistic Ethiopian
+menu and floor plan."
+
+--------------------------------------------------------------------------------
+DETAILED TALKING POINTS / SCRIPT
+--------------------------------------------------------------------------------
+
+1) Runtime choice (20 sec)
+   - Production: Supabase PostgreSQL (pgsql driver via DB_* in server/.env).
+   - Local / CI / PHPUnit: SQLite (fast, no cloud dependency).
+   - Same migrations run in both environments via php artisan migrate.
+
+2) Core identity & permissions tables (50 sec)
+   - users: UUID primary key (HasUuids) matching Supabase Auth `sub`.
+     File: server/database/migrations/0001_01_01_000000_create_users_table.php
+     Model: server/app/Models/User.php — permissions() BelongsToMany,
+     hasPermission(), permissionNames().
+   - permissions + user_permissions pivot:
+     server/database/migrations/2026_07_10_000001_create_permissions_tables.php
+     Model: server/app/Models/Permission.php (catalog of gate names).
+   - Emphasize: Auth identity and app authorization both land in these tables.
+
+3) Menu domain (40 sec)
+   - menu_categories → menu_items (FK, image_url added in a later migration).
+     Migrations:
+       2026_07_13_000001_create_menu_categories_table.php
+       2026_07_13_000002_create_menu_items_table.php
+       2026_07_13_120000_add_image_url_to_menu_items_table.php
+   - Models: MenuCategory.php, MenuItem.php (category relationship, availability).
+
+4) Floor & orders (60 sec)
+   - tables (RestaurantTable model): name, capacity, status
+     (free | reserved | occupied).
+     Migration: 2026_07_14_000001_create_tables_table.php
+     Model: RestaurantTable.php
+   - orders: user_id (UUID FK), optional table_id, status, total.
+     Migration: 2026_07_14_000002_create_orders_table.php
+     Model: Order.php — statuses(), allowedTransitions(), canTransitionTo(),
+     relations: user(), table(), items().
+   - order_items: line items with menu_item_id, quantity, unit_price, line_total.
+     Migration: 2026_07_14_000003_create_order_items_table.php
+     Model: OrderItem.php
+   - Sketch verbally: User 1—* Order 1—* OrderItem *—1 MenuItem; Order *—0..1 Table.
+
+5) Reservations (30 sec)
+   - reservations: user, table, party_size, starts_at, ends_at, status, notes.
+     Migration: 2026_07_14_100001_create_reservations_table.php
+     Model: Reservation.php (activeStatuses used by availability checks).
+
+6) Seeders make demos possible (30 sec)
+   - PermissionSeeder, MenuCategorySeeder, EthiopianMenuSeeder, TableSeeder,
+     AdminUserSeeder (only when ADMIN_EMAIL is set).
+   - Command: php artisan migrate:fresh --seed
+   - Images under client/public/images/menu/ referenced by seeded image_url.
+
+--------------------------------------------------------------------------------
+KEY TECHNICAL DECISIONS / CHALLENGES
+--------------------------------------------------------------------------------
+- Decision: Use Supabase user UUID as users.id so JWT `sub` maps 1:1 without a
+  separate mapping table (updateOrCreate in auth middleware).
+- Decision: Encode order lifecycle in the Order model (allowedTransitions) so
+  invalid status jumps cannot be persisted casually.
+- Challenge: Dual DB targets (SQLite vs Postgres) — keep migrations portable;
+  avoid Postgres-only features in schema.
+- Challenge: Soft coupling between table.status and Reservation rows — status
+  can be set by staff while reservations also track time windows.
+
+--------------------------------------------------------------------------------
+CLOSING / TRANSITION TO PERSON 3
+--------------------------------------------------------------------------------
+"With the schema and relationships in place — especially UUID users and the
+permissions pivot — we need a safe way to prove who is calling the API and what
+they're allowed to do. [Person 3] will cover Supabase JWT verification,
+middleware, Gates, and policies."
+
+--------------------------------------------------------------------------------
+ANTICIPATED AUDIENCE QUESTIONS
+--------------------------------------------------------------------------------
+Q1: Why UUID users instead of auto-increment IDs?
+A1: Supabase Auth already issues a UUID `sub`. Using that as users.id lets
+    VerifySupabaseJwt upsert with ['id' => $claims['sub']] and keeps foreign
+    keys (orders.user_id) aligned with the identity provider.
+
+Q2: Where is order total calculated — DB trigger or app?
+A2: Application layer when creating orders (OrderController + order_items line
+    totals). The orders.total column stores the computed decimal; migrations
+    define storage, not pricing rules.
+
+Q3: How do you reset demo data for a presentation?
+A3: From server/: php artisan migrate:fresh --seed. That rebuilds schema and
+    reloads Ethiopian menu + eight tables. Optionally seed an admin via
+    AdminUserSeeder when ADMIN_* env vars are set.
+================================================================================

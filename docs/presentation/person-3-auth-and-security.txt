@@ -1,0 +1,107 @@
+================================================================================
+PERSON 3 — Authentication, Authorization & Security
+================================================================================
+Project: Restaurant Order & Table Management (intern-project monorepo)
+Audience: Internship / university team presentation
+Total presentation: 20 minutes
+Suggested speaking time: 4 minutes
+Presentation order: 3 of 5
+
+--------------------------------------------------------------------------------
+SECTION TITLE
+--------------------------------------------------------------------------------
+"Who Are You, and What Are You Allowed to Do?"
+
+--------------------------------------------------------------------------------
+INTRODUCTION (connects from Person 2)
+--------------------------------------------------------------------------------
+"Person 2 showed that every authenticated action ties back to a UUID user and a
+set of permission rows. I'll explain how a browser session becomes a trusted
+Laravel user — JWT verification, user sync, Gates, and the policies that protect
+menu, orders, tables, and admin APIs."
+
+--------------------------------------------------------------------------------
+DETAILED TALKING POINTS / SCRIPT
+--------------------------------------------------------------------------------
+
+1) Auth strategy overview (30 sec)
+   - Identity: Supabase Auth (sign-up / sign-in in the React client).
+   - API trust: Laravel never trusts the client blindly — it verifies the Bearer
+     JWT on protected routes in server/routes/api.php.
+   - Local mirror: verified claims upsert into the users table.
+
+2) Middleware: VerifySupabaseJwt (70 sec)
+   - File: server/app/Http/Middleware/VerifySupabaseJwt.php
+   - Requires Authorization: Bearer <token>; returns 401 otherwise.
+   - Delegates verification to SupabaseJwtService
+     (server/app/Services/SupabaseJwtService.php):
+       • ES256 via JWKS / Auth API for production Supabase tokens
+       • HS256 via SUPABASE_JWT_SECRET for tests / legacy
+   - On success: updateOrCreate User by claims['sub'], sync email/name/
+     email_verified_at, then Auth::login($user) for the request.
+   - Config wiring: config/services.php + AppServiceProvider singleton
+     registration of SupabaseJwtService (optional SSL_CERT_FILE on Windows).
+
+3) Permissions & Gates (50 sec)
+   - Permission catalog seeded; Gate::define for each name in
+     AppServiceProvider::boot() using User::hasPermission().
+   - Shared names live in shared/types/index.ts PERMISSIONS — same strings the
+     client checks for UI affordances.
+   - GET /api/me → MeController returns AuthUser + permission names so the SPA
+     can hide/show staff features.
+
+4) Policies & request validation (50 sec)
+   - Policies (server/app/Policies/):
+       MenuItemPolicy, OrderPolicy, RestaurantTablePolicy,
+       ReservationPolicy, UserPolicy
+   - Controllers authorize actions (e.g. manage menu, update order status).
+   - Form requests enforce input shape:
+       StoreOrderRequest, UpdateOrderStatusRequest, StoreMenuItemRequest,
+       UpdateMenuItemRequest, StoreReservationRequest,
+       UpdateUserPermissionsRequest
+   - Admin routes: UserPermissionController under /api/admin/* for listing users
+     and syncing permissions (requires can_manage_permissions).
+
+5) Client-side auth surface (30 sec)
+   - client/src/services/supabase.ts — Supabase JS client
+   - client/src/store/AuthContext.tsx — session + /api/me hydration
+   - LoginPage.tsx / SignupPage.tsx; ProtectedRoute in App.tsx
+   - Note: UI checks are convenience; real enforcement is server-side Gates.
+
+--------------------------------------------------------------------------------
+KEY TECHNICAL DECISIONS / CHALLENGES
+--------------------------------------------------------------------------------
+- Decision: Verify JWTs in Laravel rather than calling Supabase on every
+  authorization check after the first verify — local user + permissions pivot.
+- Decision: Support both ES256 (real Supabase) and HS256 (PHPUnit) in one service.
+- Challenge: New sign-ups start with zero permissions until granted (tinker,
+  AdminUserSeeder, or admin UI) — intentional for least privilege, easy to
+  confuse in demos.
+- Challenge: Windows SSL / cacert issues when fetching JWKS — documented
+  SSL_CERT_FILE workaround in README troubleshooting.
+
+--------------------------------------------------------------------------------
+CLOSING / TRANSITION TO PERSON 4
+--------------------------------------------------------------------------------
+"Once the JWT is verified and Gates know the caller's permissions, Laravel can
+safely run domain operations. [Person 4] will show the API routes, controllers,
+and services — placing orders, advancing kitchen status, managing tables, and
+checking reservation availability."
+
+--------------------------------------------------------------------------------
+ANTICIPATED AUDIENCE QUESTIONS
+--------------------------------------------------------------------------------
+Q1: Could someone forge permissions in the JWT?
+A1: No. Permissions are not trusted from the token. They live in
+    user_permissions and are checked via Gates after we only trust identity
+    claims (sub, email) from a cryptographically verified JWT.
+
+Q2: Why upsert the user on every authenticated request?
+A2: Keeps Laravel's users row in sync when name/email verification changes in
+    Supabase, without a separate webhook. updateOrCreate on sub is idempotent.
+
+Q3: What's the difference between ProtectedRoute and can_manage_menu?
+A3: ProtectedRoute only ensures a Supabase session exists. Capability checks
+    (permissions array from /api/me) gate staff pages; the API still returns 403
+    if someone hits /api/menu/manage without the Gate passing.
+================================================================================

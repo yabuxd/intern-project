@@ -1,0 +1,110 @@
+================================================================================
+PERSON 4 — Backend API & Domain / Business Logic
+================================================================================
+Project: Restaurant Order & Table Management (intern-project monorepo)
+Audience: Internship / university team presentation
+Total presentation: 20 minutes
+Suggested speaking time: 4.5 minutes
+Presentation order: 4 of 5
+
+--------------------------------------------------------------------------------
+SECTION TITLE
+--------------------------------------------------------------------------------
+"The Laravel API: Menu, Tables, Orders, Reservations & Admin"
+
+--------------------------------------------------------------------------------
+INTRODUCTION (connects from Person 3)
+--------------------------------------------------------------------------------
+"Person 3 got us a trusted user and permission Gates. Now I'll show what that
+user can actually do through the REST API — the controllers, status workflows,
+and services that implement restaurant operations on top of the schema."
+
+--------------------------------------------------------------------------------
+DETAILED TALKING POINTS / SCRIPT
+--------------------------------------------------------------------------------
+
+1) Route map (40 sec) — file: server/routes/api.php
+   Public:
+     GET  /api/health
+     GET  /api/menu
+     GET  /api/tables
+   JWT group:
+     GET/PATCH tables, orders CRUD-ish endpoints, /me, menu manage + menu-items
+     resource, reservations, admin users/permissions
+   Tip for slides: reuse the API table from README.md.
+
+2) Menu APIs (40 sec)
+   - MenuController: public index (available items by category); manage() for
+     staff including unavailable items (can_manage_menu).
+   - MenuItemController: store/update/destroy via Form Requests
+     StoreMenuItemRequest / UpdateMenuItemRequest + MenuItemPolicy.
+
+3) Tables (25 sec)
+   - TableController: public list; PATCH status for hosts with can_manage_tables.
+   - Statuses align with RestaurantTable model: free, reserved, occupied.
+
+4) Orders — core business workflow (90 sec)
+   - OrderController:
+       index()     → current user's history
+       store()     → place order (can_place_order); creates Order + OrderItems
+       queue()     → kitchen view (can_view_all_orders)
+       updateStatus() → advance status (can_update_order_status)
+       cancel()    → delete/cancel path when allowed
+   - Status machine on Order model:
+       pending → preparing → ready → served
+       cancel allowed from pending/preparing/ready via allowedTransitions()
+   - UpdateOrderStatusRequest + OrderPolicy enforce who can change what.
+   - Why it matters: kitchen queue and customer history share one source of truth.
+
+5) Reservations (40 sec)
+   - ReservationController: index / store / destroy
+   - ReservationAvailabilityService::assertAvailable():
+       rejects occupied tables, party_size > capacity, and overlapping
+       active reservations on the same table/time window
+   - StoreReservationRequest validates payload before the service runs.
+
+6) Admin & identity endpoints (25 sec)
+   - MeController: profile + permissions for the SPA.
+   - UserPermissionController: list users/permissions; PUT sync for admins.
+
+7) Response style (20 sec)
+   - JSON success envelopes consistent with shared ApiResponse shape.
+   - Feature tests under server/tests/Feature/ (OrdersApiTest, MenuApiTest,
+     TablesApiTest, ReservationsApiTest, UserPermissionsApiTest, MeEndpointTest)
+     — mention briefly; Person 5 will cover CI running them.
+
+--------------------------------------------------------------------------------
+KEY TECHNICAL DECISIONS / CHALLENGES
+--------------------------------------------------------------------------------
+- Decision: Keep order transition rules on the Eloquent model so controllers and
+  tests share one definition of "legal next status."
+- Decision: Extract reservation overlap logic into ReservationAvailabilityService
+  instead of bloating the controller.
+- Challenge: Optional table_id on orders — walk-in vs seated flows.
+- Challenge: README once listed reservations/admin as "planned"; code now has
+  routes and pages — presenters should speak from routes/api.php as source of truth.
+
+--------------------------------------------------------------------------------
+CLOSING / TRANSITION TO PERSON 5
+--------------------------------------------------------------------------------
+"Those endpoints are what the React app consumes for browsing, checkout, kitchen
+updates, and reservations. [Person 5] will show the frontend pages, realtime
+kitchen updates, and how we package and verify everything with CI."
+
+--------------------------------------------------------------------------------
+ANTICIPATED AUDIENCE QUESTIONS
+--------------------------------------------------------------------------------
+Q1: What stops skipping from pending straight to served?
+A1: Order::canTransitionTo() uses allowedTransitions(). updateStatus rejects
+    illegal jumps even if a client sends them.
+
+Q2: How are line prices protected from client tampering?
+A2: Store order flow should price from menu_items in the database (server-side),
+    not trust arbitrary unit prices from the cart payload — emphasize server as
+    source of truth for unit_price / total.
+
+Q3: How does reservation overlap detection work?
+A3: ReservationAvailabilityService queries reservations for the same table_id
+    with active statuses where starts_at < endsAt AND ends_at > startsAt — classic
+    interval overlap — and fails validation if any row exists.
+================================================================================

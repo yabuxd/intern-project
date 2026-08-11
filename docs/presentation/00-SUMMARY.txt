@@ -1,0 +1,54 @@
+================================================================================
+5-PERSON TEAM PRESENTATION — SUMMARY
+================================================================================
+Project: Restaurant Order & Table Management
+Stack: React 19 + TypeScript + Vite + Tailwind | Laravel 12 (PHP 8.3+) |
+       Supabase Auth/Realtime | PostgreSQL (prod) / SQLite (local+CI) |
+       shared @intern/shared contracts
+Audience: Internship / university team presentation (adjust as needed)
+Total time assumed: 20 minutes
+
+--------------------------------------------------------------------------------
+RECOMMENDED PRESENTATION ORDER (and why it flows)
+--------------------------------------------------------------------------------
+1 → 2 → 3 → 4 → 5
+
+Person 1 frames the product and monorepo seams.
+Person 2 shows the data those seams persist.
+Person 3 shows how callers are identified and authorized against that data.
+Person 4 shows the API/domain operations that use auth + data.
+Person 5 shows the UI that consumes the API, plus realtime and how you ship.
+
+This mirrors the real request path:
+  Browser → Supabase Auth → Laravel (JWT + Gates) → Database → JSON → React
+  (+ optional Realtime on orders)
+
+--------------------------------------------------------------------------------
+SUMMARY TABLE
+--------------------------------------------------------------------------------
+Person # | Section name                              | Topic owner focus        | Time
+---------|-------------------------------------------|--------------------------|------
+1        | Architecture & Shared Contracts           | Overview / monorepo      | 3.0 min
+2        | Database                                  | Schema / models / seeds  | 4.0 min
+3        | Auth & Security                           | JWT / Gates / policies   | 4.0 min
+4        | Backend API & Domain Logic                | Controllers / services   | 4.5 min
+5        | Frontend, Realtime & Delivery             | UI / CI / wrap-up        | 4.5 min
+---------|-------------------------------------------|--------------------------|------
+TOTAL    |                                           |                          | 20 min
+
+--------------------------------------------------------------------------------
+FILES IN THIS FOLDER
+--------------------------------------------------------------------------------
+person-1-architecture-and-shared-contracts.txt
+person-2-database.txt
+person-3-auth-and-security.txt
+person-4-backend-api-and-domain.txt
+person-5-frontend-realtime-and-delivery.txt
+architecture-flow.png   (visual diagram labeled by person)
+
+--------------------------------------------------------------------------------
+FILL-IN IF YOUR CLASS REQUIRES DIFFERENT TIMING
+--------------------------------------------------------------------------------
+Scale speaking times proportionally. Example for 30 minutes:
+  P1 4.5 | P2 6 | P3 6 | P4 7 | P5 6.5
+================================================================================
