@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuCategory;
+use App\Support\MenuImage;
 use Illuminate\Http\JsonResponse;
 
 class MenuController extends Controller
@@ -56,7 +57,7 @@ class MenuController extends Controller
                     'menu_category_id' => $item->menu_category_id,
                     'name' => $item->name,
                     'description' => $item->description,
-                    'image_url' => $item->image_url,
+                    'image_url' => MenuImage::resolve($item->image_url),
                     'price' => $item->price,
                     'is_available' => $item->is_available,
                     'sort_order' => $item->sort_order,

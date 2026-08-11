@@ -30,6 +30,8 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::get('/me', MeController::class);
     Route::get('/menu/manage', [MenuController::class, 'manage']);
     Route::apiResource('menu-items', MenuItemController::class)->except(['index']);
+    // PHP only parses multipart uploads on POST (not PUT).
+    Route::post('/menu-items/{menuItem}', [MenuItemController::class, 'update']);
     Route::get('/reservations', [ReservationController::class, 'index']);
     Route::post('/reservations', [ReservationController::class, 'store']);
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy']);

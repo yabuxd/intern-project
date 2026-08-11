@@ -15,7 +15,6 @@ const emptyForm = {
   menu_category_id: 0,
   name: '',
   description: '',
-  image_url: '',
   price: '',
   is_available: true,
 };
@@ -34,6 +33,9 @@ export function ManageMenuPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
 
   const flatItems = useMemo(
     () =>
@@ -91,6 +93,29 @@ export function ManageMenuPage() {
     );
   }
 
+  function clearImageSelection() {
+    setImageFile(null);
+    setImagePreview((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }
+
+  function resetFormFields(categoryId = categories[0]?.id || 0) {
+    setForm({ ...emptyForm, menu_category_id: categoryId });
+    setEditingId(null);
+    setExistingImageUrl(null);
+    clearImageSelection();
+  }
+
+  function onImageChange(fileList: FileList | null) {
+    const file = fileList?.[0] ?? null;
+    clearImageSelection();
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
@@ -101,20 +126,15 @@ export function ManageMenuPage() {
         menu_category_id: Number(form.menu_category_id),
         name: form.name.trim(),
         description: form.description.trim() || null,
-        image_url: form.image_url.trim() || null,
         price: Number(form.price),
         is_available: form.is_available,
       };
       if (editingId) {
-        await updateMenuItem(token, editingId, payload);
+        await updateMenuItem(token, editingId, payload, imageFile);
       } else {
-        await createMenuItem(token, payload);
+        await createMenuItem(token, payload, imageFile);
       }
-      setForm({
-        ...emptyForm,
-        menu_category_id: categories[0]?.id || 0,
-      });
-      setEditingId(null);
+      resetFormFields(categories[0]?.id || 0);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -124,12 +144,13 @@ export function ManageMenuPage() {
   }
 
   function startEdit(item: MenuItem) {
+    clearImageSelection();
     setEditingId(item.id);
+    setExistingImageUrl(item.image_url);
     setForm({
       menu_category_id: item.menu_category_id,
       name: item.name,
       description: item.description ?? '',
-      image_url: item.image_url ?? '',
       price: String(item.price),
       is_available: item.is_available,
     });
@@ -142,8 +163,7 @@ export function ManageMenuPage() {
     try {
       await deleteMenuItem(token, id);
       if (editingId === id) {
-        setEditingId(null);
-        setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
+        resetFormFields(categories[0]?.id || 0);
       }
       await reload();
     } catch (err) {
@@ -238,14 +258,35 @@ export function ManageMenuPage() {
               className={`min-h-20 ${fieldClass}`}
             />
           </label>
-          <label className="block space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-[var(--color-cream-muted)]">Image URL</span>
+          <label className="block space-y-2 text-sm md:col-span-2">
+            <span className="font-medium text-[var(--color-cream-muted)]">Dish image</span>
             <input
-              value={form.image_url}
-              onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))}
-              placeholder="/images/menu/doro-wat.jpg"
-              className={fieldClass}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={(e) => onImageChange(e.target.files)}
+              className="block w-full text-sm text-[var(--color-cream-muted)] file:mr-3 file:rounded-md file:border-0 file:bg-[var(--color-brass)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-espresso)]"
             />
+            <p className="text-xs text-[var(--color-cream-muted)]">
+              Choose a photo from your computer (JPEG, PNG, WebP, or GIF, max 5 MB).
+            </p>
+            {(imagePreview || existingImageUrl) && (
+              <div className="flex items-center gap-3 pt-1">
+                <img
+                  src={imagePreview ?? existingImageUrl ?? undefined}
+                  alt="Dish preview"
+                  className="h-20 w-20 object-cover"
+                />
+                {imageFile && (
+                  <button
+                    type="button"
+                    onClick={() => clearImageSelection()}
+                    className="text-sm text-[var(--color-brass)] underline"
+                  >
+                    Remove selected file
+                  </button>
+                )}
+              </div>
+            )}
           </label>
           <label className="flex items-center gap-2 text-sm text-[var(--color-cream)] md:col-span-2">
             <input
@@ -267,10 +308,7 @@ export function ManageMenuPage() {
           {editingId && (
             <button
               type="button"
-              onClick={() => {
-                setEditingId(null);
-                setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
-              }}
+              onClick={() => resetFormFields(categories[0]?.id || 0)}
               className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm text-[var(--color-cream)] transition hover:bg-[var(--color-espresso)]"
             >
               Cancel edit

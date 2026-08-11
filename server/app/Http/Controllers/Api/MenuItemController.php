@@ -6,13 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMenuItemRequest;
 use App\Http\Requests\UpdateMenuItemRequest;
 use App\Models\MenuItem;
+use App\Support\MenuImage;
 use Illuminate\Http\JsonResponse;
 
 class MenuItemController extends Controller
 {
     public function store(StoreMenuItemRequest $request): JsonResponse
     {
-        $item = MenuItem::query()->create($request->validated());
+        $data = $request->safe()->except(['image']);
+
+        if ($request->hasFile('image')) {
+            $data['image_url'] = MenuImage::store($request->file('image'));
+        }
+
+        $item = MenuItem::query()->create($data);
         $item->load('category');
 
         return response()->json([
@@ -35,7 +42,14 @@ class MenuItemController extends Controller
 
     public function update(UpdateMenuItemRequest $request, MenuItem $menuItem): JsonResponse
     {
-        $menuItem->update($request->validated());
+        $data = $request->safe()->except(['image']);
+
+        if ($request->hasFile('image')) {
+            MenuImage::deleteIfOwned($menuItem->image_url);
+            $data['image_url'] = MenuImage::store($request->file('image'));
+        }
+
+        $menuItem->update($data);
         $menuItem->load('category');
 
         return response()->json([
@@ -48,6 +62,7 @@ class MenuItemController extends Controller
     public function destroy(MenuItem $menuItem): JsonResponse
     {
         $this->authorize('delete', $menuItem);
+        MenuImage::deleteIfOwned($menuItem->image_url);
         $menuItem->delete();
 
         return response()->json([
@@ -67,7 +82,7 @@ class MenuItemController extends Controller
             'menu_category_id' => $item->menu_category_id,
             'name' => $item->name,
             'description' => $item->description,
-            'image_url' => $item->image_url,
+            'image_url' => MenuImage::resolve($item->image_url),
             'price' => $item->price,
             'is_available' => $item->is_available,
             'sort_order' => $item->sort_order,

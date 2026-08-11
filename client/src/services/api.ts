@@ -32,29 +32,34 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit & { token?: string | null } = {},
 ): Promise<T> {
-  const { token, headers, ...rest } = options;
+  const { token, headers, body, ...rest } = options;
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...rest,
+    body,
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   });
 
-  const body = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+  const responseBody = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
   if (!response.ok) {
-    throw new ApiError(body?.message ?? `Request failed (${response.status})`, response.status);
+    throw new ApiError(
+      responseBody?.message ?? `Request failed (${response.status})`,
+      response.status,
+    );
   }
 
-  if (body && typeof body === 'object' && 'data' in body) {
-    return body.data;
+  if (responseBody && typeof responseBody === 'object' && 'data' in responseBody) {
+    return responseBody.data;
   }
 
-  return body as T;
+  return responseBody as T;
 }
 
 export function fetchMe(token: string): Promise<AuthUser> {
@@ -69,7 +74,26 @@ export function fetchManageMenu(token: string): Promise<MenuCategory[]> {
   return apiFetch<MenuCategory[]>('/menu/manage', { token });
 }
 
-export function createMenuItem(token: string, input: MenuItemInput): Promise<MenuItem> {
+export function createMenuItem(
+  token: string,
+  input: MenuItemInput,
+  image?: File | null,
+): Promise<MenuItem> {
+  if (image) {
+    const formData = new FormData();
+    formData.append('menu_category_id', String(input.menu_category_id));
+    formData.append('name', input.name);
+    if (input.description != null) formData.append('description', input.description);
+    formData.append('price', String(input.price));
+    formData.append('is_available', input.is_available === false ? '0' : '1');
+    formData.append('image', image);
+    return apiFetch<MenuItem>('/menu-items', {
+      method: 'POST',
+      token,
+      body: formData,
+    });
+  }
+
   return apiFetch<MenuItem>('/menu-items', {
     method: 'POST',
     token,
@@ -81,7 +105,30 @@ export function updateMenuItem(
   token: string,
   id: number,
   input: Partial<MenuItemInput>,
+  image?: File | null,
 ): Promise<MenuItem> {
+  if (image) {
+    const formData = new FormData();
+    if (input.menu_category_id != null) {
+      formData.append('menu_category_id', String(input.menu_category_id));
+    }
+    if (input.name != null) formData.append('name', input.name);
+    if (input.description !== undefined) {
+      formData.append('description', input.description ?? '');
+    }
+    if (input.price != null) formData.append('price', String(input.price));
+    if (input.is_available != null) {
+      formData.append('is_available', input.is_available ? '1' : '0');
+    }
+    formData.append('image', image);
+    // POST so PHP parses the multipart file body.
+    return apiFetch<MenuItem>(`/menu-items/${id}`, {
+      method: 'POST',
+      token,
+      body: formData,
+    });
+  }
+
   return apiFetch<MenuItem>(`/menu-items/${id}`, {
     method: 'PUT',
     token,

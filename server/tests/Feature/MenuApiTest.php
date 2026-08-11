@@ -78,6 +78,37 @@ class MenuApiTest extends TestCase
         $this->assertDatabaseHas('menu_items', ['name' => 'Pasta']);
     }
 
+    public function test_manager_can_create_menu_item_with_uploaded_image(): void
+    {
+        $user = $this->userWithPermission(Permission::CAN_MANAGE_MENU);
+        $category = MenuCategory::query()->firstOrFail();
+        $token = $this->makeToken([
+            'sub' => $user->id,
+            'email' => $user->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $file = \Illuminate\Http\UploadedFile::fake()->create('doro-wat.jpg', 120, 'image/jpeg');
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->post('/api/menu-items', [
+                'menu_category_id' => $category->id,
+                'name' => 'Doro Wat',
+                'description' => 'Spicy chicken',
+                'price' => 320,
+                'is_available' => '1',
+                'image' => $file,
+            ], [
+                'Accept' => 'application/json',
+            ])
+            ->assertCreated();
+
+        $imageUrl = $response->json('data.image_url');
+        $this->assertIsString($imageUrl);
+        $this->assertStringContainsString('/storage/menu/', $imageUrl);
+        $this->assertDatabaseHas('menu_items', ['name' => 'Doro Wat']);
+    }
+
     public function test_user_without_permission_cannot_create_menu_item(): void
     {
         $user = User::factory()->create();
