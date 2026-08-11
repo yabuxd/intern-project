@@ -118,7 +118,7 @@ export function MenuPage() {
         {canManage && (
           <Link
             to="/menu/manage"
-            className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)]"
           >
             Manage menu
           </Link>

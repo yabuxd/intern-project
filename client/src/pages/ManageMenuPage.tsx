@@ -9,6 +9,7 @@ import {
 } from '../services';
 import { useAuth } from '../store';
 import { MenuSkeleton } from '../components/ui';
+import { formatEtb } from '../utils/format';
 
 const emptyForm = {
   menu_category_id: 0,
@@ -18,6 +19,9 @@ const emptyForm = {
   price: '',
   is_available: true,
 };
+
+const fieldClass =
+  'w-full rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-[var(--color-cream)] outline-none transition focus:border-[var(--color-brass)]';
 
 export function ManageMenuPage() {
   const { session, hasPermission, loading: authLoading } = useAuth();
@@ -32,7 +36,10 @@ export function ManageMenuPage() {
   const [saving, setSaving] = useState(false);
 
   const flatItems = useMemo(
-    () => categories.flatMap((category) => category.items.map((item) => ({ ...item, categoryName: category.name }))),
+    () =>
+      categories.flatMap((category) =>
+        category.items.map((item) => ({ ...item, categoryName: category.name })),
+      ),
     [categories],
   );
 
@@ -75,7 +82,7 @@ export function ManageMenuPage() {
   if (!session) return <Navigate to="/login" replace />;
   if (!canManage) {
     return (
-      <div className="space-y-3 px-6 py-16 text-center text-[var(--color-cream)]">
+      <div className="mx-auto max-w-lg space-y-3 px-4 py-16 text-center sm:px-6">
         <p className="text-[var(--color-cream-muted)]">You need the can_manage_menu permission.</p>
         <Link to="/menu" className="text-sm font-semibold text-[var(--color-brass)] underline">
           Back to menu
@@ -147,37 +154,53 @@ export function ManageMenuPage() {
   if (loading) return <MenuSkeleton />;
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-8 text-left">
+    <div className="mx-auto w-full max-w-4xl space-y-8 px-4 py-10 text-left sm:space-y-10 sm:px-6 sm:py-12 md:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Staff</p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+            Staff
+          </p>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)] sm:text-4xl">
             Manage menu
           </h1>
+          <p className="mt-2 text-sm text-[var(--color-cream-muted)]">
+            Add dishes, update prices, or hide items from the public menu.
+          </p>
         </div>
-        <Link to="/menu" className="text-sm font-semibold text-stone-700 underline">
+        <Link
+          to="/menu"
+          className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
+        >
           View public menu
         </Link>
       </div>
 
       {error && (
-        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700" role="alert">
+        <p
+          className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-2 text-sm text-[#e8a0a0]"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6">
-        <h2 className="text-lg font-semibold text-stone-900">
+      <form
+        onSubmit={onSubmit}
+        className="space-y-4 border border-[var(--color-brass)]/20 bg-[var(--color-umber)] p-5 sm:p-6"
+      >
+        <h2 className="font-[family-name:var(--font-display)] text-xl text-[var(--color-cream)]">
           {editingId ? 'Edit item' : 'Add item'}
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-stone-700">Category</span>
+            <span className="font-medium text-[var(--color-cream-muted)]">Category</span>
             <select
               required
               value={form.menu_category_id}
-              onChange={(e) => setForm((prev) => ({ ...prev, menu_category_id: Number(e.target.value) }))}
-              className="w-full rounded-xl border border-stone-300 px-3 py-2"
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, menu_category_id: Number(e.target.value) }))
+              }
+              className={fieldClass}
             >
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
@@ -187,16 +210,16 @@ export function ManageMenuPage() {
             </select>
           </label>
           <label className="block space-y-1 text-sm">
-            <span className="font-medium text-stone-700">Name</span>
+            <span className="font-medium text-[var(--color-cream-muted)]">Name</span>
             <input
               required
               value={form.name}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-              className="w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={fieldClass}
             />
           </label>
           <label className="block space-y-1 text-sm">
-            <span className="font-medium text-stone-700">Price (ETB)</span>
+            <span className="font-medium text-[var(--color-cream-muted)]">Price (ETB)</span>
             <input
               required
               type="number"
@@ -204,27 +227,27 @@ export function ManageMenuPage() {
               step="0.01"
               value={form.price}
               onChange={(e) => setForm((prev) => ({ ...prev, price: e.target.value }))}
-              className="w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={fieldClass}
             />
           </label>
           <label className="block space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-stone-700">Description</span>
+            <span className="font-medium text-[var(--color-cream-muted)]">Description</span>
             <textarea
               value={form.description}
               onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
-              className="min-h-20 w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={`min-h-20 ${fieldClass}`}
             />
           </label>
           <label className="block space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-stone-700">Image URL</span>
+            <span className="font-medium text-[var(--color-cream-muted)]">Image URL</span>
             <input
               value={form.image_url}
               onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))}
               placeholder="/images/menu/doro-wat.jpg"
-              className="w-full rounded-xl border border-stone-300 px-3 py-2"
+              className={fieldClass}
             />
           </label>
-          <label className="flex items-center gap-2 text-sm md:col-span-2">
+          <label className="flex items-center gap-2 text-sm text-[var(--color-cream)] md:col-span-2">
             <input
               type="checkbox"
               checked={form.is_available}
@@ -237,7 +260,7 @@ export function ManageMenuPage() {
           <button
             type="submit"
             disabled={saving || categories.length === 0}
-            className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
           >
             {saving ? 'Saving…' : editingId ? 'Update item' : 'Create item'}
           </button>
@@ -248,7 +271,7 @@ export function ManageMenuPage() {
                 setEditingId(null);
                 setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
               }}
-              className="rounded-xl border border-stone-300 px-4 py-2 text-sm"
+              className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm text-[var(--color-cream)] transition hover:bg-[var(--color-espresso)]"
             >
               Cancel edit
             </button>
@@ -256,31 +279,38 @@ export function ManageMenuPage() {
         </div>
       </form>
 
-      <ul className="divide-y divide-stone-200 overflow-hidden rounded-2xl border border-stone-200 bg-white">
+      <ul className="divide-y divide-[var(--color-brass)]/15 overflow-hidden border border-[var(--color-brass)]/20 bg-[var(--color-umber)]">
         {flatItems.length === 0 ? (
-          <li className="px-5 py-8 text-center text-stone-600">No items yet. Create one above.</li>
+          <li className="px-5 py-8 text-center text-[var(--color-cream-muted)]">
+            No items yet. Create one above.
+          </li>
         ) : (
           flatItems.map((item) => (
-            <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+            <li
+              key={item.id}
+              className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+            >
               <div className="flex items-center gap-3">
                 {item.image_url ? (
                   <img
                     src={item.image_url}
                     alt={item.name}
-                    className="h-14 w-14 rounded-lg object-cover"
+                    className="h-14 w-14 object-cover"
                   />
                 ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-stone-100 text-[10px] text-stone-400">
+                  <div className="flex h-14 w-14 items-center justify-center bg-[var(--color-espresso)] text-[10px] text-[var(--color-cream-muted)]">
                     N/A
                   </div>
                 )}
                 <div>
-                  <p className="font-semibold text-stone-900">
+                  <p className="font-semibold text-[var(--color-cream)]">
                     {item.name}{' '}
-                    <span className="text-xs font-normal text-stone-500">({item.categoryName})</span>
+                    <span className="text-xs font-normal text-[var(--color-cream-muted)]">
+                      ({item.categoryName})
+                    </span>
                   </p>
-                  <p className="text-sm text-stone-600">
-                    {Number(item.price).toFixed(2)} ETB · {item.is_available ? 'Available' : 'Hidden'}
+                  <p className="text-sm text-[var(--color-cream-muted)]">
+                    {formatEtb(item.price)} · {item.is_available ? 'Available' : 'Hidden'}
                   </p>
                 </div>
               </div>
@@ -288,14 +318,14 @@ export function ManageMenuPage() {
                 <button
                   type="button"
                   onClick={() => startEdit(item)}
-                  className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm"
+                  className="rounded-md border border-[var(--color-brass)]/35 px-3 py-1.5 text-sm text-[var(--color-cream)] transition hover:bg-[var(--color-espresso)]"
                 >
                   Edit
                 </button>
                 <button
                   type="button"
                   onClick={() => void onDelete(item.id)}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700"
+                  className="rounded-md border border-red-400/30 px-3 py-1.5 text-sm text-[#e8a0a0] transition hover:bg-red-500/10"
                 >
                   Delete
                 </button>
