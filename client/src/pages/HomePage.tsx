@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { PERMISSIONS } from '@intern/shared';
 import { useAuth } from '../store';
-import { HeroSkeleton } from '../components/ui';
 
 const FEATURED_DISHES = [
   { name: 'Doro Wat', image: '/images/menu/doro-wat.jpg', tag: 'Signature stew' },
@@ -89,13 +88,9 @@ function useQuickLinks(
 }
 
 export function HomePage() {
-  const { user, loading, session, error, hasPermission } = useAuth();
+  const { user, session, error, hasPermission } = useAuth();
   const quickLinks = useQuickLinks(session, hasPermission);
   const displayName = user?.name ?? user?.email?.split('@')[0] ?? 'Guest';
-
-  if (loading) {
-    return <HeroSkeleton />;
-  }
 
   return (
     <div className="w-full text-left">

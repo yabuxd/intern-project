@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -37,41 +38,65 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedUserIdRef = useRef<string | null>(null);
+  const inFlightUserIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
+
+    const syncProfile = async (nextSession: Session | null) => {
+      const userId = nextSession?.user?.id ?? null;
+
+      if (userId === null) {
+        loadedUserIdRef.current = null;
+        inFlightUserIdRef.current = null;
+        if (mounted) {
+          setUser(null);
+        }
+        return;
+      }
+
+      if (userId === loadedUserIdRef.current || userId === inFlightUserIdRef.current) {
+        return;
+      }
+
+      inFlightUserIdRef.current = userId;
+
+      try {
+        const me = await loadProfile(nextSession?.access_token);
+        if (!mounted || inFlightUserIdRef.current !== userId) {
+          return;
+        }
+        loadedUserIdRef.current = userId;
+        setUser(me);
+        setError(null);
+      } catch (err) {
+        if (!mounted || inFlightUserIdRef.current !== userId) {
+          return;
+        }
+        loadedUserIdRef.current = null;
+        setError(err instanceof Error ? err.message : 'Failed to load profile');
+        setUser(null);
+      } finally {
+        if (inFlightUserIdRef.current === userId) {
+          inFlightUserIdRef.current = null;
+        }
+      }
+    };
 
     void (async () => {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
       setSession(data.session);
-      try {
-        const me = await loadProfile(data.session?.access_token);
-        if (mounted) setUser(me);
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load profile');
-          setUser(null);
-        }
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      setLoading(false);
+      await syncProfile(data.session);
     })();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setError(null);
-      void (async () => {
-        try {
-          const me = await loadProfile(nextSession?.access_token);
-          setUser(me);
-        } catch (err) {
-          setError(err instanceof Error ? err.message : 'Failed to load profile');
-          setUser(null);
-        } finally {
-          setLoading(false);
-        }
-      })();
+      setLoading(false);
+      void syncProfile(nextSession);
     });
 
     return () => {
@@ -111,12 +136,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(signOutError.message);
       throw signOutError;
     }
+    loadedUserIdRef.current = null;
+    inFlightUserIdRef.current = null;
     setUser(null);
   }, []);
 
   const refreshMe = useCallback(async () => {
-    const token = (await supabase.auth.getSession()).data.session?.access_token;
+    const nextSession = (await supabase.auth.getSession()).data.session;
+    const token = nextSession?.access_token;
+    const userId = nextSession?.user?.id ?? null;
     const me = await loadProfile(token);
+    loadedUserIdRef.current = userId;
     setUser(me);
   }, []);
 
