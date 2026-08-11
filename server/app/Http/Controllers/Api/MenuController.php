@@ -57,7 +57,7 @@ class MenuController extends Controller
                     'menu_category_id' => $item->menu_category_id,
                     'name' => $item->name,
                     'description' => $item->description,
-                    'image_url' => $item->image_url,
+                    'image_url' => $item->publicImageUrl(),
                     'price' => $item->price,
                     'is_available' => $item->is_available,
                     'sort_order' => $item->sort_order,

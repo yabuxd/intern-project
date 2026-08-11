@@ -9,6 +9,8 @@ use App\Models\User;
 use Database\Seeders\MenuCategorySeeder;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class MenuApiTest extends TestCase
@@ -164,6 +166,39 @@ class MenuApiTest extends TestCase
                 'price' => 12.99,
             ])
             ->assertForbidden();
+    }
+
+    public function test_manager_can_upload_menu_item_image(): void
+    {
+        Storage::fake('public');
+
+        $user = $this->userWithPermission(Permission::CAN_MANAGE_MENU);
+        $category = MenuCategory::query()->firstOrFail();
+        $token = $this->makeToken([
+            'sub' => $user->id,
+            'email' => $user->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $file = UploadedFile::fake()->create('doro.jpg', 120, 'image/jpeg');
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->post('/api/menu-items', [
+                'menu_category_id' => $category->id,
+                'name' => 'Doro Wat',
+                'price' => 22.00,
+                'is_available' => '1',
+                'image' => $file,
+            ])
+            ->assertCreated();
+
+        $imageUrl = $response->json('data.image_url');
+        $this->assertIsString($imageUrl);
+        $this->assertStringContainsString('/storage/menu/', $imageUrl);
+
+        $storedPath = MenuItem::query()->where('name', 'Doro Wat')->value('image_url');
+        $this->assertIsString($storedPath);
+        $this->assertTrue(Storage::disk('public')->exists(substr($storedPath, strlen('/storage/'))));
     }
 
     private function userWithPermission(string $permissionName): User

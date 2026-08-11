@@ -32,29 +32,34 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit & { token?: string | null } = {},
 ): Promise<T> {
-  const { token, headers, ...rest } = options;
+  const { token, headers, body, ...rest } = options;
+  const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
 
   const response = await fetch(`${apiBaseUrl}${path}`, {
     ...rest,
+    body,
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
   });
 
-  const body = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+  const responseBody = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
   if (!response.ok) {
-    throw new ApiError(body?.message ?? `Request failed (${response.status})`, response.status);
+    throw new ApiError(
+      responseBody?.message ?? `Request failed (${response.status})`,
+      response.status,
+    );
   }
 
-  if (body && typeof body === 'object' && 'data' in body) {
-    return body.data;
+  if (responseBody && typeof responseBody === 'object' && 'data' in responseBody) {
+    return responseBody.data;
   }
 
-  return body as T;
+  return responseBody as T;
 }
 
 export function fetchMe(token: string): Promise<AuthUser> {
@@ -69,23 +74,80 @@ export function fetchManageMenu(token: string): Promise<MenuCategory[]> {
   return apiFetch<MenuCategory[]>('/menu/manage', { token });
 }
 
-export function createMenuItem(token: string, input: MenuItemInput): Promise<MenuItem> {
+function buildMenuItemFormData(
+  input: Partial<MenuItemInput> & { image?: File | null },
+  methodOverride?: 'PUT',
+): FormData {
+  const formData = new FormData();
+  if (methodOverride) {
+    formData.append('_method', methodOverride);
+  }
+  if (input.menu_category_id !== undefined) {
+    formData.append('menu_category_id', String(input.menu_category_id));
+  }
+  if (input.name !== undefined) {
+    formData.append('name', input.name);
+  }
+  if (input.description !== undefined) {
+    formData.append('description', input.description ?? '');
+  }
+  if (input.image_url !== undefined && input.image_url !== null && input.image_url !== '') {
+    formData.append('image_url', input.image_url);
+  }
+  if (input.price !== undefined) {
+    formData.append('price', String(input.price));
+  }
+  if (input.is_available !== undefined) {
+    formData.append('is_available', input.is_available ? '1' : '0');
+  }
+  if (input.sort_order !== undefined) {
+    formData.append('sort_order', String(input.sort_order));
+  }
+  if (input.image) {
+    formData.append('image', input.image);
+  }
+  return formData;
+}
+
+export function createMenuItem(
+  token: string,
+  input: MenuItemInput & { image?: File | null },
+): Promise<MenuItem> {
+  if (input.image) {
+    return apiFetch<MenuItem>('/menu-items', {
+      method: 'POST',
+      token,
+      body: buildMenuItemFormData(input),
+    });
+  }
+
+  const { image: _image, ...jsonInput } = input;
   return apiFetch<MenuItem>('/menu-items', {
     method: 'POST',
     token,
-    body: JSON.stringify(input),
+    body: JSON.stringify(jsonInput),
   });
 }
 
 export function updateMenuItem(
   token: string,
   id: number,
-  input: Partial<MenuItemInput>,
+  input: Partial<MenuItemInput> & { image?: File | null },
 ): Promise<MenuItem> {
+  if (input.image) {
+    // PHP only populates uploaded files on POST — spoof PUT for Laravel.
+    return apiFetch<MenuItem>(`/menu-items/${id}`, {
+      method: 'POST',
+      token,
+      body: buildMenuItemFormData(input, 'PUT'),
+    });
+  }
+
+  const { image: _image, ...jsonInput } = input;
   return apiFetch<MenuItem>(`/menu-items/${id}`, {
     method: 'PUT',
     token,
-    body: JSON.stringify(input),
+    body: JSON.stringify(jsonInput),
   });
 }
 

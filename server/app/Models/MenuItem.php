@@ -18,6 +18,28 @@ class MenuItem extends Model
     }
 
     /**
+     * Absolute URL for uploaded storage images; leave client/public paths as-is.
+     */
+    public function publicImageUrl(): ?string
+    {
+        $url = $this->image_url;
+
+        if ($url === null || $url === '') {
+            return null;
+        }
+
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return $url;
+        }
+
+        if (str_starts_with($url, '/storage/')) {
+            return rtrim((string) config('app.url'), '/').$url;
+        }
+
+        return $url;
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

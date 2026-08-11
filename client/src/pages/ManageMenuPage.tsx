@@ -36,6 +36,8 @@ export function ManageMenuPage() {
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const flatItems = useMemo(
     () =>
@@ -44,6 +46,20 @@ export function ManageMenuPage() {
       ),
     [categories],
   );
+
+  function clearImageSelection() {
+    setImageFile(null);
+    setImagePreview((prev) => {
+      if (prev?.startsWith('blob:')) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }
+
+  function resetForm(categoryId = categories[0]?.id || 0) {
+    setForm({ ...emptyForm, menu_category_id: categoryId });
+    setEditingId(null);
+    clearImageSelection();
+  }
 
   async function reload() {
     if (!token) return;
@@ -80,6 +96,12 @@ export function ManageMenuPage() {
     };
   }, [token, canManage]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
   if (authLoading) return <MenuSkeleton />;
   if (!session) return <Navigate to="/login" replace />;
   if (!canManage) {
@@ -105,20 +127,17 @@ export function ManageMenuPage() {
         menu_category_id: Number(form.menu_category_id),
         name: form.name.trim(),
         description: form.description.trim() || null,
-        image_url: form.image_url.trim() || null,
+        image_url: imageFile ? null : form.image_url.trim() || null,
         price: Number(form.price),
         is_available: form.is_available,
+        image: imageFile,
       };
       if (editingId) {
         await updateMenuItem(token, editingId, payload);
       } else {
         await createMenuItem(token, payload);
       }
-      setForm({
-        ...emptyForm,
-        menu_category_id: categories[0]?.id || 0,
-      });
-      setEditingId(null);
+      resetForm(categories[0]?.id || 0);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -128,6 +147,7 @@ export function ManageMenuPage() {
   }
 
   function startEdit(item: MenuItem) {
+    clearImageSelection();
     setEditingId(item.id);
     setForm({
       menu_category_id: item.menu_category_id,
@@ -137,7 +157,28 @@ export function ManageMenuPage() {
       price: String(item.price),
       is_available: item.is_available,
     });
+    setImagePreview(item.image_url);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function onImageChange(file: File | null) {
+    if (imagePreview?.startsWith('blob:')) URL.revokeObjectURL(imagePreview);
+    if (!file) {
+      setImageFile(null);
+      setImagePreview(form.image_url || null);
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('Please choose an image file (JPG, PNG, WebP, or GIF).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError('Image must be 5MB or smaller.');
+      return;
+    }
+    setError(null);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
   }
 
   async function onDelete(id: number) {
@@ -147,8 +188,7 @@ export function ManageMenuPage() {
     try {
       await deleteMenuItem(token, id);
       if (editingId === id) {
-        setEditingId(null);
-        setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
+        resetForm(categories[0]?.id || 0);
       }
       await reload();
     } catch (err) {
@@ -157,6 +197,8 @@ export function ManageMenuPage() {
   }
 
   if (loading) return <MenuSkeleton />;
+
+  const previewSrc = imagePreview || form.image_url || null;
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 px-4 py-8 text-left sm:px-6 sm:py-10">
@@ -169,7 +211,7 @@ export function ManageMenuPage() {
             Manage menu
           </h1>
           <p className="mt-2 text-sm text-[var(--color-cream-muted)]">
-            Add, edit, or remove dishes. Toggle availability to hide items without deleting them.
+            Add, edit, or remove dishes. Upload images from your device or paste a URL.
           </p>
         </div>
         <Link
@@ -192,6 +234,7 @@ export function ManageMenuPage() {
       <form
         onSubmit={onSubmit}
         className="space-y-4 rounded-lg border border-[var(--color-brass)]/20 bg-[var(--color-umber)]/40 p-6"
+        encType="multipart/form-data"
       >
         <h2 className="text-lg font-semibold text-[var(--color-cream)]">
           {editingId ? 'Edit item' : 'Add item'}
@@ -243,15 +286,65 @@ export function ManageMenuPage() {
               className={`min-h-20 ${fieldClass}`}
             />
           </label>
-          <label className="block space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-[var(--color-cream-muted)]">Image URL</span>
-            <input
-              value={form.image_url}
-              onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))}
-              placeholder="/images/menu/doro-wat.jpg"
-              className={fieldClass}
-            />
-          </label>
+
+          <div className="space-y-3 md:col-span-2">
+            <span className="block text-sm font-medium text-[var(--color-cream-muted)]">
+              Dish image
+            </span>
+            <div className="flex flex-wrap items-start gap-4">
+              <div className="flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)]">
+                {previewSrc ? (
+                  <img src={previewSrc} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="px-2 text-center text-[10px] text-[var(--color-cream-muted)]">
+                    No image
+                  </span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1 space-y-2">
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium text-[var(--color-cream-muted)]">
+                    Upload from device
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={(e) => onImageChange(e.target.files?.[0] ?? null)}
+                    className="block w-full text-sm text-[var(--color-cream-muted)] file:mr-3 file:rounded-md file:border-0 file:bg-[var(--color-brass)] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-[var(--color-espresso)]"
+                  />
+                </label>
+                <label className="block space-y-1 text-sm">
+                  <span className="font-medium text-[var(--color-cream-muted)]">
+                    Or image URL (optional)
+                  </span>
+                  <input
+                    value={form.image_url}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      setForm((prev) => ({ ...prev, image_url: value }));
+                      if (!imageFile) setImagePreview(value || null);
+                    }}
+                    placeholder="/images/menu/doro-wat.jpg"
+                    disabled={Boolean(imageFile)}
+                    className={`${fieldClass} disabled:opacity-50`}
+                  />
+                </label>
+                {(imageFile || previewSrc) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      clearImageSelection();
+                      setForm((prev) => ({ ...prev, image_url: '' }));
+                    }}
+                    className="text-sm text-[var(--color-cream-muted)] underline underline-offset-2"
+                  >
+                    Clear image
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 text-sm text-[var(--color-cream)] md:col-span-2">
             <input
               type="checkbox"
@@ -273,10 +366,7 @@ export function ManageMenuPage() {
           {editingId && (
             <button
               type="button"
-              onClick={() => {
-                setEditingId(null);
-                setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
-              }}
+              onClick={() => resetForm(categories[0]?.id || 0)}
               className="rounded-md border border-[var(--color-brass)]/30 px-4 py-2 text-sm text-[var(--color-cream)]"
             >
               Cancel edit

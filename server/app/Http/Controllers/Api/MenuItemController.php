@@ -8,12 +8,20 @@ use App\Http\Requests\UpdateMenuItemRequest;
 use App\Models\MenuItem;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 
 class MenuItemController extends Controller
 {
     public function store(StoreMenuItemRequest $request): JsonResponse
     {
-        $item = MenuItem::query()->create($request->validated());
+        $data = $request->safe()->except('image');
+
+        if ($request->hasFile('image')) {
+            $data['image_url'] = $this->storeImage($request->file('image'));
+        }
+
+        $item = MenuItem::query()->create($data);
         $item->load('category');
 
         return response()->json([
@@ -36,7 +44,14 @@ class MenuItemController extends Controller
 
     public function update(UpdateMenuItemRequest $request, MenuItem $menuItem): JsonResponse
     {
-        $menuItem->update($request->validated());
+        $data = $request->safe()->except('image');
+
+        if ($request->hasFile('image')) {
+            $this->deleteStoredImage($menuItem->image_url);
+            $data['image_url'] = $this->storeImage($request->file('image'));
+        }
+
+        $menuItem->update($data);
         $menuItem->load('category');
 
         return response()->json([
@@ -51,7 +66,9 @@ class MenuItemController extends Controller
         $this->authorize('delete', $menuItem);
 
         try {
+            $imageUrl = $menuItem->image_url;
             $menuItem->delete();
+            $this->deleteStoredImage($imageUrl);
         } catch (QueryException) {
             return response()->json([
                 'success' => false,
@@ -67,6 +84,22 @@ class MenuItemController extends Controller
         ]);
     }
 
+    private function storeImage(UploadedFile $file): string
+    {
+        $path = $file->store('menu', 'public');
+
+        return '/storage/'.$path;
+    }
+
+    private function deleteStoredImage(?string $imageUrl): void
+    {
+        if ($imageUrl === null || $imageUrl === '' || ! str_starts_with($imageUrl, '/storage/')) {
+            return;
+        }
+
+        Storage::disk('public')->delete(substr($imageUrl, strlen('/storage/')));
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -77,7 +110,7 @@ class MenuItemController extends Controller
             'menu_category_id' => $item->menu_category_id,
             'name' => $item->name,
             'description' => $item->description,
-            'image_url' => $item->image_url,
+            'image_url' => $item->publicImageUrl(),
             'price' => $item->price,
             'is_available' => $item->is_available,
             'sort_order' => $item->sort_order,
