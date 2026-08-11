@@ -69,15 +69,30 @@ class VerifySupabaseJwt
 
         $emailVerified = isset($claims['email_confirmed_at'])
             || filter_var($claims['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $emailVerifiedAt = $emailVerified ? now() : null;
 
-        $user = User::query()->updateOrCreate(
+        $user = User::query()->firstOrCreate(
             ['id' => $claims['sub']],
             [
                 'email' => $email,
                 'name' => $name,
-                'email_verified_at' => $emailVerified ? now() : null,
+                'email_verified_at' => $emailVerifiedAt,
             ],
         );
+
+        $needsUpdate = $user->email !== $email
+            || $user->name !== $name
+            || ($emailVerified && $user->email_verified_at === null)
+            || (! $emailVerified && $user->email_verified_at !== null);
+
+        if ($needsUpdate) {
+            $user->fill([
+                'email' => $email,
+                'name' => $name,
+                'email_verified_at' => $emailVerifiedAt,
+            ]);
+            $user->save();
+        }
 
         Auth::setUser($user);
         $request->setUserResolver(static fn () => $user);
