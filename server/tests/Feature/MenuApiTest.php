@@ -78,6 +78,75 @@ class MenuApiTest extends TestCase
         $this->assertDatabaseHas('menu_items', ['name' => 'Pasta']);
     }
 
+    public function test_admin_can_create_update_and_delete_menu_item(): void
+    {
+        $user = $this->userWithPermission(Permission::CAN_MANAGE_PERMISSIONS);
+        $category = MenuCategory::query()->firstOrFail();
+        $token = $this->makeToken([
+            'sub' => $user->id,
+            'email' => $user->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $create = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/menu-items', [
+                'menu_category_id' => $category->id,
+                'name' => 'Admin Stew',
+                'price' => 18.50,
+                'is_available' => true,
+            ])
+            ->assertCreated();
+
+        $id = (int) $create->json('data.id');
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->putJson('/api/menu-items/'.$id, [
+                'name' => 'Admin Stew Updated',
+                'price' => 19.00,
+                'is_available' => false,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Admin Stew Updated')
+            ->assertJsonPath('data.is_available', false);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson('/api/menu-items/'.$id)
+            ->assertOk();
+
+        $this->assertDatabaseMissing('menu_items', ['id' => $id]);
+    }
+
+    public function test_manager_can_update_and_delete_menu_item(): void
+    {
+        $user = $this->userWithPermission(Permission::CAN_MANAGE_MENU);
+        $category = MenuCategory::query()->firstOrFail();
+        $item = MenuItem::query()->create([
+            'menu_category_id' => $category->id,
+            'name' => 'Tibs',
+            'price' => 15.00,
+            'is_available' => true,
+        ]);
+        $token = $this->makeToken([
+            'sub' => $user->id,
+            'email' => $user->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->putJson('/api/menu-items/'.$item->id, [
+                'name' => 'Special Tibs',
+                'price' => 16.50,
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Special Tibs');
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson('/api/menu-items/'.$item->id)
+            ->assertOk();
+
+        $this->assertDatabaseMissing('menu_items', ['id' => $item->id]);
+    }
+
     public function test_user_without_permission_cannot_create_menu_item(): void
     {
         $user = User::factory()->create();

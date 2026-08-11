@@ -33,6 +33,15 @@ class User extends Authenticatable
     }
 
     /**
+     * Menu CRUD is allowed for menu managers and full admins.
+     */
+    public function canManageMenuItems(): bool
+    {
+        return $this->hasPermission(Permission::CAN_MANAGE_MENU)
+            || $this->hasPermission(Permission::CAN_MANAGE_PERMISSIONS);
+    }
+
+    /**
      * @return list<string>
      */
     public function permissionNames(): array

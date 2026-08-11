@@ -8,7 +8,7 @@ class StoreMenuItemRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('can_manage_menu') ?? false;
+        return $this->user()?->canManageMenuItems() ?? false;
     }
 
     /**

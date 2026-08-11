@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMenuItemRequest;
 use App\Http\Requests\UpdateMenuItemRequest;
 use App\Models\MenuItem;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 
 class MenuItemController extends Controller
@@ -48,7 +49,16 @@ class MenuItemController extends Controller
     public function destroy(MenuItem $menuItem): JsonResponse
     {
         $this->authorize('delete', $menuItem);
-        $menuItem->delete();
+
+        try {
+            $menuItem->delete();
+        } catch (QueryException) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot delete this item because it appears on existing orders. Mark it unavailable instead.',
+                'data' => null,
+            ], 409);
+        }
 
         return response()->json([
             'success' => true,

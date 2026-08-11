@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuCategory;
+use App\Models\MenuItem;
 use Illuminate\Http\JsonResponse;
 
 class MenuController extends Controller
@@ -20,11 +21,11 @@ class MenuController extends Controller
     }
 
     /**
-     * Staff menu view including unavailable items (requires can_manage_menu).
+     * Staff menu view including unavailable items (menu managers and admins).
      */
     public function manage(): JsonResponse
     {
-        $this->authorize('can_manage_menu');
+        $this->authorize('viewAny', MenuItem::class);
 
         return response()->json([
             'success' => true,
