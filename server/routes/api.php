@@ -35,5 +35,7 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy']);
     Route::get('/admin/users', [UserPermissionController::class, 'index']);
     Route::get('/admin/permissions', [UserPermissionController::class, 'permissions']);
-    Route::put('/admin/users/{user}/permissions', [UserPermissionController::class, 'update']);
+    Route::get('/admin/roles', [UserPermissionController::class, 'roles']);
+    Route::put('/admin/users/{user}/roles', [UserPermissionController::class, 'updateUserRoles']);
+    Route::put('/admin/roles/{role}/permissions', [UserPermissionController::class, 'updateRolePermissions']);
 });

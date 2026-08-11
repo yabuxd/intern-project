@@ -11,7 +11,7 @@ class MeController extends Controller
     public function __invoke(Request $request): JsonResponse
     {
         $user = $request->user();
-        $user->loadMissing('permissions');
+        $user->loadMissing('roles.permissions');
 
         return response()->json([
             'success' => true,
@@ -19,6 +19,7 @@ class MeController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'roles' => $user->roleNames(),
                 'permissions' => $user->permissionNames(),
             ],
         ]);

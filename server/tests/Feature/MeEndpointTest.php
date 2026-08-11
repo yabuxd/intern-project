@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -25,7 +26,7 @@ class MeEndpointTest extends TestCase
         $this->getJson('/api/me')->assertUnauthorized();
     }
 
-    public function test_me_returns_user_and_permissions(): void
+    public function test_me_returns_user_roles_and_permissions(): void
     {
         $user = User::factory()->create([
             'email' => 'staff@example.com',
@@ -33,7 +34,12 @@ class MeEndpointTest extends TestCase
         ]);
 
         $permission = Permission::query()->where('name', Permission::CAN_PLACE_ORDER)->firstOrFail();
-        $user->permissions()->attach($permission);
+        $role = Role::query()->create([
+            'name' => 'me_test_customer',
+            'description' => 'Test',
+        ]);
+        $role->permissions()->attach($permission);
+        $user->roles()->attach($role);
 
         $token = $this->makeToken([
             'sub' => $user->id,
@@ -48,6 +54,7 @@ class MeEndpointTest extends TestCase
             ->assertJsonPath('success', true)
             ->assertJsonPath('data.id', $user->id)
             ->assertJsonPath('data.email', 'staff@example.com')
+            ->assertJsonPath('data.roles', ['me_test_customer'])
             ->assertJsonPath('data.permissions', [Permission::CAN_PLACE_ORDER]);
     }
 
@@ -67,29 +74,12 @@ class MeEndpointTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.id', $supabaseId)
             ->assertJsonPath('data.email', 'new@example.com')
+            ->assertJsonPath('data.roles', [])
             ->assertJsonPath('data.permissions', []);
 
         $this->assertDatabaseHas('users', [
             'id' => $supabaseId,
             'email' => 'new@example.com',
         ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $claims
-     */
-    private function makeToken(array $claims): string
-    {
-        $secret = (string) config('services.supabase.jwt_secret');
-        $header = $this->b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT'], JSON_THROW_ON_ERROR));
-        $payload = $this->b64(json_encode($claims, JSON_THROW_ON_ERROR));
-        $signature = $this->b64(hash_hmac('sha256', $header.'.'.$payload, $secret, true));
-
-        return $header.'.'.$payload.'.'.$signature;
-    }
-
-    private function b64(string $value): string
-    {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
     }
 }

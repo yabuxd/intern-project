@@ -16,7 +16,7 @@ class PermissionSeeder extends Seeder
             Permission::CAN_MANAGE_TABLES => 'View and update table availability',
             Permission::CAN_PLACE_ORDER => 'Place customer orders',
             Permission::CAN_CREATE_RESERVATION => 'Book restaurant tables',
-            Permission::CAN_MANAGE_PERMISSIONS => 'Assign and revoke user permissions',
+            Permission::CAN_MANAGE_PERMISSIONS => 'Assign roles and edit role permissions',
         ];
 
         foreach (Permission::catalog() as $name) {

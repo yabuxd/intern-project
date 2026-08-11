@@ -19,6 +19,8 @@ export {
   cancelReservation,
   fetchAdminUsers,
   fetchPermissionCatalog,
-  updateUserPermissions,
+  fetchAdminRoles,
+  updateUserRoles,
+  updateRolePermissions,
 } from './api';
 export { supabase } from './supabase';

@@ -6,7 +6,7 @@ use App\Models\Permission;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateUserPermissionsRequest extends FormRequest
+class UpdateRolePermissionsRequest extends FormRequest
 {
     public function authorize(): bool
     {

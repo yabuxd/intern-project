@@ -310,31 +310,4 @@ class OrdersApiTest extends TestCase
             'is_available' => true,
         ]);
     }
-
-    private function userWithPermission(string $permissionName): User
-    {
-        $user = User::factory()->create();
-        $permission = Permission::query()->where('name', $permissionName)->firstOrFail();
-        $user->permissions()->attach($permission);
-
-        return $user->fresh(['permissions']);
-    }
-
-    /**
-     * @param  array<string, mixed>  $claims
-     */
-    private function makeToken(array $claims): string
-    {
-        $secret = (string) config('services.supabase.jwt_secret');
-        $header = $this->b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT'], JSON_THROW_ON_ERROR));
-        $payload = $this->b64(json_encode($claims, JSON_THROW_ON_ERROR));
-        $signature = $this->b64(hash_hmac('sha256', $header.'.'.$payload, $secret, true));
-
-        return $header.'.'.$payload.'.'.$signature;
-    }
-
-    private function b64(string $value): string
-    {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
-    }
 }

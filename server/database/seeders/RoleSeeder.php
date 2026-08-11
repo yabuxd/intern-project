@@ -1,0 +1,64 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\Permission;
+use App\Models\Role;
+use Illuminate\Database\Seeder;
+
+class RoleSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $descriptions = [
+            Role::CUSTOMER => 'Place orders and book tables',
+            Role::KITCHEN => 'View and advance the kitchen order queue',
+            Role::HOST => 'Manage dining tables and reservations',
+            Role::MANAGER => 'Run menu, floor, and kitchen operations',
+            Role::ADMIN => 'Full access including role assignment',
+        ];
+
+        $permissionMap = [
+            Role::CUSTOMER => [
+                Permission::CAN_PLACE_ORDER,
+                Permission::CAN_CREATE_RESERVATION,
+            ],
+            Role::KITCHEN => [
+                Permission::CAN_VIEW_ALL_ORDERS,
+                Permission::CAN_UPDATE_ORDER_STATUS,
+            ],
+            Role::HOST => [
+                Permission::CAN_MANAGE_TABLES,
+                Permission::CAN_CREATE_RESERVATION,
+            ],
+            Role::MANAGER => [
+                Permission::CAN_MANAGE_MENU,
+                Permission::CAN_MANAGE_TABLES,
+                Permission::CAN_VIEW_ALL_ORDERS,
+                Permission::CAN_UPDATE_ORDER_STATUS,
+                Permission::CAN_PLACE_ORDER,
+                Permission::CAN_CREATE_RESERVATION,
+            ],
+            Role::ADMIN => Permission::catalog(),
+        ];
+
+        $permissionIds = Permission::query()
+            ->whereIn('name', Permission::catalog())
+            ->pluck('id', 'name');
+
+        foreach (Role::catalog() as $name) {
+            $role = Role::query()->updateOrCreate(
+                ['name' => $name],
+                ['description' => $descriptions[$name] ?? null],
+            );
+
+            $ids = collect($permissionMap[$name] ?? [])
+                ->map(fn (string $permissionName) => $permissionIds[$permissionName] ?? null)
+                ->filter()
+                ->values()
+                ->all();
+
+            $role->permissions()->sync($ids);
+        }
+    }
+}
