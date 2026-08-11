@@ -23,7 +23,9 @@ export function MenuPage() {
   const [error, setError] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
-  const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canManage =
+    hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
+    hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
   const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
 
   useEffect(() => {

@@ -52,7 +52,9 @@ function useQuickLinks(
   const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
-  const canManageMenu = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canManageMenu =
+    hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
+    hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
 
   if (!session) return [];
 
@@ -75,7 +77,7 @@ function useQuickLinks(
     links.push({ to: '/orders/queue', title: 'Kitchen queue', description: 'Orders waiting to be served' });
   }
   if (canManageMenu) {
-    links.push({ to: '/menu/manage', title: 'Manage menu', description: 'Update dishes and pricing' });
+    links.push({ to: '/menu/manage', title: 'Manage menu', description: 'Add, edit, or remove dishes' });
   }
   if (canManagePermissions) {
     links.push({
