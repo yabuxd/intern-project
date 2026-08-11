@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable(['name', 'description'])]
 class Permission extends Model
@@ -37,14 +36,5 @@ class Permission extends Model
             self::CAN_CREATE_RESERVATION,
             self::CAN_MANAGE_PERMISSIONS,
         ];
-    }
-
-    /**
-     * @return BelongsToMany<Role, $this>
-     */
-    public function roles(): BelongsToMany
-    {
-        return $this->belongsToMany(Role::class, 'role_permissions')
-            ->withTimestamps();
     }
 }

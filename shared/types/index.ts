@@ -5,13 +5,6 @@ export interface ApiResponse<T = unknown> {
   success: boolean;
 }
 
-/** Placeholder pagination metadata. */
-export interface PaginatedMeta {
-  page: number;
-  perPage: number;
-  total: number;
-}
-
 /** Authenticated user returned by GET /api/me */
 export interface AuthUser {
   id: string;
@@ -83,10 +76,6 @@ export interface RestaurantTable {
   id: number;
   name: string;
   capacity: number | null;
-  status: TableStatus;
-}
-
-export interface UpdateTableInput {
   status: TableStatus;
 }
 

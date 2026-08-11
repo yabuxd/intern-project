@@ -31,7 +31,7 @@ php artisan migrate
 php artisan db:seed
 ```
 
-Create accounts in the app via `/signup`. To grant all permissions later, set `ADMIN_EMAIL` (and optional `ADMIN_USER_ID`) in `server/.env`, then run `php artisan db:seed --class=AdminUserSeeder`. Do not commit real passwords.
+Create accounts in the app via `/signup`. To grant the admin role, set `ADMIN_EMAIL` (and optional `ADMIN_USER_ID`) in `server/.env`, then run `php artisan db:seed --class=AdminUserSeeder`. Do not commit real passwords.
 
 ## Run
 
@@ -45,7 +45,7 @@ php artisan serve
 
 ## Auth
 
-Supabase Auth issues JWTs. Laravel middleware `VerifySupabaseJwt` verifies HS256 tokens and upserts the user. Permissions are seeded by `PermissionSeeder` and checked with Gates named after each permission.
+Supabase Auth issues JWTs. Laravel middleware `VerifySupabaseJwt` verifies them and upserts the user. `PermissionSeeder` and `RoleSeeder` seed the RBAC catalog; Gates check permission names resolved through roles.
 
 ## Tooling
 

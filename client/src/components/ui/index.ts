@@ -1,10 +1,5 @@
 export {
-  SkeletonBlock,
-  PageHeaderSkeleton,
-  CardListSkeleton,
-  GridSkeleton,
   MenuSkeleton,
-  FormSkeleton,
   HeroSkeleton,
   OrdersPageSkeleton,
   TablesPageSkeleton,

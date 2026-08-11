@@ -91,14 +91,6 @@ function AppRoutes() {
           }
         />
         <Route path="/admin/permissions" element={<Navigate to="/admin/roles" replace />} />
-        <Route
-          path="/account"
-          element={
-            <ProtectedRoute>
-              <HomePage />
-            </ProtectedRoute>
-          }
-        />
       </Routes>
     </AppLayout>
   );

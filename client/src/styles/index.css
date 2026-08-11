@@ -10,13 +10,6 @@
   --color-cream: #f3ece0;
   --color-cream-muted: rgba(243, 236, 224, 0.72);
 
-  /* Back-compat aliases used across the app */
-  --color-ink: #1f1b18;
-  --color-ink-soft: #2a2420;
-  --color-mist: #f3ece0;
-  --color-panel: #2a2420;
-  --color-danger: #8a2e2e;
-
   --font-display: "Instrument Serif", Georgia, serif;
   --font-body: "Figtree", "Segoe UI", sans-serif;
 
@@ -53,16 +46,6 @@ body {
   }
 }
 
-@keyframes auth-glow {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.55;
-  }
-}
-
 @keyframes bistro-fade-up {
   from {
     opacity: 0;
@@ -90,10 +73,6 @@ body {
 
 .auth-rise-delay {
   animation: auth-rise 800ms cubic-bezier(0.22, 1, 0.36, 1) 120ms both;
-}
-
-.auth-glow {
-  animation: auth-glow 8s ease-in-out infinite;
 }
 
 .bistro-fade-up {

@@ -1,6 +1,4 @@
 export {
-  apiFetch,
-  ApiError,
   fetchMe,
   fetchMenu,
   fetchManageMenu,
