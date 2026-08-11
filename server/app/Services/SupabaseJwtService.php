@@ -5,6 +5,7 @@ namespace App\Services;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use InvalidArgumentException;
 use RuntimeException;
@@ -14,6 +15,12 @@ use UnexpectedValueException;
 
 class SupabaseJwtService
 {
+    private const JWKS_CACHE_KEY = 'supabase.jwks';
+
+    private const JWKS_CACHE_TTL_SECONDS = 3600;
+
+    private const HTTP_TIMEOUT_SECONDS = 5;
+
     public function __construct(
         private readonly string $supabaseUrl,
         private readonly string $anonKey,
@@ -29,7 +36,7 @@ class SupabaseJwtService
      * Verify an access token and return auth claims.
      *
      * HS256 (legacy / tests) uses SUPABASE_JWT_SECRET locally.
-     * ES256 (current Supabase default) uses JWKS, then Auth /user fallback.
+     * ES256 (current Supabase default) uses cached JWKS locally, then Auth /user fallback.
      *
      * @return array<string, mixed>
      */
@@ -45,26 +52,40 @@ class SupabaseJwtService
             return $this->verifyHs256($token);
         }
 
-        // Prefer Auth /user (always includes email). Fall back to JWKS local verify.
+        // Prefer local JWKS (cached). Fall back to Auth /user on network/JWKS issues or missing email.
         try {
-            return $this->verifyViaAuthApi($token);
-        } catch (ConnectionException $authConnectionError) {
+            return $this->verifyViaJwks($token);
+        } catch (InvalidArgumentException $missingClaims) {
             try {
-                return $this->verifyViaJwks($token);
+                return $this->verifyViaAuthApi($token);
             } catch (Throwable) {
+                throw $missingClaims;
+            }
+        } catch (ConnectionException $jwksConnectionError) {
+            try {
+                return $this->verifyViaAuthApi($token);
+            } catch (Throwable) {
+                throw new RuntimeException(
+                    'Unable to reach Supabase to verify the token. Check PHP SSL CA certificates (SSL_CERT_FILE / curl.cainfo).',
+                    0,
+                    $jwksConnectionError,
+                );
+            }
+        } catch (UnexpectedValueException $jwksError) {
+            if (! $this->isJwksFetchError($jwksError)) {
+                throw $jwksError;
+            }
+
+            try {
+                return $this->verifyViaAuthApi($token);
+            } catch (ConnectionException $authConnectionError) {
                 throw new RuntimeException(
                     'Unable to reach Supabase to verify the token. Check PHP SSL CA certificates (SSL_CERT_FILE / curl.cainfo).',
                     0,
                     $authConnectionError,
                 );
-            }
-        } catch (Throwable $authError) {
-            try {
-                return $this->verifyViaJwks($token);
             } catch (Throwable) {
-                throw $authError instanceof UnexpectedValueException
-                    ? $authError
-                    : new UnexpectedValueException('Invalid or expired token.', 0, $authError);
+                throw $jwksError;
             }
         }
     }
@@ -91,22 +112,38 @@ class SupabaseJwtService
      */
     private function verifyViaJwks(string $token): array
     {
-        $response = $this->supabaseHttp()
-            ->get(rtrim($this->supabaseUrl, '/').'/auth/v1/.well-known/jwks.json');
-
-        if (! $response->successful()) {
-            throw new UnexpectedValueException('Unable to load Supabase JWKS.');
-        }
-
-        $jwks = $response->json();
-        if (! is_array($jwks) || ! isset($jwks['keys']) || ! is_array($jwks['keys']) || $jwks['keys'] === []) {
-            throw new UnexpectedValueException('Supabase JWKS is empty.');
-        }
+        $jwks = $this->loadJwks();
 
         JWT::$leeway = 60;
         $decoded = JWT::decode($token, JWK::parseKeySet($jwks));
 
         return $this->claimsFromObject($decoded);
+    }
+
+    /**
+     * @return array{keys: list<array<string, mixed>>}
+     */
+    private function loadJwks(): array
+    {
+        /** @var array{keys: list<array<string, mixed>>} $jwks */
+        $jwks = Cache::remember(self::JWKS_CACHE_KEY, self::JWKS_CACHE_TTL_SECONDS, function (): array {
+            $response = $this->supabaseHttp()
+                ->get(rtrim($this->supabaseUrl, '/').'/auth/v1/.well-known/jwks.json');
+
+            if (! $response->successful()) {
+                throw new UnexpectedValueException('Unable to load Supabase JWKS.');
+            }
+
+            $body = $response->json();
+            if (! is_array($body) || ! isset($body['keys']) || ! is_array($body['keys']) || $body['keys'] === []) {
+                throw new UnexpectedValueException('Supabase JWKS is empty.');
+            }
+
+            /** @var array{keys: list<array<string, mixed>>} $body */
+            return $body;
+        });
+
+        return $jwks;
     }
 
     /**
@@ -216,12 +253,21 @@ class SupabaseJwtService
         return $claims;
     }
 
+    private function isJwksFetchError(UnexpectedValueException $error): bool
+    {
+        $message = $error->getMessage();
+
+        return str_contains($message, 'Unable to load Supabase JWKS')
+            || str_contains($message, 'Supabase JWKS is empty');
+    }
+
     private function supabaseHttp(): \Illuminate\Http\Client\PendingRequest
     {
-        $request = Http::withHeaders([
-            'apikey' => $this->anonKey,
-            'Accept' => 'application/json',
-        ]);
+        $request = Http::timeout(self::HTTP_TIMEOUT_SECONDS)
+            ->withHeaders([
+                'apikey' => $this->anonKey,
+                'Accept' => 'application/json',
+            ]);
 
         $ca = $this->resolveCaBundle();
         if ($ca !== null) {
