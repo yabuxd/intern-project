@@ -8,7 +8,7 @@ import {
   fetchDeliveryDrivers,
   updateOrderStatus,
 } from '../services';
-import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
+import { useOrdersRealtime, DELIVERY_ORDERS_FILTER } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { QueuePageSkeleton } from '../components/ui';
@@ -46,7 +46,7 @@ export function DeliveriesPage() {
 
   useOrdersRealtime(() => {
     void reload();
-  });
+  }, DELIVERY_ORDERS_FILTER);
 
   useEffect(() => {
     if (!session?.access_token || !canManage) {

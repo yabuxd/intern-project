@@ -13,6 +13,7 @@ export type {
   OrderLineInput,
   OrderStatus,
   OrderDriver,
+  PageMeta,
   PermissionName,
   PermissionRecord,
   Reservation,

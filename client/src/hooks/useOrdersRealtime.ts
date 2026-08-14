@@ -4,13 +4,14 @@ import { supabase } from '../services/supabase';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const POLL_INTERVAL_MS = 5000;
 
+export const QUEUE_ORDERS_FILTER = 'status=in.(pending,preparing,ready)';
+export const DELIVERY_ORDERS_FILTER = 'fulfillment_type=eq.delivery';
+
 /**
- * Subscribes to Postgres changes on the `orders` table via Supabase Realtime.
- * Enable Realtime for the `orders` table in the Supabase dashboard for production.
- * Local SQLite dev cannot push to Supabase — falls back to polling when URL is unset
- * or when the realtime channel fails to connect.
+ * Subscribes to a filtered slice of `orders` via Supabase Realtime.
+ * Falls back to polling when Realtime is unavailable (local SQLite).
  */
-export function useOrdersRealtime(onChange: () => void) {
+export function useOrdersRealtime(onChange: () => void, filter?: string) {
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
@@ -39,11 +40,18 @@ export function useOrdersRealtime(onChange: () => void) {
       return () => stopPolling();
     }
 
+    const channelName = filter ? `orders:${filter}` : 'orders';
+
     channel = supabase
-      .channel('orders-queue')
+      .channel(channelName)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+          ...(filter ? { filter } : {}),
+        },
         () => trigger(),
       )
       .subscribe((status) => {
@@ -54,7 +62,6 @@ export function useOrdersRealtime(onChange: () => void) {
         }
       });
 
-    // Start polling until realtime confirms subscription
     startPolling();
 
     return () => {
@@ -63,5 +70,5 @@ export function useOrdersRealtime(onChange: () => void) {
         void supabase.removeChannel(channel);
       }
     };
-  }, [trigger]);
+  }, [filter, trigger]);
 }

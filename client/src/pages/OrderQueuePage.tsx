@@ -3,7 +3,7 @@ import type { Order, OrderStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import { Link, Navigate } from 'react-router-dom';
 import { cancelOrder, fetchOrderQueue, updateOrderStatus } from '../services';
-import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
+import { useOrdersRealtime, QUEUE_ORDERS_FILTER } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { QueuePageSkeleton } from '../components/ui';
@@ -56,7 +56,7 @@ export function OrderQueuePage() {
 
   useOrdersRealtime(() => {
     void reload();
-  });
+  }, QUEUE_ORDERS_FILTER);
 
   useEffect(() => {
     let mounted = true;

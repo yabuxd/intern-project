@@ -8,6 +8,7 @@ export {
   fetchTables,
   updateTableStatus,
   fetchOrders,
+  fetchOrdersPage,
   fetchOrderQueue,
   fetchDeliveries,
   fetchDeliveryDrivers,

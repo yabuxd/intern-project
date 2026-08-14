@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { RestaurantTable, TableStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchTables, updateTableStatus } from '../services';
 import { useAuth } from '../store';
 import { TablesPageSkeleton } from '../components/ui';
@@ -43,46 +44,22 @@ function tableImage(capacity: number | null): string {
 
 export function TablesPage() {
   const { session, hasPermission } = useAuth();
-  const [tables, setTables] = useState<RestaurantTable[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [filter, setFilter] = useState<TableStatus | 'all'>('all');
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
-
-  const reload = useCallback(async () => {
-    try {
-      const data = await fetchTables();
-      setTables(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tables');
-    }
-  }, []);
-
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const data = await fetchTables();
-        if (mounted) setTables(data);
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load tables');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const tablesQuery = useQuery({ queryKey: ['tables'], queryFn: fetchTables, staleTime: 15_000 });
+  const tables = tablesQuery.data ?? [];
+  const loading = tablesQuery.isLoading;
+  const queryError = tablesQuery.error instanceof Error ? tablesQuery.error.message : error;
 
   async function setStatus(table: RestaurantTable, status: TableStatus) {
     if (!session?.access_token || !canManage) return;
     setUpdatingId(table.id);
     try {
-      const updated = await updateTableStatus(session.access_token, table.id, status);
-      setTables((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      await updateTableStatus(session.access_token, table.id, status);
+      await queryClient.invalidateQueries({ queryKey: ['tables'] });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update table');
@@ -116,8 +93,8 @@ export function TablesPage() {
     return <TablesPageSkeleton />;
   }
 
-  if (error && tables.length === 0) {
-    return <p className="px-4 py-16 text-center text-[#e8a0a0] sm:px-6">{error}</p>;
+  if (queryError && tables.length === 0) {
+    return <p className="px-4 py-16 text-center text-[#e8a0a0] sm:px-6">{queryError}</p>;
   }
 
   return (
@@ -138,7 +115,7 @@ export function TablesPage() {
         </header>
         <button
           type="button"
-          onClick={() => void reload()}
+          onClick={() => void tablesQuery.refetch()}
           className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
         >
           Refresh

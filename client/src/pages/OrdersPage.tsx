@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Order, OrderStatus } from '@intern/shared';
 import { Link } from 'react-router-dom';
-import { cancelOrder, fetchOrders } from '../services';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { cancelOrder, fetchOrdersPage } from '../services';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { OrdersPageSkeleton } from '../components/ui';
@@ -31,36 +32,31 @@ const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready', 'out_for_de
 
 export function OrdersPage() {
   const { session } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const token = session?.access_token;
 
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      if (!session?.access_token) return;
-      try {
-        const data = await fetchOrders(session.access_token);
-        if (mounted) setOrders(data);
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load orders');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [session?.access_token]);
+  const ordersQuery = useInfiniteQuery({
+    queryKey: ['orders', token],
+    enabled: Boolean(token),
+    initialPageParam: undefined as number | undefined,
+    queryFn: ({ pageParam }) => fetchOrdersPage(token!, pageParam),
+    getNextPageParam: (lastPage) =>
+      lastPage.meta?.has_more ? Number(lastPage.meta.next_cursor) : undefined,
+  });
+
+  const orders: Order[] = ordersQuery.data?.pages.flatMap((page) => page.data) ?? [];
+  const loading = ordersQuery.isLoading;
+  const loadError = ordersQuery.error instanceof Error ? ordersQuery.error.message : error;
 
   async function handleCancel(order: Order) {
     if (!session?.access_token || !CANCELLABLE.includes(order.status)) return;
     setCancellingId(order.id);
     setError(null);
     try {
-      const updated = await cancelOrder(session.access_token, order.id);
-      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
+      await cancelOrder(session.access_token, order.id);
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel order');
     } finally {
@@ -86,7 +82,7 @@ export function OrdersPage() {
         </p>
       </header>
 
-      {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
+      {loadError && <p className="text-sm text-[#e8a0a0]">{loadError}</p>}
 
       {orders.length === 0 ? (
         <div className="border border-dashed border-[var(--color-brass)]/30 bg-[var(--color-umber)]/50 px-8 py-12 text-center">
@@ -159,6 +155,16 @@ export function OrdersPage() {
             </li>
           ))}
         </ul>
+      )}
+      {ordersQuery.hasNextPage && (
+        <button
+          type="button"
+          disabled={ordersQuery.isFetchingNextPage}
+          onClick={() => void ordersQuery.fetchNextPage()}
+          className="w-full rounded-md border border-[var(--color-brass)]/40 px-4 py-2 text-sm font-medium text-[var(--color-brass)] disabled:opacity-60"
+        >
+          {ordersQuery.isFetchingNextPage ? 'Loading…' : 'Load more'}
+        </button>
       )}
     </div>
   );

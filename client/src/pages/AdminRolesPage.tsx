@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AdminUser, PermissionName, PermissionRecord, RoleRecord } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import {
@@ -8,6 +8,7 @@ import {
   updateRolePermissions,
   updateUserRoles,
 } from '../services';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useAuth } from '../store';
 import { AdminPageSkeleton } from '../components/ui';
 
@@ -21,6 +22,8 @@ export function AdminRolesPage() {
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [savingRoleId, setSavingRoleId] = useState<number | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
+  const [userQuery, setUserQuery] = useState('');
+  const debouncedUserQuery = useDebouncedValue(userQuery, 300);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
 
   const reload = useCallback(async () => {
@@ -71,6 +74,15 @@ export function AdminRolesPage() {
   }, [session, canManage]);
 
   const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null;
+  const visibleUsers = useMemo(() => {
+    const needle = debouncedUserQuery.trim().toLowerCase();
+    if (!needle) return users;
+    return users.filter(
+      (user) =>
+        user.email.toLowerCase().includes(needle) ||
+        (user.name ?? '').toLowerCase().includes(needle),
+    );
+  }, [users, debouncedUserQuery]);
 
   function toggleUserRole(user: AdminUser, roleName: string, enabled: boolean) {
     const next = enabled
@@ -177,8 +189,14 @@ export function AdminRolesPage() {
         <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
           Users
         </h2>
+        <input
+          value={userQuery}
+          onChange={(e) => setUserQuery(e.target.value)}
+          placeholder="Filter by name or email"
+          className="w-full max-w-md rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-sm text-[var(--color-cream)]"
+        />
         <ul className="space-y-4">
-          {users.map((user) => (
+          {visibleUsers.map((user) => (
             <li
               key={user.id}
               className="border border-[var(--color-brass)]/20 bg-[var(--color-umber)] p-5 sm:p-6"

@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { FulfillmentType, MenuCategory, MenuItem, RestaurantTable } from '@intern/shared';
+import { useMemo, useState } from 'react';
+import type { FulfillmentType, MenuItem } from '@intern/shared';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { createOrder, fetchMenu, fetchTables } from '../services';
 import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
@@ -16,39 +17,25 @@ interface CartLine {
 export function MenuPage() {
   const navigate = useNavigate();
   const { session, hasPermission } = useAuth();
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [tableId, setTableId] = useState<number | ''>('');
   const [fulfillment, setFulfillment] = useState<FulfillmentType>('dine_in');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryPhone, setDeliveryPhone] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
-
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const [menuData, tablesData] = await Promise.all([fetchMenu(), fetchTables()]);
-        if (mounted) {
-          setCategories(menuData);
-          setTables(tablesData);
-        }
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load menu');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const menuQuery = useQuery({ queryKey: ['menu'], queryFn: fetchMenu, staleTime: 60_000 });
+  const tablesQuery = useQuery({ queryKey: ['tables'], queryFn: fetchTables, staleTime: 15_000 });
+  const categories = menuQuery.data ?? [];
+  const tables = tablesQuery.data ?? [];
+  const loading = menuQuery.isLoading || tablesQuery.isLoading;
+  const error = menuQuery.error instanceof Error
+    ? menuQuery.error.message
+    : tablesQuery.error instanceof Error
+      ? tablesQuery.error.message
+      : null;
 
   const cartTotal = useMemo(
     () =>

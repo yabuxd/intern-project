@@ -10,6 +10,7 @@ import type {
   Order,
   OrderDriver,
   OrderStatus,
+  PageMeta,
   PermissionName,
   PermissionRecord,
   Reservation,
@@ -31,10 +32,10 @@ export class ApiError extends Error {
   }
 }
 
-export async function apiFetch<T>(
+async function requestJson<T>(
   path: string,
   options: RequestInit & { token?: string | null } = {},
-): Promise<T> {
+): Promise<ApiResponse<T>> {
   const { token, headers, ...rest } = options;
   const method = (rest.method ?? 'GET').toUpperCase();
   const getKey = method === 'GET' ? `${path}:${token ?? ''}` : null;
@@ -42,7 +43,7 @@ export async function apiFetch<T>(
   if (getKey) {
     const pending = inflightGets.get(getKey);
     if (pending) {
-      return pending as Promise<T>;
+      return pending as Promise<ApiResponse<T>>;
     }
   }
 
@@ -63,11 +64,7 @@ export async function apiFetch<T>(
       throw new ApiError(body?.message ?? `Request failed (${response.status})`, response.status);
     }
 
-    if (body && typeof body === 'object' && 'data' in body) {
-      return body.data;
-    }
-
-    return body as T;
+    return (body ?? { success: true, data: null as T }) as ApiResponse<T>;
   })();
 
   if (getKey) {
@@ -76,6 +73,22 @@ export async function apiFetch<T>(
   }
 
   return request;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: RequestInit & { token?: string | null } = {},
+): Promise<T> {
+  const body = await requestJson<T>(path, options);
+  return body.data;
+}
+
+export async function apiFetchPage<T>(
+  path: string,
+  options: RequestInit & { token?: string | null } = {},
+): Promise<{ data: T; meta?: PageMeta }> {
+  const body = await requestJson<T>(path, options);
+  return { data: body.data, meta: body.meta };
 }
 
 export function fetchMe(token: string): Promise<AuthUser> {
@@ -133,8 +146,17 @@ export function updateTableStatus(
   });
 }
 
-export function fetchOrders(token: string): Promise<Order[]> {
-  return apiFetch<Order[]>('/orders', { token });
+export function fetchOrders(token: string, afterId?: number): Promise<Order[]> {
+  const query = afterId ? `?after_id=${afterId}` : '';
+  return apiFetch<Order[]>(`/orders${query}`, { token });
+}
+
+export function fetchOrdersPage(
+  token: string,
+  afterId?: number,
+): Promise<{ data: Order[]; meta?: PageMeta }> {
+  const query = afterId ? `?after_id=${afterId}` : '';
+  return apiFetchPage<Order[]>(`/orders${query}`, { token });
 }
 
 export function fetchOrderQueue(token: string): Promise<Order[]> {

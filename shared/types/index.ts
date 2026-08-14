@@ -1,8 +1,14 @@
+export interface PageMeta {
+  next_cursor: number | string | null;
+  has_more: boolean;
+}
+
 /** Generic API envelope used by client/server contracts. */
 export interface ApiResponse<T = unknown> {
   data: T;
   message?: string;
   success: boolean;
+  meta?: PageMeta;
 }
 
 /** Authenticated user returned by GET /api/me */
