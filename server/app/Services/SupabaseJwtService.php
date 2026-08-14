@@ -17,9 +17,9 @@ class SupabaseJwtService
 {
     private const JWKS_CACHE_KEY = 'supabase.jwks';
 
-    private const JWKS_CACHE_TTL_SECONDS = 3600;
+    private const JWKS_CACHE_TTL_SECONDS = 86400;
 
-    private const HTTP_TIMEOUT_SECONDS = 5;
+    private const HTTP_TIMEOUT_SECONDS = 3;
 
     public function __construct(
         private readonly string $supabaseUrl,

@@ -19,6 +19,7 @@ import type {
 } from '@intern/shared';
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
+const inflightGets = new Map<string, Promise<unknown>>();
 
 export class ApiError extends Error {
   readonly status: number;
@@ -35,28 +36,46 @@ export async function apiFetch<T>(
   options: RequestInit & { token?: string | null } = {},
 ): Promise<T> {
   const { token, headers, ...rest } = options;
+  const method = (rest.method ?? 'GET').toUpperCase();
+  const getKey = method === 'GET' ? `${path}:${token ?? ''}` : null;
 
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    ...rest,
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-  });
-
-  const body = (await response.json().catch(() => null)) as ApiResponse<T> | null;
-
-  if (!response.ok) {
-    throw new ApiError(body?.message ?? `Request failed (${response.status})`, response.status);
+  if (getKey) {
+    const pending = inflightGets.get(getKey);
+    if (pending) {
+      return pending as Promise<T>;
+    }
   }
 
-  if (body && typeof body === 'object' && 'data' in body) {
-    return body.data;
+  const request = (async () => {
+    const response = await fetch(`${apiBaseUrl}${path}`, {
+      ...rest,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+    });
+
+    const body = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+
+    if (!response.ok) {
+      throw new ApiError(body?.message ?? `Request failed (${response.status})`, response.status);
+    }
+
+    if (body && typeof body === 'object' && 'data' in body) {
+      return body.data;
+    }
+
+    return body as T;
+  })();
+
+  if (getKey) {
+    inflightGets.set(getKey, request);
+    void request.finally(() => inflightGets.delete(getKey));
   }
 
-  return body as T;
+  return request;
 }
 
 export function fetchMe(token: string): Promise<AuthUser> {

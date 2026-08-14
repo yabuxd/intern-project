@@ -2,11 +2,13 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Role;
 use App\Models\User;
 use App\Services\SupabaseJwtService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
@@ -40,7 +42,11 @@ class VerifySupabaseJwt
         }
 
         try {
-            $claims = $this->jwtService->verify($token);
+            $claims = Cache::remember(
+                'auth.jwt.'.hash('sha256', $token),
+                90,
+                fn () => $this->jwtService->verify($token),
+            );
         } catch (Throwable $e) {
             $message = $e instanceof \RuntimeException
                 ? $e->getMessage()
@@ -79,6 +85,16 @@ class VerifySupabaseJwt
                 'email_verified_at' => $emailVerifiedAt,
             ],
         );
+
+        if ($user->wasRecentlyCreated) {
+            $customerId = Role::query()
+                ->where('name', Role::CUSTOMER)
+                ->value('id');
+
+            if ($customerId) {
+                $user->roles()->syncWithoutDetaching([$customerId]);
+            }
+        }
 
         $needsUpdate = $user->email !== $email
             || $user->name !== $name
