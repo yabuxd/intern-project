@@ -12,6 +12,7 @@ import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { QueuePageSkeleton } from '../components/ui';
+import { DeliveryMap } from '../components/DeliveryMap';
 
 const STATUS_LABELS: Record<string, string> = {
   ready: 'Ready for pickup',
@@ -156,9 +157,12 @@ export function DeliveriesPage() {
                     Order #{order.id}
                   </p>
                   <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
-                    {order.delivery_address}
+                    {order.delivery_address ?? 'No address'}
                     {order.delivery_phone ? ` · ${order.delivery_phone}` : ''}
                   </p>
+                  {order.delivery_address && (
+                    <DeliveryMap address={order.delivery_address} className="mt-3 max-w-md" />
+                  )}
                   {order.delivery_notes && (
                     <p className="mt-1 text-sm text-[var(--color-brass)]">{order.delivery_notes}</p>
                   )}

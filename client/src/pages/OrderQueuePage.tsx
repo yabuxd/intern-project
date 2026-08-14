@@ -7,6 +7,7 @@ import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { QueuePageSkeleton } from '../components/ui';
+import { DeliveryMap } from '../components/DeliveryMap';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Pending',
@@ -167,6 +168,9 @@ export function OrderQueuePage() {
                       : `${order.table?.name ?? 'No table'}`}{' '}
                     · {formatEtb(order.total)}
                   </p>
+                  {order.fulfillment_type === 'delivery' && order.delivery_address && (
+                    <DeliveryMap address={order.delivery_address} compact className="mt-3 max-w-md" />
+                  )}
                   {order.user && (
                     <p className="mt-0.5 text-sm text-[var(--color-brass)]">{order.user.email}</p>
                   )}

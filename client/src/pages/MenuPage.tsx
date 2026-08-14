@@ -6,6 +6,7 @@ import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
 import { formatEtb } from '../utils/format';
 import { MenuSkeleton } from '../components/ui';
+import { DeliveryMap } from '../components/DeliveryMap';
 
 interface CartLine {
   item: MenuItem;
@@ -304,9 +305,10 @@ export function MenuPage() {
                       value={deliveryAddress}
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
-                      placeholder="Street, neighborhood"
+                      placeholder="Street, neighborhood, Addis Ababa"
                     />
                   </label>
+                  <DeliveryMap address={deliveryAddress} compact className="rounded-lg" />
                   <label className="block text-sm text-stone-600">
                     Phone
                     <input

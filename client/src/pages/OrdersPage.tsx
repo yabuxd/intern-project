@@ -5,6 +5,7 @@ import { cancelOrder, fetchOrders } from '../services';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { OrdersPageSkeleton } from '../components/ui';
+import { DeliveryMap } from '../components/DeliveryMap';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Pending',
@@ -122,6 +123,9 @@ export function OrdersPage() {
                         ? ` · ${order.table.name}`
                         : ''}
                   </p>
+                  {order.fulfillment_type === 'delivery' && order.delivery_address && (
+                    <DeliveryMap address={order.delivery_address} compact className="mt-3 max-w-md" />
+                  )}
                 </div>
                 <div className="text-right">
                   <span
