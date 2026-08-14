@@ -8,6 +8,7 @@ use App\Models\User;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class UserPermissionsApiTest extends TestCase
@@ -169,5 +170,39 @@ class UserPermissionsApiTest extends TestCase
                 'roles' => [Role::CUSTOMER],
             ])
             ->assertForbidden();
+    }
+
+    public function test_admin_can_create_a_user_with_a_role(): void
+    {
+        config(['services.supabase.service_role_key' => 'test-service-role']);
+        Http::fake([
+            'https://example.supabase.co/auth/v1/admin/users' => Http::response([
+                'id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                'email' => 'chef@example.com',
+            ], 200),
+        ]);
+
+        $admin = $this->userWithRole(Role::ADMIN);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/admin/users', [
+                'name' => 'Kitchen Chef',
+                'email' => 'chef@example.com',
+                'password' => 'password123',
+                'roles' => [Role::KITCHEN],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.email', 'chef@example.com')
+            ->assertJsonPath('data.roles', [Role::KITCHEN]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            'email' => 'chef@example.com',
+        ]);
     }
 }

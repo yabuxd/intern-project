@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuCategory;
+use App\Models\Permission;
 use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class MenuController extends Controller
 {
@@ -31,9 +33,14 @@ class MenuController extends Controller
     /**
      * Staff menu view including unavailable items (requires can_manage_menu).
      */
-    public function manage(): JsonResponse
+    public function manage(Request $request): JsonResponse
     {
-        $this->authorize('can_manage_menu');
+        $user = $request->user();
+        abort_unless(
+            $user?->can(Permission::CAN_MANAGE_MENU)
+            || $user?->can(Permission::CAN_PROPOSE_MENU_CHANGES),
+            403,
+        );
 
         $data = $this->cache->rememberMenuManage(
             fn () => $this->menuPayload(availableOnly: false),

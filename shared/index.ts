@@ -22,5 +22,9 @@ export type {
   RoleName,
   RoleRecord,
   TableStatus,
+  MenuChangeAction,
+  MenuChangeRequest,
+  MenuChangeStatus,
+  CreateAdminUserInput,
 } from "./types/index";
 export { PERMISSIONS, ROLES } from "./types/index";

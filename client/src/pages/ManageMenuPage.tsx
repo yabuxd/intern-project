@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { PERMISSIONS, type MenuCategory, type MenuItem } from '@intern/shared';
+import { PERMISSIONS, type MenuCategory, type MenuChangeRequest, type MenuItem } from '@intern/shared';
 import {
+  approveMenuChangeRequest,
+  createMenuChangeRequest,
   createMenuItem,
   deleteMenuItem,
   fetchManageMenu,
+  fetchMenuChangeRequests,
+  rejectMenuChangeRequest,
   updateMenuItem,
 } from '../services';
 import { useAuth } from '../store';
@@ -22,40 +26,56 @@ const emptyForm = {
 export function ManageMenuPage() {
   const { session, hasPermission, loading: authLoading } = useAuth();
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canPropose = hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
+  const canAccess = canManage || canPropose;
   const token = session?.access_token;
 
   const [categories, setCategories] = useState<MenuCategory[]>([]);
+  const [requests, setRequests] = useState<MenuChangeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reviewingId, setReviewingId] = useState<number | null>(null);
 
   const flatItems = useMemo(
     () => categories.flatMap((category) => category.items.map((item) => ({ ...item, categoryName: category.name }))),
     [categories],
   );
+  const pendingRequests = useMemo(
+    () => requests.filter((request) => request.status === 'pending'),
+    [requests],
+  );
 
   async function reload() {
     if (!token) return;
-    const data = await fetchManageMenu(token);
+    const [data, changeRequests] = await Promise.all([
+      fetchManageMenu(token),
+      fetchMenuChangeRequests(token, canManage ? 'pending' : undefined),
+    ]);
     setCategories(data);
+    setRequests(changeRequests);
     if (data[0] && form.menu_category_id === 0) {
       setForm((prev) => ({ ...prev, menu_category_id: data[0].id }));
     }
   }
 
   useEffect(() => {
-    if (!token || !canManage) {
+    if (!token || !canAccess) {
       setLoading(false);
       return;
     }
     let mounted = true;
     void (async () => {
       try {
-        const data = await fetchManageMenu(token);
+        const [data, changeRequests] = await Promise.all([
+          fetchManageMenu(token),
+          fetchMenuChangeRequests(token, canManage ? 'pending' : undefined),
+        ]);
         if (!mounted) return;
         setCategories(data);
+        setRequests(changeRequests);
         setForm((prev) => ({
           ...prev,
           menu_category_id: prev.menu_category_id || data[0]?.id || 0,
@@ -69,14 +89,14 @@ export function ManageMenuPage() {
     return () => {
       mounted = false;
     };
-  }, [token, canManage]);
+  }, [token, canAccess, canManage]);
 
   if (authLoading) return <MenuSkeleton />;
   if (!session) return <Navigate to="/login" replace />;
-  if (!canManage) {
+  if (!canAccess) {
     return (
       <div className="space-y-3 px-6 py-16 text-center text-[var(--color-cream)]">
-        <p className="text-[var(--color-cream-muted)]">You need the can_manage_menu permission.</p>
+        <p className="text-[var(--color-cream-muted)]">You need kitchen, manager, or admin access to manage the menu.</p>
         <Link to="/menu" className="text-sm font-semibold text-[var(--color-brass)] underline">
           Back to menu
         </Link>
@@ -98,10 +118,12 @@ export function ManageMenuPage() {
         price: Number(form.price),
         is_available: form.is_available,
       };
-      if (editingId) {
+      if (editingId && canManage) {
         await updateMenuItem(token, editingId, payload);
-      } else {
+      } else if (canManage) {
         await createMenuItem(token, payload);
+      } else {
+        await createMenuChangeRequest(token, { action: 'create', ...payload });
       }
       setForm({
         ...emptyForm,
@@ -130,10 +152,17 @@ export function ManageMenuPage() {
 
   async function onDelete(id: number) {
     if (!token) return;
-    if (!window.confirm('Delete this menu item?')) return;
+    const confirmed = window.confirm(
+      canManage ? 'Delete this menu item?' : 'Send a remove request for manager or admin approval?',
+    );
+    if (!confirmed) return;
     setError(null);
     try {
-      await deleteMenuItem(token, id);
+      if (canManage) {
+        await deleteMenuItem(token, id);
+      } else {
+        await createMenuChangeRequest(token, { action: 'delete', menu_item_id: id });
+      }
       if (editingId === id) {
         setEditingId(null);
         setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
@@ -141,6 +170,24 @@ export function ManageMenuPage() {
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
+    }
+  }
+
+  async function review(id: number, decision: 'approve' | 'reject') {
+    if (!token) return;
+    setReviewingId(id);
+    setError(null);
+    try {
+      if (decision === 'approve') {
+        await approveMenuChangeRequest(token, id);
+      } else {
+        await rejectMenuChangeRequest(token, id);
+      }
+      await reload();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Review failed');
+    } finally {
+      setReviewingId(null);
     }
   }
 
@@ -154,6 +201,11 @@ export function ManageMenuPage() {
           <h1 className="mt-1 font-[family-name:var(--font-display)] text-4xl text-stone-900">
             Manage menu
           </h1>
+          {!canManage && (
+            <p className="mt-2 text-sm text-stone-600">
+              Add and remove requests wait for a manager or admin to approve.
+            </p>
+          )}
         </div>
         <Link to="/menu" className="text-sm font-semibold text-stone-700 underline">
           View public menu
@@ -166,9 +218,53 @@ export function ManageMenuPage() {
         </p>
       )}
 
+      {pendingRequests.length > 0 && (
+        <section className="space-y-3 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <h2 className="text-lg font-semibold text-stone-900">
+            {canManage ? 'Pending approval' : 'Your pending requests'}
+          </h2>
+          <ul className="space-y-3">
+            {pendingRequests.map((change) => (
+              <li key={change.id} className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                <div>
+                  <p className="font-medium text-stone-900">
+                    {change.action === 'create'
+                      ? `Add “${change.payload?.name ?? 'item'}”`
+                      : `Remove “${change.menu_item?.name ?? `item #${change.menu_item_id}`}”`}
+                  </p>
+                  <p className="text-stone-600">
+                    {change.requester?.email ?? 'Kitchen'} · waiting
+                  </p>
+                </div>
+                {canManage && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={reviewingId === change.id}
+                      onClick={() => void review(change.id, 'approve')}
+                      className="rounded-lg bg-stone-900 px-3 py-1.5 text-white disabled:opacity-60"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      type="button"
+                      disabled={reviewingId === change.id}
+                      onClick={() => void review(change.id, 'reject')}
+                      className="rounded-lg border border-stone-300 px-3 py-1.5 disabled:opacity-60"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-stone-200 bg-white p-6">
         <h2 className="text-lg font-semibold text-stone-900">
-          {editingId ? 'Edit item' : 'Add item'}
+          {editingId ? 'Edit item' : canManage ? 'Add item' : 'Request a new item'}
         </h2>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="block space-y-1 text-sm md:col-span-2">
@@ -239,7 +335,13 @@ export function ManageMenuPage() {
             disabled={saving || categories.length === 0}
             className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {saving ? 'Saving…' : editingId ? 'Update item' : 'Create item'}
+            {saving
+              ? 'Saving…'
+              : editingId
+                ? 'Update item'
+                : canManage
+                  ? 'Create item'
+                  : 'Send for approval'}
           </button>
           {editingId && (
             <button
@@ -285,19 +387,21 @@ export function ManageMenuPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => startEdit(item)}
-                  className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm"
-                >
-                  Edit
-                </button>
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => startEdit(item)}
+                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm"
+                  >
+                    Edit
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => void onDelete(item.id)}
                   className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700"
                 >
-                  Delete
+                  {canManage ? 'Delete' : 'Request remove'}
                 </button>
               </div>
             </li>

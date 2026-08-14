@@ -29,6 +29,7 @@ export const PERMISSIONS = {
   CAN_CREATE_RESERVATION: "can_create_reservation",
   CAN_MANAGE_PERMISSIONS: "can_manage_permissions",
   CAN_MANAGE_DELIVERIES: "can_manage_deliveries",
+  CAN_PROPOSE_MENU_CHANGES: "can_propose_menu_changes",
 } as const;
 
 export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -207,4 +208,28 @@ export interface AdminUser {
   email: string;
   roles: string[];
   permissions: PermissionName[];
+}
+
+export type MenuChangeAction = "create" | "delete";
+export type MenuChangeStatus = "pending" | "approved" | "rejected";
+
+export interface MenuChangeRequest {
+  id: number;
+  action: MenuChangeAction;
+  status: MenuChangeStatus;
+  menu_item_id: number | null;
+  payload: Partial<MenuItemInput> | null;
+  review_note: string | null;
+  created_at: string | null;
+  reviewed_at: string | null;
+  requester: { id: string; name: string | null; email: string } | null;
+  reviewer: { id: string; name: string | null; email: string } | null;
+  menu_item: { id: number; name: string } | null;
+}
+
+export interface CreateAdminUserInput {
+  name?: string;
+  email: string;
+  password: string;
+  roles?: string[];
 }

@@ -25,7 +25,9 @@ export function MenuPage() {
   const [deliveryNotes, setDeliveryNotes] = useState('');
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
-  const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canManage =
+    hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
+    hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
   const menuQuery = useQuery({ queryKey: ['menu'], queryFn: fetchMenu, staleTime: 60_000 });
   const tablesQuery = useQuery({ queryKey: ['tables'], queryFn: fetchTables, staleTime: 15_000 });
   const categories = menuQuery.data ?? [];

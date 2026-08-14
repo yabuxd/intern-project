@@ -3,20 +3,25 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreAdminUserRequest;
 use App\Http\Requests\UpdateRolePermissionsRequest;
 use App\Http\Requests\UpdateUserRolesRequest;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ApiCacheService;
+use App\Services\SupabaseAdminUserService;
 use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
 
 class UserPermissionController extends Controller
 {
     public function __construct(
         private readonly ApiCacheService $cache,
+        private readonly SupabaseAdminUserService $authUsers,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -37,6 +42,51 @@ class UserPermissionController extends Controller
             'data' => $users->map(fn (User $user) => $this->transformUser($user))->values(),
             'meta' => $meta,
         ]);
+    }
+
+    public function store(StoreAdminUserRequest $request): JsonResponse
+    {
+        $this->authorize('create', User::class);
+
+        $email = strtolower(trim($request->validated('email')));
+        $name = trim((string) ($request->validated('name') ?? ''));
+        if ($name === '') {
+            $local = strstr($email, '@', true);
+            $name = is_string($local) && $local !== '' ? $local : $email;
+        }
+
+        if (User::query()->where('email', $email)->exists()) {
+            throw ValidationException::withMessages([
+                'email' => ['A user with this email already exists.'],
+            ]);
+        }
+
+        try {
+            $auth = $this->authUsers->createUser($email, $request->validated('password'), $name);
+        } catch (RuntimeException $e) {
+            throw ValidationException::withMessages([
+                'email' => [$e->getMessage()],
+            ]);
+        }
+
+        $user = User::query()->create([
+            'id' => $auth['id'],
+            'email' => $auth['email'],
+            'name' => $name,
+            'email_verified_at' => now(),
+        ]);
+
+        $roleNames = $request->validated('roles') ?? [Role::CUSTOMER];
+        $roleIds = Role::query()->whereIn('name', $roleNames)->pluck('id');
+        $user->roles()->sync($roleIds);
+        $user->load('roles.permissions');
+        $this->cache->forgetUserAuth($user->id);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->transformUser($user),
+            'message' => 'User created.',
+        ], 201);
     }
 
     public function permissions(): JsonResponse

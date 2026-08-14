@@ -16,4 +16,9 @@ class UserPolicy
     {
         return $actor->can(Permission::CAN_MANAGE_PERMISSIONS);
     }
+
+    public function create(User $user): bool
+    {
+        return $user->can(Permission::CAN_MANAGE_PERMISSIONS);
+    }
 }

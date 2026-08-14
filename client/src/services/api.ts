@@ -2,9 +2,11 @@ import type {
   AdminUser,
   ApiResponse,
   AuthUser,
+  CreateAdminUserInput,
   CreateOrderInput,
   CreateReservationInput,
   MenuCategory,
+  MenuChangeRequest,
   MenuItem,
   MenuItemInput,
   Order,
@@ -130,6 +132,47 @@ export function deleteMenuItem(token: string, id: number): Promise<null> {
   });
 }
 
+export function fetchMenuChangeRequests(
+  token: string,
+  status?: string,
+): Promise<MenuChangeRequest[]> {
+  const query = status ? `?status=${status}` : '';
+  return apiFetch<MenuChangeRequest[]>(`/menu-change-requests${query}`, { token });
+}
+
+export function createMenuChangeRequest(
+  token: string,
+  input: Record<string, unknown>,
+): Promise<MenuChangeRequest> {
+  return apiFetch<MenuChangeRequest>('/menu-change-requests', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export function approveMenuChangeRequest(
+  token: string,
+  id: number,
+): Promise<MenuChangeRequest> {
+  return apiFetch<MenuChangeRequest>(`/menu-change-requests/${id}/approve`, {
+    method: 'PATCH',
+    token,
+  });
+}
+
+export function rejectMenuChangeRequest(
+  token: string,
+  id: number,
+  reviewNote?: string,
+): Promise<MenuChangeRequest> {
+  return apiFetch<MenuChangeRequest>(`/menu-change-requests/${id}/reject`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ review_note: reviewNote ?? null }),
+  });
+}
+
 export function fetchTables(): Promise<RestaurantTable[]> {
   return apiFetch<RestaurantTable[]>('/tables');
 }
@@ -234,6 +277,14 @@ export function cancelReservation(token: string, id: number): Promise<Reservatio
 
 export function fetchAdminUsers(token: string): Promise<AdminUser[]> {
   return apiFetch<AdminUser[]>('/admin/users', { token });
+}
+
+export function createAdminUser(token: string, input: CreateAdminUserInput): Promise<AdminUser> {
+  return apiFetch<AdminUser>('/admin/users', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  });
 }
 
 export function fetchPermissionCatalog(token: string): Promise<PermissionRecord[]> {

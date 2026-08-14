@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MeController;
+use App\Http\Controllers\Api\MenuChangeRequestController;
 use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\OrderController;
@@ -33,10 +34,15 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::get('/me', MeController::class);
     Route::get('/menu/manage', [MenuController::class, 'manage']);
     Route::apiResource('menu-items', MenuItemController::class)->except(['index']);
+    Route::get('/menu-change-requests', [MenuChangeRequestController::class, 'index']);
+    Route::post('/menu-change-requests', [MenuChangeRequestController::class, 'store']);
+    Route::patch('/menu-change-requests/{menuChangeRequest}/approve', [MenuChangeRequestController::class, 'approve']);
+    Route::patch('/menu-change-requests/{menuChangeRequest}/reject', [MenuChangeRequestController::class, 'reject']);
     Route::get('/reservations', [ReservationController::class, 'index']);
     Route::post('/reservations', [ReservationController::class, 'store']);
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy']);
     Route::get('/admin/users', [UserPermissionController::class, 'index']);
+    Route::post('/admin/users', [UserPermissionController::class, 'store']);
     Route::get('/admin/permissions', [UserPermissionController::class, 'permissions']);
     Route::get('/admin/roles', [UserPermissionController::class, 'roles']);
     Route::put('/admin/users/{user}/roles', [UserPermissionController::class, 'updateUserRoles']);

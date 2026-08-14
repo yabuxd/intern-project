@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { AdminUser, PermissionName, PermissionRecord, RoleRecord } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import {
+  createAdminUser,
   fetchAdminRoles,
   fetchAdminUsers,
   fetchPermissionCatalog,
@@ -23,6 +24,8 @@ export function AdminRolesPage() {
   const [savingRoleId, setSavingRoleId] = useState<number | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [userQuery, setUserQuery] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'customer' });
   const debouncedUserQuery = useDebouncedValue(userQuery, 300);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
 
@@ -125,6 +128,26 @@ export function AdminRolesPage() {
     }
   }
 
+  async function createUser() {
+    if (!session?.access_token) return;
+    setCreating(true);
+    setError(null);
+    try {
+      const created = await createAdminUser(session.access_token, {
+        name: newUser.name.trim() || undefined,
+        email: newUser.email.trim(),
+        password: newUser.password,
+        roles: [newUser.role],
+      });
+      setUsers((prev) => [created, ...prev]);
+      setNewUser({ name: '', email: '', password: '', role: 'customer' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create user');
+    } finally {
+      setCreating(false);
+    }
+  }
+
   async function saveRole() {
     if (!session?.access_token || !selectedRole) return;
     setSavingRoleId(selectedRole.id);
@@ -189,6 +212,56 @@ export function AdminRolesPage() {
         <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
           Users
         </h2>
+        <form
+          className="grid gap-3 border border-[var(--color-brass)]/20 bg-[var(--color-umber)] p-5 sm:grid-cols-2 lg:grid-cols-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void createUser();
+          }}
+        >
+          <input
+            required
+            value={newUser.name}
+            onChange={(e) => setNewUser((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="Name"
+            className="rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-sm text-[var(--color-cream)]"
+          />
+          <input
+            required
+            type="email"
+            value={newUser.email}
+            onChange={(e) => setNewUser((prev) => ({ ...prev, email: e.target.value }))}
+            placeholder="Email"
+            className="rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-sm text-[var(--color-cream)]"
+          />
+          <input
+            required
+            type="password"
+            minLength={8}
+            value={newUser.password}
+            onChange={(e) => setNewUser((prev) => ({ ...prev, password: e.target.value }))}
+            placeholder="Password (min 8)"
+            className="rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-sm text-[var(--color-cream)]"
+          />
+          <select
+            value={newUser.role}
+            onChange={(e) => setNewUser((prev) => ({ ...prev, role: e.target.value }))}
+            className="rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-sm text-[var(--color-cream)]"
+          >
+            {roles.map((role) => (
+              <option key={role.id} value={role.name}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            disabled={creating}
+            className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] disabled:opacity-60"
+          >
+            {creating ? 'Creating…' : 'Create user'}
+          </button>
+        </form>
         <input
           value={userQuery}
           onChange={(e) => setUserQuery(e.target.value)}

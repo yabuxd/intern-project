@@ -14,7 +14,7 @@ class RoleSeeder extends Seeder
     {
         $descriptions = [
             Role::CUSTOMER => 'Place orders and book tables',
-            Role::KITCHEN => 'View and advance the kitchen order queue',
+            Role::KITCHEN => 'Run the kitchen queue and propose menu add/remove for approval',
             Role::HOST => 'Manage dining tables and reservations',
             Role::MANAGER => 'Run menu, floor, and kitchen operations',
             Role::ADMIN => 'Full access including role assignment',
@@ -30,6 +30,7 @@ class RoleSeeder extends Seeder
                 Permission::CAN_PLACE_ORDER,
                 Permission::CAN_VIEW_ALL_ORDERS,
                 Permission::CAN_UPDATE_ORDER_STATUS,
+                Permission::CAN_PROPOSE_MENU_CHANGES,
             ],
             Role::HOST => [
                 Permission::CAN_PLACE_ORDER,

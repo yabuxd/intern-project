@@ -50,7 +50,9 @@ function useQuickLinks(
   const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
-  const canManageMenu = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canManageMenu =
+    hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
+    hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
   const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
 
   if (!session) return [];
@@ -81,7 +83,13 @@ function useQuickLinks(
     });
   }
   if (canManageMenu) {
-    links.push({ to: '/menu/manage', title: 'Manage menu', description: 'Update dishes and pricing' });
+    links.push({
+      to: '/menu/manage',
+      title: 'Manage menu',
+      description: hasPermission(PERMISSIONS.CAN_MANAGE_MENU)
+        ? 'Update dishes and approve kitchen requests'
+        : 'Request add or remove — manager or admin must approve',
+    });
   }
   if (canManagePermissions) {
     links.push({
