@@ -6,14 +6,20 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMenuItemRequest;
 use App\Http\Requests\UpdateMenuItemRequest;
 use App\Models\MenuItem;
+use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
 
 class MenuItemController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
+
     public function store(StoreMenuItemRequest $request): JsonResponse
     {
         $item = MenuItem::query()->create($request->validated());
         $item->load('category');
+        $this->cache->forgetMenu();
 
         return response()->json([
             'success' => true,
@@ -37,6 +43,7 @@ class MenuItemController extends Controller
     {
         $menuItem->update($request->validated());
         $menuItem->load('category');
+        $this->cache->forgetMenu();
 
         return response()->json([
             'success' => true,
@@ -49,6 +56,7 @@ class MenuItemController extends Controller
     {
         $this->authorize('delete', $menuItem);
         $menuItem->delete();
+        $this->cache->forgetMenu();
 
         return response()->json([
             'success' => true,

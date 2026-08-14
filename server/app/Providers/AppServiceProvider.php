@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\ApiCacheService;
 use App\Services\SupabaseJwtService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -15,6 +16,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(ApiCacheService::class);
+
         $this->app->singleton(SupabaseJwtService::class, function () {
             $ca = config('services.supabase.ssl_cert_file');
 

@@ -4,18 +4,27 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\MenuCategory;
+use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
 
 class MenuController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
+
     /**
      * Public menu browse: categories with available items only.
      */
     public function index(): JsonResponse
     {
+        $data = $this->cache->rememberMenuPublic(
+            fn () => $this->menuPayload(availableOnly: true),
+        );
+
         return response()->json([
             'success' => true,
-            'data' => $this->menuPayload(availableOnly: true),
+            'data' => $data,
         ]);
     }
 
@@ -26,9 +35,13 @@ class MenuController extends Controller
     {
         $this->authorize('can_manage_menu');
 
+        $data = $this->cache->rememberMenuManage(
+            fn () => $this->menuPayload(availableOnly: false),
+        );
+
         return response()->json([
             'success' => true,
-            'data' => $this->menuPayload(availableOnly: false),
+            'data' => $data,
         ]);
     }
 

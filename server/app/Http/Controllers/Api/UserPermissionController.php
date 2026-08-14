@@ -8,10 +8,15 @@ use App\Http\Requests\UpdateUserRolesRequest;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
 
 class UserPermissionController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
+
     public function index(): JsonResponse
     {
         $this->authorize('viewAny', User::class);
@@ -32,14 +37,17 @@ class UserPermissionController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $permissions = Permission::query()
-            ->orderBy('name')
-            ->get()
-            ->map(fn (Permission $permission) => [
-                'id' => $permission->id,
-                'name' => $permission->name,
-                'description' => $permission->description,
-            ]);
+        $permissions = $this->cache->rememberPermissionsCatalog(function () {
+            return Permission::query()
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Permission $permission) => [
+                    'id' => $permission->id,
+                    'name' => $permission->name,
+                    'description' => $permission->description,
+                ])
+                ->all();
+        });
 
         return response()->json([
             'success' => true,
@@ -51,11 +59,14 @@ class UserPermissionController extends Controller
     {
         $this->authorize('viewAny', User::class);
 
-        $roles = Role::query()
-            ->with('permissions')
-            ->orderBy('name')
-            ->get()
-            ->map(fn (Role $role) => $this->transformRole($role));
+        $roles = $this->cache->rememberRolesCatalog(function () {
+            return Role::query()
+                ->with('permissions')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Role $role) => $this->transformRole($role))
+                ->all();
+        });
 
         return response()->json([
             'success' => true,
@@ -73,6 +84,7 @@ class UserPermissionController extends Controller
 
         $user->roles()->sync($roleIds);
         $user->load('roles.permissions');
+        $this->cache->forgetUserAuth($user->id);
 
         return response()->json([
             'success' => true,
@@ -91,6 +103,8 @@ class UserPermissionController extends Controller
 
         $role->permissions()->sync($permissionIds);
         $role->load('permissions');
+        $this->cache->forgetRolesCatalog();
+        $this->cache->forgetUsersWithRole($role);
 
         return response()->json([
             'success' => true,

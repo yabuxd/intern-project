@@ -6,9 +6,11 @@ use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\ApiCacheService;
 use Database\Seeders\MenuCategorySeeder;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class MenuApiTest extends TestCase
@@ -52,6 +54,36 @@ class MenuApiTest extends TestCase
 
         $this->assertTrue($items->contains('name', 'Soup'));
         $this->assertFalse($items->contains('name', 'Hidden Stew'));
+    }
+
+    public function test_menu_cache_is_invalidated_after_create(): void
+    {
+        $category = MenuCategory::query()->firstOrFail();
+        $user = $this->userWithPermission(Permission::CAN_MANAGE_MENU);
+        $token = $this->makeToken([
+            'sub' => $user->id,
+            'email' => $user->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->getJson('/api/menu')->assertOk();
+        $this->assertTrue(Cache::has('api.menu.public'));
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/menu-items', [
+                'menu_category_id' => $category->id,
+                'name' => 'Fresh Pasta',
+                'price' => 14.50,
+                'is_available' => true,
+            ])
+            ->assertCreated();
+
+        $this->assertFalse(Cache::has('api.menu.public'));
+
+        $items = collect($this->getJson('/api/menu')->assertOk()->json('data'))
+            ->flatMap(fn ($c) => $c['items']);
+
+        $this->assertTrue($items->contains('name', 'Fresh Pasta'));
     }
 
     public function test_manager_can_create_menu_item(): void

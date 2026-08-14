@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ApiCacheService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -29,11 +30,7 @@ class User extends Authenticatable
 
     public function hasPermission(string $name): bool
     {
-        $this->loadMissing('roles.permissions');
-
-        return $this->roles
-            ->flatMap(fn (Role $role) => $role->permissions)
-            ->contains('name', $name);
+        return in_array($name, $this->permissionNames(), true);
     }
 
     /**
@@ -41,14 +38,7 @@ class User extends Authenticatable
      */
     public function permissionNames(): array
     {
-        $this->loadMissing('roles.permissions');
-
-        return $this->roles
-            ->flatMap(fn (Role $role) => $role->permissions->pluck('name'))
-            ->unique()
-            ->sort()
-            ->values()
-            ->all();
+        return $this->authProfile()['permissions'];
     }
 
     /**
@@ -56,9 +46,38 @@ class User extends Authenticatable
      */
     public function roleNames(): array
     {
-        $this->loadMissing('roles');
+        return $this->authProfile()['roles'];
+    }
 
-        return $this->roles->pluck('name')->sort()->values()->all();
+    /**
+     * Cached roles and effective permissions for API responses and gates.
+     *
+     * @return array{roles: list<string>, permissions: list<string>}
+     */
+    public function authProfile(): array
+    {
+        return app(ApiCacheService::class)->rememberUserAuth(
+            $this->id,
+            fn () => $this->buildAuthProfile(),
+        );
+    }
+
+    /**
+     * @return array{roles: list<string>, permissions: list<string>}
+     */
+    private function buildAuthProfile(): array
+    {
+        $this->loadMissing('roles.permissions');
+
+        return [
+            'roles' => $this->roles->pluck('name')->sort()->values()->all(),
+            'permissions' => $this->roles
+                ->flatMap(fn (Role $role) => $role->permissions->pluck('name'))
+                ->unique()
+                ->sort()
+                ->values()
+                ->all(),
+        ];
     }
 
     /**
