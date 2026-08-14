@@ -29,7 +29,6 @@ export function MenuPage() {
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
-  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
 
   useEffect(() => {
     let mounted = true;
@@ -196,7 +195,7 @@ export function MenuPage() {
                               {formatEtb(item.price)}
                             </p>
                           </div>
-                          {canPlaceOrder && session && (
+                          {session && (
                             <button
                               type="button"
                               onClick={() => addToCart(item)}
@@ -224,8 +223,6 @@ export function MenuPage() {
               </Link>{' '}
               to place an order.
             </p>
-          ) : !canPlaceOrder ? (
-            <p className="mt-3 text-sm text-stone-600">You do not have permission to place orders.</p>
           ) : cart.length === 0 ? (
             <p className="mt-3 text-sm text-stone-600">Your cart is empty.</p>
           ) : (

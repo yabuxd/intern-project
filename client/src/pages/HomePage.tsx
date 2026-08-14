@@ -48,7 +48,6 @@ function useQuickLinks(
 ): QuickLink[] {
   const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
   const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
-  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
   const canManageMenu = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
@@ -68,7 +67,7 @@ function useQuickLinks(
       description: 'Book a table or manage bookings',
     });
   }
-  if (canPlaceOrder) {
+  if (session) {
     links.push({ to: '/orders', title: 'Your orders', description: 'Track and place orders' });
   }
   if (canViewQueue) {

@@ -280,7 +280,7 @@ class OrdersApiTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_user_without_permission_cannot_place_order(): void
+    public function test_signed_in_user_without_roles_can_place_order(): void
     {
         $user = User::factory()->create();
         $menuItem = $this->createMenuItem();
@@ -296,7 +296,19 @@ class OrdersApiTest extends TestCase
                     ['menu_item_id' => $menuItem->id, 'quantity' => 1],
                 ],
             ])
-            ->assertForbidden();
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'pending');
+    }
+
+    public function test_guest_cannot_place_order(): void
+    {
+        $menuItem = $this->createMenuItem();
+
+        $this->postJson('/api/orders', [
+            'items' => [
+                ['menu_item_id' => $menuItem->id, 'quantity' => 1],
+            ],
+        ])->assertUnauthorized();
     }
 
     private function createMenuItem(): MenuItem

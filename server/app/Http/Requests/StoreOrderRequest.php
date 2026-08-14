@@ -11,7 +11,7 @@ class StoreOrderRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('can_place_order') ?? false;
+        return $this->user() !== null;
     }
 
     /**

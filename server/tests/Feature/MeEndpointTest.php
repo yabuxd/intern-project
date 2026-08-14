@@ -6,6 +6,7 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -75,11 +76,30 @@ class MeEndpointTest extends TestCase
             ->assertJsonPath('data.id', $supabaseId)
             ->assertJsonPath('data.email', 'new@example.com')
             ->assertJsonPath('data.roles', [])
-            ->assertJsonPath('data.permissions', []);
+            ->assertJsonPath('data.permissions', [Permission::CAN_PLACE_ORDER]);
 
         $this->assertDatabaseHas('users', [
             'id' => $supabaseId,
             'email' => 'new@example.com',
         ]);
+    }
+
+    public function test_new_users_receive_the_customer_role_by_default(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $supabaseId = '33333333-3333-3333-3333-333333333333';
+        $token = $this->makeToken([
+            'sub' => $supabaseId,
+            'email' => 'diner@example.com',
+            'exp' => time() + 3600,
+            'email_verified' => true,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/me')
+            ->assertOk()
+            ->assertJsonPath('data.roles', [Role::CUSTOMER])
+            ->assertJsonFragment(['can_place_order']);
     }
 }

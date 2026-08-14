@@ -4,6 +4,8 @@ namespace Database\Seeders;
 
 use App\Models\Permission;
 use App\Models\Role;
+use App\Models\User;
+use App\Services\ApiCacheService;
 use Illuminate\Database\Seeder;
 
 class RoleSeeder extends Seeder
@@ -25,10 +27,12 @@ class RoleSeeder extends Seeder
                 Permission::CAN_CREATE_RESERVATION,
             ],
             Role::KITCHEN => [
+                Permission::CAN_PLACE_ORDER,
                 Permission::CAN_VIEW_ALL_ORDERS,
                 Permission::CAN_UPDATE_ORDER_STATUS,
             ],
             Role::HOST => [
+                Permission::CAN_PLACE_ORDER,
                 Permission::CAN_MANAGE_TABLES,
                 Permission::CAN_CREATE_RESERVATION,
             ],
@@ -43,6 +47,7 @@ class RoleSeeder extends Seeder
             ],
             Role::ADMIN => Permission::catalog(),
             Role::DRIVER => [
+                Permission::CAN_PLACE_ORDER,
                 Permission::CAN_MANAGE_DELIVERIES,
             ],
         ];
@@ -65,5 +70,16 @@ class RoleSeeder extends Seeder
 
             $role->permissions()->sync($ids);
         }
+
+        $customerId = Role::query()->where('name', Role::CUSTOMER)->value('id');
+        if ($customerId) {
+            User::query()
+                ->whereDoesntHave('roles')
+                ->each(fn (User $user) => $user->roles()->syncWithoutDetaching([$customerId]));
+        }
+
+        $cache = app(ApiCacheService::class);
+        $cache->forgetRolesCatalog();
+        $cache->forgetAllUserAuth();
     }
 }

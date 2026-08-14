@@ -20,7 +20,6 @@ export function AppLayout({ children }: AppLayoutProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
   const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
-  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
   const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
@@ -58,7 +57,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           Reservations
         </NavLink>
       )}
-      {session && canPlaceOrder && (
+      {session && (
         <NavLink to="/orders" className={navLinkClass} end onClick={closeMenu}>
           Orders
         </NavLink>

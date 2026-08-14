@@ -49,19 +49,19 @@ class ApiCacheTest extends TestCase
         $this->withHeader('Authorization', 'Bearer '.$targetToken)
             ->getJson('/api/me')
             ->assertOk()
-            ->assertJsonPath('data.permissions', []);
+            ->assertJsonMissing(['can_manage_menu']);
 
         $this->withHeader('Authorization', 'Bearer '.$adminToken)
             ->putJson("/api/admin/users/{$target->id}/roles", [
-                'roles' => [Role::CUSTOMER],
+                'roles' => [Role::MANAGER],
             ])
             ->assertOk()
-            ->assertJsonFragment(['can_place_order']);
+            ->assertJsonFragment(['can_manage_menu']);
 
         $this->withHeader('Authorization', 'Bearer '.$targetToken)
             ->getJson('/api/me')
             ->assertOk()
-            ->assertJsonFragment(['can_place_order']);
+            ->assertJsonFragment(['can_manage_menu']);
     }
 
     public function test_tables_cache_is_invalidated_on_update(): void

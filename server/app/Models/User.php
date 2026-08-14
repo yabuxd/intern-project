@@ -73,6 +73,7 @@ class User extends Authenticatable
             'roles' => $this->roles->pluck('name')->sort()->values()->all(),
             'permissions' => $this->roles
                 ->flatMap(fn (Role $role) => $role->permissions->pluck('name'))
+                ->push(Permission::CAN_PLACE_ORDER)
                 ->unique()
                 ->sort()
                 ->values()

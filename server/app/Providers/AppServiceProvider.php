@@ -37,6 +37,10 @@ class AppServiceProvider extends ServiceProvider
     {
         foreach (Permission::catalog() as $permission) {
             Gate::define($permission, function (User $user) use ($permission) {
+                if ($permission === Permission::CAN_PLACE_ORDER) {
+                    return true;
+                }
+
                 return $user->hasPermission($permission);
             });
         }

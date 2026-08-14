@@ -118,9 +118,9 @@ class UserPermissionsApiTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.roles', [])
-            ->assertJsonPath('data.permissions', []);
+            ->assertJsonPath('data.permissions', [Permission::CAN_PLACE_ORDER]);
 
-        $this->assertFalse($target->fresh(['roles.permissions'])->hasPermission(Permission::CAN_PLACE_ORDER));
+        $this->assertTrue($target->fresh(['roles.permissions'])->hasPermission(Permission::CAN_PLACE_ORDER));
     }
 
     public function test_admin_can_update_role_permissions(): void
