@@ -67,7 +67,7 @@ class MenuApiTest extends TestCase
         ]);
 
         $this->getJson('/api/menu')->assertOk();
-        $this->assertTrue(Cache::has('api.menu.public'));
+        $this->assertTrue(Cache::has('api.menu.public.v2'));
 
         $this->withHeader('Authorization', 'Bearer '.$token)
             ->postJson('/api/menu-items', [
@@ -78,7 +78,7 @@ class MenuApiTest extends TestCase
             ])
             ->assertCreated();
 
-        $this->assertFalse(Cache::has('api.menu.public'));
+        $this->assertFalse(Cache::has('api.menu.public.v2'));
 
         $items = collect($this->getJson('/api/menu')->assertOk()->json('data'))
             ->flatMap(fn ($c) => $c['items']);

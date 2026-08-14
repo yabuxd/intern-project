@@ -9,9 +9,9 @@ use Illuminate\Support\Facades\Cache;
 
 class ApiCacheService
 {
-    private const MENU_PUBLIC = 'api.menu.public';
+    private const MENU_PUBLIC = 'api.menu.public.v2';
 
-    private const MENU_MANAGE = 'api.menu.manage';
+    private const MENU_MANAGE = 'api.menu.manage.v2';
 
     private const TABLES = 'api.tables';
 

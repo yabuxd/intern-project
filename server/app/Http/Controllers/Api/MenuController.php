@@ -73,7 +73,7 @@ class MenuController extends Controller
                     'price' => $item->price,
                     'is_available' => $item->is_available,
                     'sort_order' => $item->sort_order,
-                ])->values(),
+                ])->values()->all(),
             ])
             ->values()
             ->all();

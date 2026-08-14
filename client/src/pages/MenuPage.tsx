@@ -128,9 +128,15 @@ export function MenuPage() {
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 text-left sm:space-y-10 sm:px-6 sm:py-10 md:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Ethiopian kitchen</p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-stone-900 sm:text-4xl">Menu</h1>
-          <p className="mt-2 text-sm text-stone-600 sm:text-base">Traditional dishes, from sambusa to doro wat.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+            Ethiopian kitchen
+          </p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)] sm:text-4xl">
+            Menu
+          </h1>
+          <p className="mt-2 text-sm text-[var(--color-cream-muted)] sm:text-base">
+            Traditional dishes, from sambusa to doro wat.
+          </p>
         </div>
         {canManage && (
           <Link
@@ -145,14 +151,14 @@ export function MenuPage() {
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         <div className="space-y-10">
           {categories.every((c) => c.items.length === 0) ? (
-            <p className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600">
+            <p className="rounded-xl border border-dashed border-[var(--color-brass)]/30 bg-[var(--color-umber)]/40 p-8 text-center text-[var(--color-cream-muted)]">
               No available items yet.
             </p>
           ) : (
             categories.map((category) =>
               category.items.length === 0 ? null : (
                 <section key={category.id} className="space-y-4">
-                  <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-900">
+                  <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
                     {category.name}
                   </h2>
                   <ul className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
