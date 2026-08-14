@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReservationRequest;
 use App\Models\Permission;
 use App\Models\Reservation;
+use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -17,18 +18,29 @@ class ReservationController extends Controller
 
         $user = $request->user();
         $query = Reservation::query()
-            ->with(['table', 'user'])
-            ->orderByDesc('starts_at');
+            ->select([
+                'id',
+                'user_id',
+                'table_id',
+                'party_size',
+                'starts_at',
+                'ends_at',
+                'status',
+                'notes',
+                'created_at',
+            ])
+            ->with(['table:id,name,capacity', 'user:id,name,email']);
 
         if (! $user->can(Permission::CAN_MANAGE_TABLES)) {
             $query->where('user_id', $user->id);
         }
 
-        $reservations = $query->get()->map(fn (Reservation $reservation) => $this->transform($reservation));
+        [$reservations, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'desc');
 
         return response()->json([
             'success' => true,
-            'data' => $reservations,
+            'data' => $reservations->map(fn (Reservation $reservation) => $this->transform($reservation))->values(),
+            'meta' => $meta,
         ]);
     }
 
@@ -39,7 +51,7 @@ class ReservationController extends Controller
             'user_id' => $request->user()->id,
         ]);
 
-        $reservation->load(['table', 'user']);
+        $reservation->load(['table:id,name,capacity', 'user:id,name,email']);
 
         return response()->json([
             'success' => true,
@@ -56,7 +68,7 @@ class ReservationController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $this->transform($reservation->fresh(['table', 'user'])),
+            'data' => $this->transform($reservation->fresh(['table:id,name,capacity', 'user:id,name,email'])),
             'message' => 'Reservation cancelled.',
         ]);
     }

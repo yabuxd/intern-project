@@ -25,7 +25,7 @@ class MenuController extends Controller
         return response()->json([
             'success' => true,
             'data' => $data,
-        ]);
+        ])->header('Cache-Control', 'public, max-age=60');
     }
 
     /**
@@ -51,9 +51,20 @@ class MenuController extends Controller
     private function menuPayload(bool $availableOnly): array
     {
         return MenuCategory::query()
+            ->select(['id', 'name', 'slug', 'sort_order'])
             ->orderBy('sort_order')
             ->orderBy('name')
             ->with(['items' => function ($query) use ($availableOnly) {
+                $query->select([
+                    'id',
+                    'menu_category_id',
+                    'name',
+                    'description',
+                    'image_url',
+                    'price',
+                    'is_available',
+                    'sort_order',
+                ]);
                 if ($availableOnly) {
                     $query->where('is_available', true);
                 }

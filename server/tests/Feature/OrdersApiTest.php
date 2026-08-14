@@ -100,6 +100,40 @@ class OrdersApiTest extends TestCase
         $this->assertEquals($ownOrder->id, $response->json('data.0.id'));
     }
 
+    public function test_orders_use_keyset_pagination(): void
+    {
+        $customer = $this->userWithPermission(Permission::CAN_PLACE_ORDER);
+        foreach ([1, 2, 3] as $total) {
+            Order::query()->create([
+                'user_id' => $customer->id,
+                'status' => Order::STATUS_PENDING,
+                'total' => $total,
+            ]);
+        }
+
+        $token = $this->makeToken([
+            'sub' => $customer->id,
+            'email' => $customer->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $first = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders?limit=2')
+            ->assertOk()
+            ->assertJsonPath('meta.has_more', true);
+
+        $this->assertCount(2, $first->json('data'));
+        $cursor = $first->json('meta.next_cursor');
+
+        $second = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders?limit=2&after_id='.$cursor)
+            ->assertOk()
+            ->assertJsonPath('meta.has_more', false);
+
+        $this->assertCount(1, $second->json('data'));
+        $this->assertNotEquals($first->json('data.0.id'), $second->json('data.0.id'));
+    }
+
     public function test_staff_can_view_queue(): void
     {
         $staff = $this->userWithPermission(Permission::CAN_VIEW_ALL_ORDERS);

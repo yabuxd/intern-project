@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -22,16 +23,17 @@ class OrderController extends Controller
     {
         $user = $request->user();
 
-        $orders = Order::query()
-            ->with(['items.menuItem', 'table', 'driver'])
-            ->where('user_id', $user->id)
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(fn (Order $order) => $this->transform($order));
+        $query = Order::query()
+            ->selectApi()
+            ->withApiRelations()
+            ->where('user_id', $user->id);
+
+        [$orders, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'desc');
 
         return response()->json([
             'success' => true,
-            'data' => $orders,
+            'data' => $orders->map(fn (Order $order) => $this->transform($order))->values(),
+            'meta' => $meta,
         ]);
     }
 
@@ -39,20 +41,21 @@ class OrderController extends Controller
     {
         $this->authorize('viewAny', Order::class);
 
-        $orders = Order::query()
-            ->with(['items.menuItem', 'table', 'user', 'driver'])
+        $query = Order::query()
+            ->selectApi()
+            ->withApiRelations(includeUser: true)
             ->whereIn('status', [
                 Order::STATUS_PENDING,
                 Order::STATUS_PREPARING,
                 Order::STATUS_READY,
-            ])
-            ->orderBy('created_at')
-            ->get()
-            ->map(fn (Order $order) => $this->transform($order, includeUser: true));
+            ]);
+
+        [$orders, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'asc');
 
         return response()->json([
             'success' => true,
-            'data' => $orders,
+            'data' => $orders->map(fn (Order $order) => $this->transform($order, includeUser: true))->values(),
+            'meta' => $meta,
         ]);
     }
 
@@ -60,20 +63,21 @@ class OrderController extends Controller
     {
         $this->authorize('viewDeliveries', Order::class);
 
-        $orders = Order::query()
-            ->with(['items.menuItem', 'user', 'driver'])
+        $query = Order::query()
+            ->selectApi()
+            ->withApiRelations(includeUser: true)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->whereIn('status', [
                 Order::STATUS_READY,
                 Order::STATUS_OUT_FOR_DELIVERY,
-            ])
-            ->orderBy('created_at')
-            ->get()
-            ->map(fn (Order $order) => $this->transform($order, includeUser: true));
+            ]);
+
+        [$orders, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'asc');
 
         return response()->json([
             'success' => true,
-            'data' => $orders,
+            'data' => $orders->map(fn (Order $order) => $this->transform($order, includeUser: true))->values(),
+            'meta' => $meta,
         ]);
     }
 
@@ -82,6 +86,7 @@ class OrderController extends Controller
         $this->authorize('viewDeliveries', Order::class);
 
         $drivers = User::query()
+            ->select(['id', 'name', 'email'])
             ->whereHas('roles', fn ($query) => $query->where('name', Role::DRIVER))
             ->orderBy('name')
             ->get()
@@ -106,6 +111,7 @@ class OrderController extends Controller
         $order = DB::transaction(function () use ($validated, $user, $fulfillment) {
             $menuItemIds = collect($validated['items'])->pluck('menu_item_id')->unique()->all();
             $menuItems = MenuItem::query()
+                ->select(['id', 'name', 'price', 'is_available'])
                 ->whereIn('id', $menuItemIds)
                 ->where('is_available', true)
                 ->get()
@@ -156,7 +162,12 @@ class OrderController extends Controller
 
             $order->update(['total' => round($total, 2)]);
 
-            return $order->fresh(['items.menuItem', 'table', 'driver']);
+            return $order->fresh([
+                'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+                'items.menuItem:id,name',
+                'table:id,name',
+                'driver:id,name,email',
+            ]);
         });
 
         return response()->json([
@@ -177,7 +188,13 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => $nextStatus]);
-        $order->load(['items.menuItem', 'table', 'user', 'driver']);
+        $order->load([
+            'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+            'items.menuItem:id,name',
+            'table:id,name',
+            'user:id,name,email',
+            'driver:id,name,email',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -204,7 +221,13 @@ class OrderController extends Controller
         }
 
         $order->update(['driver_id' => $driver->id]);
-        $order->load(['items.menuItem', 'table', 'user', 'driver']);
+        $order->load([
+            'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+            'items.menuItem:id,name',
+            'table:id,name',
+            'user:id,name,email',
+            'driver:id,name,email',
+        ]);
 
         return response()->json([
             'success' => true,
@@ -224,7 +247,12 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => Order::STATUS_CANCELLED]);
-        $order->load(['items.menuItem', 'table', 'driver']);
+        $order->load([
+            'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+            'items.menuItem:id,name',
+            'table:id,name',
+            'driver:id,name,email',
+        ]);
 
         return response()->json([
             'success' => true,

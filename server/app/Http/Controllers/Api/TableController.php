@@ -18,6 +18,7 @@ class TableController extends Controller
     {
         $tables = $this->cache->rememberTables(function () {
             return RestaurantTable::query()
+                ->select(['id', 'name', 'capacity', 'status'])
                 ->orderBy('name')
                 ->get()
                 ->map(fn (RestaurantTable $table) => $this->transform($table))
@@ -27,7 +28,7 @@ class TableController extends Controller
         return response()->json([
             'success' => true,
             'data' => $tables,
-        ]);
+        ])->header('Cache-Control', 'public, max-age=15');
     }
 
     public function update(UpdateTableRequest $request, RestaurantTable $restaurantTable): JsonResponse

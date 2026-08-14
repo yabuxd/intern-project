@@ -18,7 +18,7 @@ class MenuItemController extends Controller
     public function store(StoreMenuItemRequest $request): JsonResponse
     {
         $item = MenuItem::query()->create($request->validated());
-        $item->load('category');
+        $item->load('category:id,name,slug');
         $this->cache->forgetMenu();
 
         return response()->json([
@@ -31,7 +31,7 @@ class MenuItemController extends Controller
     public function show(MenuItem $menuItem): JsonResponse
     {
         $this->authorize('view', $menuItem);
-        $menuItem->load('category');
+        $menuItem->load('category:id,name,slug');
 
         return response()->json([
             'success' => true,
@@ -42,7 +42,7 @@ class MenuItemController extends Controller
     public function update(UpdateMenuItemRequest $request, MenuItem $menuItem): JsonResponse
     {
         $menuItem->update($request->validated());
-        $menuItem->load('category');
+        $menuItem->load('category:id,name,slug');
         $this->cache->forgetMenu();
 
         return response()->json([

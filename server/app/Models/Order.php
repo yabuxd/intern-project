@@ -147,6 +147,48 @@ class Order extends Model
     }
 
     /**
+     * @param  \Illuminate\Database\Eloquent\Builder<Order>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<Order>
+     */
+    public function scopeSelectApi($query)
+    {
+        return $query->select([
+            'id',
+            'user_id',
+            'table_id',
+            'fulfillment_type',
+            'delivery_address',
+            'delivery_phone',
+            'delivery_notes',
+            'driver_id',
+            'status',
+            'total',
+            'created_at',
+            'updated_at',
+        ]);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<Order>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<Order>
+     */
+    public function scopeWithApiRelations($query, bool $includeUser = false)
+    {
+        $relations = [
+            'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+            'items.menuItem:id,name',
+            'table:id,name',
+            'driver:id,name,email',
+        ];
+
+        if ($includeUser) {
+            $relations[] = 'user:id,name,email';
+        }
+
+        return $query->with($relations);
+    }
+
+    /**
      * @return array<string, string>
      */
     protected function casts(): array

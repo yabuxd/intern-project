@@ -9,7 +9,9 @@ use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ApiCacheService;
+use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class UserPermissionController extends Controller
 {
@@ -17,19 +19,23 @@ class UserPermissionController extends Controller
         private readonly ApiCacheService $cache,
     ) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::query()
-            ->with('roles.permissions')
-            ->orderBy('email')
-            ->get()
-            ->map(fn (User $user) => $this->transformUser($user));
+        $query = User::query()
+            ->select(['id', 'name', 'email'])
+            ->with([
+                'roles:id,name',
+                'roles.permissions:id,name',
+            ]);
+
+        [$users, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'asc');
 
         return response()->json([
             'success' => true,
-            'data' => $users,
+            'data' => $users->map(fn (User $user) => $this->transformUser($user))->values(),
+            'meta' => $meta,
         ]);
     }
 
@@ -39,6 +45,7 @@ class UserPermissionController extends Controller
 
         $permissions = $this->cache->rememberPermissionsCatalog(function () {
             return Permission::query()
+                ->select(['id', 'name', 'description'])
                 ->orderBy('name')
                 ->get()
                 ->map(fn (Permission $permission) => [
@@ -61,7 +68,8 @@ class UserPermissionController extends Controller
 
         $roles = $this->cache->rememberRolesCatalog(function () {
             return Role::query()
-                ->with('permissions')
+                ->select(['id', 'name', 'description'])
+                ->with('permissions:id,name')
                 ->orderBy('name')
                 ->get()
                 ->map(fn (Role $role) => $this->transformRole($role))
