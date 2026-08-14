@@ -52,6 +52,7 @@ function useQuickLinks(
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
   const canManageMenu = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
 
   if (!session) return [];
 
@@ -72,6 +73,13 @@ function useQuickLinks(
   }
   if (canViewQueue) {
     links.push({ to: '/orders/queue', title: 'Kitchen queue', description: 'Orders waiting to be served' });
+  }
+  if (canManageDeliveries) {
+    links.push({
+      to: '/orders/deliveries',
+      title: 'Deliveries',
+      description: 'Assign drivers and track courier orders',
+    });
   }
   if (canManageMenu) {
     links.push({ to: '/menu/manage', title: 'Manage menu', description: 'Update dishes and pricing' });

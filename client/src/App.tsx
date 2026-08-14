@@ -7,6 +7,7 @@ import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { ManageMenuPage } from './pages/ManageMenuPage';
 import { MenuPage } from './pages/MenuPage';
+import { DeliveriesPage } from './pages/DeliveriesPage';
 import { OrderQueuePage } from './pages/OrderQueuePage';
 import { OrdersPage } from './pages/OrdersPage';
 import { ReservationsPage } from './pages/ReservationsPage';
@@ -63,6 +64,14 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <OrderQueuePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/deliveries"
+          element={
+            <ProtectedRoute>
+              <DeliveriesPage />
             </ProtectedRoute>
           }
         />

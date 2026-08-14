@@ -16,6 +16,7 @@ class RoleSeeder extends Seeder
             Role::HOST => 'Manage dining tables and reservations',
             Role::MANAGER => 'Run menu, floor, and kitchen operations',
             Role::ADMIN => 'Full access including role assignment',
+            Role::DRIVER => 'Pick up ready orders and mark them delivered',
         ];
 
         $permissionMap = [
@@ -38,8 +39,12 @@ class RoleSeeder extends Seeder
                 Permission::CAN_UPDATE_ORDER_STATUS,
                 Permission::CAN_PLACE_ORDER,
                 Permission::CAN_CREATE_RESERVATION,
+                Permission::CAN_MANAGE_DELIVERIES,
             ],
             Role::ADMIN => Permission::catalog(),
+            Role::DRIVER => [
+                Permission::CAN_MANAGE_DELIVERIES,
+            ],
         ];
 
         $permissionIds = Permission::query()

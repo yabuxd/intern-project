@@ -13,6 +13,8 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   preparing: 'Preparing',
   ready: 'Ready',
   served: 'Served',
+  out_for_delivery: 'Out for delivery',
+  delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
 
@@ -38,6 +40,7 @@ export function OrderQueuePage() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const canView = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
   const canUpdate = hasPermission(PERMISSIONS.CAN_UPDATE_ORDER_STATUS);
+  const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
 
   const reload = useCallback(async () => {
     if (!session?.access_token) return;
@@ -78,6 +81,7 @@ export function OrderQueuePage() {
 
   async function advanceStatus(order: Order) {
     if (!session?.access_token || !canUpdate) return;
+    if (order.fulfillment_type === 'delivery' && order.status === 'ready') return;
     const next = NEXT_STATUS[order.status];
     if (!next) return;
 
@@ -158,7 +162,10 @@ export function OrderQueuePage() {
                     Order #{order.id}
                   </p>
                   <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
-                    {order.table?.name ?? 'No table'} · {formatEtb(order.total)}
+                    {order.fulfillment_type === 'delivery'
+                      ? `Delivery · ${order.delivery_address ?? 'Address pending'}`
+                      : `${order.table?.name ?? 'No table'}`}{' '}
+                    · {formatEtb(order.total)}
                   </p>
                   {order.user && (
                     <p className="mt-0.5 text-sm text-[var(--color-brass)]">{order.user.email}</p>
@@ -178,15 +185,21 @@ export function OrderQueuePage() {
               </ul>
               {canUpdate && (
                 <div className="mt-5 flex flex-wrap gap-2">
-                  {NEXT_STATUS[order.status] && (
-                    <button
-                      type="button"
-                      disabled={updatingId === order.id}
-                      onClick={() => void advanceStatus(order)}
-                      className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
-                    >
-                      Mark as {STATUS_LABELS[NEXT_STATUS[order.status]!]}
-                    </button>
+                  {order.fulfillment_type === 'delivery' && order.status === 'ready' ? (
+                    <p className="text-sm text-[var(--color-brass)]">
+                      Ready for courier — open Deliveries to assign a driver.
+                    </p>
+                  ) : (
+                    NEXT_STATUS[order.status] && (
+                      <button
+                        type="button"
+                        disabled={updatingId === order.id}
+                        onClick={() => void advanceStatus(order)}
+                        className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
+                      >
+                        Mark as {STATUS_LABELS[NEXT_STATUS[order.status]!]}
+                      </button>
+                    )
                   )}
                   {CANCELLABLE.includes(order.status) && (
                     <button
@@ -205,12 +218,22 @@ export function OrderQueuePage() {
         </ul>
       )}
 
-      <Link
-        to="/orders"
-        className="inline-block text-sm text-[var(--color-cream-muted)] transition hover:text-[var(--color-brass)]"
-      >
-        ← My orders
-      </Link>
+      <div className="flex flex-wrap gap-4">
+        <Link
+          to="/orders"
+          className="inline-block text-sm text-[var(--color-cream-muted)] transition hover:text-[var(--color-brass)]"
+        >
+          ← My orders
+        </Link>
+        {canManageDeliveries && (
+          <Link
+            to="/orders/deliveries"
+            className="inline-block text-sm text-[var(--color-brass)] transition hover:underline"
+          >
+            Deliveries →
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

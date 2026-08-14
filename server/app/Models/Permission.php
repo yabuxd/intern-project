@@ -22,6 +22,8 @@ class Permission extends Model
 
     public const CAN_MANAGE_PERMISSIONS = 'can_manage_permissions';
 
+    public const CAN_MANAGE_DELIVERIES = 'can_manage_deliveries';
+
     /**
      * @return list<string>
      */
@@ -35,6 +37,7 @@ class Permission extends Model
             self::CAN_PLACE_ORDER,
             self::CAN_CREATE_RESERVATION,
             self::CAN_MANAGE_PERMISSIONS,
+            self::CAN_MANAGE_DELIVERIES,
         ];
     }
 }

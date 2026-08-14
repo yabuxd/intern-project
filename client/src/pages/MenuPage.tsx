@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { MenuCategory, MenuItem, RestaurantTable } from '@intern/shared';
+import type { FulfillmentType, MenuCategory, MenuItem, RestaurantTable } from '@intern/shared';
 import { Link, useNavigate } from 'react-router-dom';
 import { createOrder, fetchMenu, fetchTables } from '../services';
 import { useAuth } from '../store';
@@ -19,6 +19,10 @@ export function MenuPage() {
   const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [tableId, setTableId] = useState<number | ''>('');
+  const [fulfillment, setFulfillment] = useState<FulfillmentType>('dine_in');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryPhone, setDeliveryPhone] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
@@ -79,6 +83,12 @@ export function MenuPage() {
 
   async function checkout() {
     if (!session?.access_token || cart.length === 0) return;
+    if (fulfillment === 'delivery') {
+      if (!deliveryAddress.trim() || !deliveryPhone.trim()) {
+        setCheckoutError('Delivery needs an address and phone number.');
+        return;
+      }
+    }
     setPlacing(true);
     setCheckoutError(null);
     try {
@@ -87,10 +97,17 @@ export function MenuPage() {
           menu_item_id: line.item.id,
           quantity: line.quantity,
         })),
-        table_id: tableId === '' ? null : tableId,
+        fulfillment_type: fulfillment,
+        table_id: fulfillment === 'dine_in' && tableId !== '' ? tableId : null,
+        delivery_address: fulfillment === 'delivery' ? deliveryAddress.trim() : null,
+        delivery_phone: fulfillment === 'delivery' ? deliveryPhone.trim() : null,
+        delivery_notes: fulfillment === 'delivery' ? deliveryNotes.trim() || null : null,
       });
       setCart([]);
       setTableId('');
+      setDeliveryAddress('');
+      setDeliveryPhone('');
+      setDeliveryNotes('');
       navigate('/orders');
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : 'Failed to place order');
@@ -231,23 +248,79 @@ export function MenuPage() {
                 ))}
               </ul>
               <p className="mt-4 font-semibold text-stone-900">{formatEtb(cartTotal)}</p>
-              <label className="mt-4 block text-sm text-stone-600">
-                Table (optional)
-                <select
-                  value={tableId}
-                  onChange={(e) =>
-                    setTableId(e.target.value === '' ? '' : Number(e.target.value))
-                  }
-                  className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setFulfillment('dine_in')}
+                  className={`rounded-lg border py-2 font-medium ${
+                    fulfillment === 'dine_in'
+                      ? 'border-stone-900 bg-stone-900 text-white'
+                      : 'border-stone-300 text-stone-800'
+                  }`}
                 >
-                  <option value="">No table</option>
-                  {tables.map((table) => (
-                    <option key={table.id} value={table.id}>
-                      {table.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  Dine-in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFulfillment('delivery')}
+                  className={`rounded-lg border py-2 font-medium ${
+                    fulfillment === 'delivery'
+                      ? 'border-stone-900 bg-stone-900 text-white'
+                      : 'border-stone-300 text-stone-800'
+                  }`}
+                >
+                  Delivery
+                </button>
+              </div>
+              {fulfillment === 'dine_in' ? (
+                <label className="mt-4 block text-sm text-stone-600">
+                  Table (optional)
+                  <select
+                    value={tableId}
+                    onChange={(e) =>
+                      setTableId(e.target.value === '' ? '' : Number(e.target.value))
+                    }
+                    className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                  >
+                    <option value="">No table</option>
+                    {tables.map((table) => (
+                      <option key={table.id} value={table.id}>
+                        {table.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <label className="block text-sm text-stone-600">
+                    Address
+                    <input
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                      placeholder="Street, neighborhood"
+                    />
+                  </label>
+                  <label className="block text-sm text-stone-600">
+                    Phone
+                    <input
+                      value={deliveryPhone}
+                      onChange={(e) => setDeliveryPhone(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                      placeholder="+251…"
+                    />
+                  </label>
+                  <label className="block text-sm text-stone-600">
+                    Notes (optional)
+                    <input
+                      value={deliveryNotes}
+                      onChange={(e) => setDeliveryNotes(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                      placeholder="Gate code, landmark…"
+                    />
+                  </label>
+                </div>
+              )}
               {checkoutError && <p className="mt-2 text-sm text-red-600">{checkoutError}</p>}
               <button
                 type="button"

@@ -24,8 +24,11 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::patch('/tables/{restaurantTable}', [TableController::class, 'update']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/queue', [OrderController::class, 'queue']);
+    Route::get('/deliveries', [OrderController::class, 'deliveries']);
+    Route::get('/deliveries/drivers', [OrderController::class, 'drivers']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
+    Route::patch('/orders/{order}/driver', [OrderController::class, 'assignDriver']);
     Route::delete('/orders/{order}', [OrderController::class, 'cancel']);
     Route::get('/me', MeController::class);
     Route::get('/menu/manage', [MenuController::class, 'manage']);

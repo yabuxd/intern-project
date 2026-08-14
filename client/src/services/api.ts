@@ -8,6 +8,7 @@ import type {
   MenuItem,
   MenuItemInput,
   Order,
+  OrderDriver,
   OrderStatus,
   PermissionName,
   PermissionRecord,
@@ -119,6 +120,26 @@ export function fetchOrders(token: string): Promise<Order[]> {
 
 export function fetchOrderQueue(token: string): Promise<Order[]> {
   return apiFetch<Order[]>('/orders/queue', { token });
+}
+
+export function fetchDeliveries(token: string): Promise<Order[]> {
+  return apiFetch<Order[]>('/deliveries', { token });
+}
+
+export function fetchDeliveryDrivers(token: string): Promise<OrderDriver[]> {
+  return apiFetch<OrderDriver[]>('/deliveries/drivers', { token });
+}
+
+export function assignOrderDriver(
+  token: string,
+  orderId: number,
+  driverId: string,
+): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/driver`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify({ driver_id: driverId }),
+  });
 }
 
 export function createOrder(token: string, input: CreateOrderInput): Promise<Order> {

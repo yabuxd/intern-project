@@ -11,6 +11,8 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   preparing: 'Preparing',
   ready: 'Ready',
   served: 'Served',
+  out_for_delivery: 'Out for delivery',
+  delivered: 'Delivered',
   cancelled: 'Cancelled',
 };
 
@@ -19,10 +21,12 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   preparing: 'bg-[var(--color-cream)]/10 text-[var(--color-cream)]',
   ready: 'bg-emerald-500/20 text-emerald-300',
   served: 'bg-[var(--color-umber)] text-[var(--color-cream-muted)]',
+  out_for_delivery: 'bg-[var(--color-brass)]/20 text-[var(--color-brass)]',
+  delivered: 'bg-emerald-500/20 text-emerald-300',
   cancelled: 'bg-[var(--color-wine)]/25 text-[#e8a0a0]',
 };
 
-const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready'];
+const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready', 'out_for_delivery'];
 
 export function OrdersPage() {
   const { session } = useAuth();
@@ -112,7 +116,11 @@ export function OrdersPage() {
                   </p>
                   <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
                     {order.created_at ? new Date(order.created_at).toLocaleString() : '—'}
-                    {order.table?.name ? ` · ${order.table.name}` : ''}
+                    {order.fulfillment_type === 'delivery'
+                      ? ` · Delivery${order.delivery_address ? ` · ${order.delivery_address}` : ''}`
+                      : order.table?.name
+                        ? ` · ${order.table.name}`
+                        : ''}
                   </p>
                 </div>
                 <div className="text-right">

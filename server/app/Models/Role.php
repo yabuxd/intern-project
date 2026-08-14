@@ -19,6 +19,8 @@ class Role extends Model
 
     public const ADMIN = 'admin';
 
+    public const DRIVER = 'driver';
+
     /**
      * @return list<string>
      */
@@ -30,6 +32,7 @@ class Role extends Model
             self::HOST,
             self::MANAGER,
             self::ADMIN,
+            self::DRIVER,
         ];
     }
 

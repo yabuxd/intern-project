@@ -22,6 +22,7 @@ export const PERMISSIONS = {
   CAN_PLACE_ORDER: "can_place_order",
   CAN_CREATE_RESERVATION: "can_create_reservation",
   CAN_MANAGE_PERMISSIONS: "can_manage_permissions",
+  CAN_MANAGE_DELIVERIES: "can_manage_deliveries",
 } as const;
 
 export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -32,6 +33,7 @@ export const ROLES = {
   HOST: "host",
   MANAGER: "manager",
   ADMIN: "admin",
+  DRIVER: "driver",
 } as const;
 
 export type RoleName = (typeof ROLES)[keyof typeof ROLES];
@@ -79,7 +81,22 @@ export interface RestaurantTable {
   status: TableStatus;
 }
 
-export type OrderStatus = "pending" | "preparing" | "ready" | "served" | "cancelled";
+export type OrderStatus =
+  | "pending"
+  | "preparing"
+  | "ready"
+  | "served"
+  | "out_for_delivery"
+  | "delivered"
+  | "cancelled";
+
+export type FulfillmentType = "dine_in" | "delivery";
+
+export interface OrderDriver {
+  id: string;
+  name: string | null;
+  email: string;
+}
 
 export interface OrderItem {
   id: number;
@@ -97,6 +114,11 @@ export interface Order {
   id: number;
   user_id: string;
   table_id: number | null;
+  fulfillment_type: FulfillmentType;
+  delivery_address: string | null;
+  delivery_phone: string | null;
+  delivery_notes: string | null;
+  driver_id: string | null;
   status: OrderStatus;
   total: string | number;
   created_at: string | null;
@@ -105,6 +127,7 @@ export interface Order {
     id: number;
     name: string;
   } | null;
+  driver?: OrderDriver | null;
   items: OrderItem[];
   user?: {
     id: string;
@@ -121,6 +144,10 @@ export interface OrderLineInput {
 export interface CreateOrderInput {
   items: OrderLineInput[];
   table_id?: number | null;
+  fulfillment_type?: FulfillmentType;
+  delivery_address?: string | null;
+  delivery_phone?: string | null;
+  delivery_notes?: string | null;
 }
 
 export type ReservationStatus = "confirmed" | "cancelled";

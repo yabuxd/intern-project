@@ -17,6 +17,7 @@ class PermissionSeeder extends Seeder
             Permission::CAN_PLACE_ORDER => 'Place customer orders',
             Permission::CAN_CREATE_RESERVATION => 'Book restaurant tables',
             Permission::CAN_MANAGE_PERMISSIONS => 'Assign roles and edit role permissions',
+            Permission::CAN_MANAGE_DELIVERIES => 'Assign drivers and advance delivery orders',
         ];
 
         foreach (Permission::catalog() as $name) {
