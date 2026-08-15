@@ -9,9 +9,11 @@ use App\Http\Requests\UpdateOrderStatusRequest;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ChapaPaymentService;
+use App\Services\StaffNotificationService;
 use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,6 +26,7 @@ class OrderController extends Controller
 {
     public function __construct(
         private readonly ChapaPaymentService $chapa,
+        private readonly StaffNotificationService $notifications,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -235,11 +238,45 @@ class OrderController extends Controller
                 : 'Order placed.',
         ];
 
+        if ($paymentMethod === Order::PAYMENT_METHOD_CASH) {
+            $this->notifications->notifyManagersOfCashOrder($order);
+        }
+
         if ($checkoutUrl) {
             $response['checkout_url'] = $checkoutUrl;
         }
 
         return response()->json($response, 201);
+    }
+
+    public function receipt(Request $request, Order $order): JsonResponse
+    {
+        $this->authorize('view', $order);
+
+        if (
+            $order->user_id !== $request->user()->id
+            && ! $request->user()->can(Permission::CAN_VIEW_ALL_ORDERS)
+            && ! $request->user()->can(Permission::CAN_MANAGE_PAYMENTS)
+        ) {
+            abort(403);
+        }
+
+        $order->load([
+            'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+            'items.menuItem:id,name',
+            'table:id,name',
+            'user:id,name,email',
+            'driver:id,name,email',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'receipt_number' => 'R-'.$order->id,
+                'issued_at' => now()->toIso8601String(),
+                'order' => $this->transform($order, includeUser: true),
+            ],
+        ]);
     }
 
     public function verifyPayment(Request $request, Order $order): JsonResponse
@@ -409,6 +446,14 @@ class OrderController extends Controller
     /**
      * @return array<string, mixed>
      */
+    public function toApiArray(Order $order, bool $includeUser = false): array
+    {
+        return $this->transform($order, $includeUser);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function transform(Order $order, bool $includeUser = false): array
     {
         $payload = [
@@ -426,6 +471,10 @@ class OrderController extends Controller
             'payment_status' => $order->payment_status ?? Order::PAYMENT_NOT_REQUIRED,
             'payment_reference' => $order->payment_reference,
             'paid_at' => $order->paid_at?->toIso8601String(),
+            'cashier_approved_at' => $order->cashier_approved_at?->toIso8601String(),
+            'cashier_approved_by' => $order->cashier_approved_by,
+            'cash_collected_at' => $order->cash_collected_at?->toIso8601String(),
+            'cash_collected_by' => $order->cash_collected_by,
             'created_at' => $order->created_at?->toIso8601String(),
             'updated_at' => $order->updated_at?->toIso8601String(),
             'table' => $order->relationLoaded('table') && $order->table

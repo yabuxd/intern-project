@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\CashierController;
 use App\Http\Controllers\Api\ChapaPaymentController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\MenuChangeRequestController;
@@ -7,6 +8,7 @@ use App\Http\Controllers\Api\MenuController;
 use App\Http\Controllers\Api\MenuItemController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ReservationController;
+use App\Http\Controllers\Api\StaffNotificationController;
 use App\Http\Controllers\Api\TableController;
 use App\Http\Controllers\Api\UserPermissionController;
 use App\Http\Middleware\VerifySupabaseJwt;
@@ -33,9 +35,15 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::get('/deliveries/drivers', [OrderController::class, 'drivers']);
     Route::post('/orders', [OrderController::class, 'store']);
     Route::get('/orders/{order}/payment/verify', [OrderController::class, 'verifyPayment']);
+    Route::get('/orders/{order}/receipt', [OrderController::class, 'receipt']);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
     Route::patch('/orders/{order}/driver', [OrderController::class, 'assignDriver']);
     Route::delete('/orders/{order}', [OrderController::class, 'cancel']);
+    Route::get('/payments/desk', [CashierController::class, 'desk']);
+    Route::post('/orders/{order}/cashier/approve', [CashierController::class, 'approve']);
+    Route::post('/orders/{order}/cashier/collect-cash', [CashierController::class, 'collectCash']);
+    Route::get('/notifications', [StaffNotificationController::class, 'index']);
+    Route::patch('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead']);
     Route::get('/me', MeController::class);
     Route::get('/menu/manage', [MenuController::class, 'manage']);
     Route::apiResource('menu-items', MenuItemController::class)->except(['index']);

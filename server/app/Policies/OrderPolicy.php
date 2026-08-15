@@ -22,6 +22,7 @@ class OrderPolicy
     {
         return $user->can(Permission::CAN_VIEW_ALL_ORDERS)
             || $user->can(Permission::CAN_MANAGE_DELIVERIES)
+            || $user->can(Permission::CAN_MANAGE_PAYMENTS)
             || $user->id === $order->user_id
             || $user->id === $order->driver_id;
     }
