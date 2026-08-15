@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { AdminLayout } from './layouts/AdminLayout';
 import { AppLayout } from './layouts/AppLayout';
 import { AuthLayout } from './layouts/AuthLayout';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminRolesPage } from './pages/AdminRolesPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
@@ -110,13 +112,16 @@ function AppRoutes() {
           }
         />
         <Route
-          path="/admin/roles"
+          path="/admin"
           element={
             <ProtectedRoute>
-              <AdminRolesPage />
+              <AdminLayout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route index element={<AdminDashboardPage />} />
+          <Route path="roles" element={<AdminRolesPage />} />
+        </Route>
         <Route path="/admin/permissions" element={<Navigate to="/admin/roles" replace />} />
       </Routes>
     </AppLayout>

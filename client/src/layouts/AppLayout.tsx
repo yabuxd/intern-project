@@ -84,40 +84,43 @@ export function AppLayout({ children }: AppLayoutProps) {
       <NavLink to="/tables" className={navLinkClass} onClick={closeMenu}>
         Tables
       </NavLink>
-      {session && (canReserve || canManageTables) && (
-        <NavLink to="/reservations" className={navLinkClass} onClick={closeMenu}>
-          Reservations
-        </NavLink>
-      )}
       {session && (
         <NavLink to="/orders" className={navLinkClass} end onClick={closeMenu}>
           Orders
         </NavLink>
       )}
-      {session && canViewQueue && (
-        <NavLink to="/orders/queue" className={navLinkClass} end onClick={closeMenu}>
-          Queue
+      {canManagePermissions ? (
+        <NavLink to="/admin" className={navLinkClass} onClick={closeMenu}>
+          Admin
         </NavLink>
-      )}
-      {session && canManageDeliveries && (
-        <NavLink to="/orders/deliveries" className={navLinkClass} onClick={closeMenu}>
-          Deliveries
-        </NavLink>
-      )}
-      {session && canManagePayments && (
-        <NavLink to="/payments" className={navLinkClass} onClick={closeMenu}>
-          Payments
-        </NavLink>
-      )}
-      {session && canManageMenu && (
-        <NavLink to="/menu/manage" className={navLinkClass} onClick={closeMenu}>
-          Manage menu
-        </NavLink>
-      )}
-      {canManagePermissions && (
-        <NavLink to="/admin/roles" className={navLinkClass} onClick={closeMenu}>
-          Roles
-        </NavLink>
+      ) : (
+        <>
+          {session && (canReserve || canManageTables) && (
+            <NavLink to="/reservations" className={navLinkClass} onClick={closeMenu}>
+              Reservations
+            </NavLink>
+          )}
+          {session && canViewQueue && (
+            <NavLink to="/orders/queue" className={navLinkClass} end onClick={closeMenu}>
+              Queue
+            </NavLink>
+          )}
+          {session && canManageDeliveries && (
+            <NavLink to="/orders/deliveries" className={navLinkClass} onClick={closeMenu}>
+              Deliveries
+            </NavLink>
+          )}
+          {session && canManagePayments && (
+            <NavLink to="/payments" className={navLinkClass} onClick={closeMenu}>
+              Payments
+            </NavLink>
+          )}
+          {session && canManageMenu && (
+            <NavLink to="/menu/manage" className={navLinkClass} onClick={closeMenu}>
+              Manage menu
+            </NavLink>
+          )}
+        </>
       )}
     </>
   );
