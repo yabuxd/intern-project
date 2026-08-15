@@ -6,6 +6,8 @@ use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\Permission;
+use App\Models\Role;
+use App\Models\StaffNotification;
 use App\Models\User;
 use Database\Seeders\MenuCategorySeeder;
 use Database\Seeders\PermissionSeeder;
@@ -42,6 +44,7 @@ class PaymentApiTest extends TestCase
             Permission::CAN_VIEW_ALL_ORDERS,
             Permission::CAN_UPDATE_ORDER_STATUS,
         ]);
+        $manager = $this->userWithRole(Role::MANAGER);
         $menuItem = $this->createMenuItem();
 
         $customerToken = $this->makeToken([
@@ -66,13 +69,19 @@ class PaymentApiTest extends TestCase
             ->assertJsonPath('data.payment_method', 'cash')
             ->assertJsonPath('data.payment_status', 'not_required');
 
+        $this->assertDatabaseHas('staff_notifications', [
+            'user_id' => $manager->id,
+            'order_id' => $created->json('data.id'),
+            'type' => StaffNotification::TYPE_ORDER_CASH,
+        ]);
+
         $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
             ->getJson('/api/orders/queue')
             ->assertOk()
             ->assertJsonPath('data.0.id', $created->json('data.id'));
     }
 
-    public function test_chapa_order_initializes_checkout_and_stays_out_of_queue_until_paid(): void
+    public function test_chapa_order_needs_cashier_approval_before_kitchen(): void
     {
         Http::fake([
             'https://api.chapa.co/v1/transaction/initialize' => Http::response([
@@ -96,6 +105,7 @@ class PaymentApiTest extends TestCase
             Permission::CAN_VIEW_ALL_ORDERS,
             Permission::CAN_UPDATE_ORDER_STATUS,
         ]);
+        $cashier = $this->userWithRole(Role::CASHIER);
         $menuItem = $this->createMenuItem();
 
         $customerToken = $this->makeToken([
@@ -108,6 +118,11 @@ class PaymentApiTest extends TestCase
             'email' => $kitchen->email,
             'exp' => time() + 3600,
         ]);
+        $cashierToken = $this->makeToken([
+            'sub' => $cashier->id,
+            'email' => $cashier->email,
+            'exp' => time() + 3600,
+        ]);
 
         $created = $this->withHeader('Authorization', 'Bearer '.$customerToken)
             ->postJson('/api/orders', [
@@ -117,16 +132,10 @@ class PaymentApiTest extends TestCase
                 ],
             ])
             ->assertCreated()
-            ->assertJsonPath('data.payment_status', 'pending')
-            ->assertJsonPath('checkout_url', 'https://checkout.chapa.co/checkout/test-payment');
+            ->assertJsonPath('data.payment_status', 'pending');
 
         $orderId = $created->json('data.id');
         $txRef = $created->json('data.payment_reference');
-
-        $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
-            ->getJson('/api/orders/queue')
-            ->assertOk()
-            ->assertJsonCount(0, 'data');
 
         $this->withHeader('Authorization', 'Bearer '.$customerToken)
             ->getJson("/api/orders/{$orderId}/payment/verify?trx_ref={$txRef}")
@@ -136,7 +145,28 @@ class PaymentApiTest extends TestCase
         $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
             ->getJson('/api/orders/queue')
             ->assertOk()
+            ->assertJsonCount(0, 'data');
+
+        $this->withHeader('Authorization', 'Bearer '.$cashierToken)
+            ->getJson('/api/payments/desk')
+            ->assertOk()
+            ->assertJsonPath('data.awaiting_chapa_validation.0.id', $orderId);
+
+        $approved = $this->withHeader('Authorization', 'Bearer '.$cashierToken)
+            ->postJson("/api/orders/{$orderId}/cashier/approve")
+            ->assertOk();
+
+        $this->assertNotEmpty($approved->json('data.cashier_approved_at'));
+
+        $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
+            ->getJson('/api/orders/queue')
+            ->assertOk()
             ->assertJsonPath('data.0.id', $orderId);
+
+        $this->withHeader('Authorization', 'Bearer '.$customerToken)
+            ->getJson("/api/orders/{$orderId}/receipt")
+            ->assertOk()
+            ->assertJsonPath('data.receipt_number', 'R-'.$orderId);
     }
 
     public function test_chapa_webhook_marks_order_paid(): void
