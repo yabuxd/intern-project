@@ -1,4 +1,5 @@
 import type {
+  AdminDashboard,
   AdminUser,
   ApiResponse,
   AuthUser,
@@ -407,6 +408,17 @@ export function cancelReservation(token: string, id: number): Promise<Reservatio
     method: 'DELETE',
     token,
   });
+}
+
+export function fetchAdminDashboard(
+  token: string,
+  range?: { from?: string; to?: string },
+): Promise<AdminDashboard> {
+  const params = new URLSearchParams();
+  if (range?.from) params.set('from', range.from);
+  if (range?.to) params.set('to', range.to);
+  const query = params.toString();
+  return apiFetch<AdminDashboard>(`/admin/dashboard${query ? `?${query}` : ''}`, { token });
 }
 
 export function fetchAdminUsers(token: string): Promise<AdminUser[]> {

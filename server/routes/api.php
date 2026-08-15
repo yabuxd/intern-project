@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\CashierController;
 use App\Http\Controllers\Api\ChapaPaymentController;
 use App\Http\Controllers\Api\MeController;
@@ -55,6 +56,7 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::get('/reservations', [ReservationController::class, 'index']);
     Route::post('/reservations', [ReservationController::class, 'store']);
     Route::delete('/reservations/{reservation}', [ReservationController::class, 'destroy']);
+    Route::get('/admin/dashboard', AdminDashboardController::class);
     Route::get('/admin/users', [UserPermissionController::class, 'index']);
     Route::post('/admin/users', [UserPermissionController::class, 'store']);
     Route::get('/admin/permissions', [UserPermissionController::class, 'permissions']);

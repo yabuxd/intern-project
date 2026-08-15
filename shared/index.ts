@@ -1,4 +1,6 @@
 export type {
+  AdminDashboard,
+  AdminDashboardTopItem,
   AdminUser,
   ApiResponse,
   AuthUser,
@@ -35,3 +37,4 @@ export type {
   CreateAdminUserInput,
 } from "./types/index";
 export { PERMISSIONS, ROLES } from "./types/index";
+

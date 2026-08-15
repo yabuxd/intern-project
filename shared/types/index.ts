@@ -284,3 +284,57 @@ export interface CreateAdminUserInput {
   password: string;
   roles?: string[];
 }
+
+export interface AdminDashboardTopItem {
+  menu_item_id: number;
+  name: string;
+  quantity_sold: number;
+  revenue: string;
+}
+
+export interface AdminDashboard {
+  range: {
+    from: string;
+    to: string;
+  };
+  orders: {
+    total: number;
+    by_status: Record<string, number>;
+    by_fulfillment: Record<string, number>;
+    cancelled: number;
+    revenue_paid: string;
+    aov: string;
+  };
+  payments: {
+    by_method: Record<string, number>;
+    by_status: Record<string, number>;
+    awaiting_chapa_validation: number;
+    open_cash: number;
+  };
+  deliveries: {
+    active: number;
+    unassigned: number;
+    completed: number;
+  };
+  reservations: {
+    confirmed: number;
+    cancelled: number;
+    upcoming: number;
+  };
+  menu: {
+    available: number;
+    unavailable: number;
+    top_items: AdminDashboardTopItem[];
+  };
+  floor: {
+    tables_by_status: Record<string, number>;
+  };
+  staff: {
+    by_role: Record<string, number>;
+    unread_notifications: number;
+  };
+  menu_change_requests: {
+    pending: number;
+  };
+}
+

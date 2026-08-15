@@ -32,6 +32,7 @@ export {
   createReservation,
   cancelReservation,
   fetchAdminUsers,
+  fetchAdminDashboard,
   createAdminUser,
   fetchPermissionCatalog,
   fetchAdminRoles,
