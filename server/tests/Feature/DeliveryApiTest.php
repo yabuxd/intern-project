@@ -52,8 +52,123 @@ class DeliveryApiTest extends TestCase
             ])
             ->assertCreated()
             ->assertJsonPath('data.fulfillment_type', 'delivery')
+            ->assertJsonPath('data.status', 'pending')
             ->assertJsonPath('data.delivery_address', 'Bole Road, Addis Ababa')
             ->assertJsonPath('data.table_id', null);
+    }
+
+    public function test_new_delivery_order_appears_in_deliveries_for_manager(): void
+    {
+        $manager = $this->userWithPermission(Permission::CAN_MANAGE_DELIVERIES);
+        $customer = User::factory()->create();
+        $order = Order::query()->create([
+            'user_id' => $customer->id,
+            'fulfillment_type' => Order::FULFILLMENT_DELIVERY,
+            'delivery_address' => 'Bole',
+            'delivery_phone' => '0911',
+            'status' => Order::STATUS_PENDING,
+            'total' => 20,
+        ]);
+
+        $token = $this->makeToken([
+            'sub' => $manager->id,
+            'email' => $manager->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/deliveries')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $order->id)
+            ->assertJsonPath('data.0.status', 'pending');
+    }
+
+    public function test_manager_accepts_then_kitchen_and_driver_and_customer_complete_flow(): void
+    {
+        $manager = $this->userWithPermissions([
+            Permission::CAN_ACCEPT_DELIVERY_ORDERS,
+            Permission::CAN_MANAGE_DELIVERIES,
+        ]);
+        $kitchen = $this->userWithPermissions([
+            Permission::CAN_VIEW_ALL_ORDERS,
+            Permission::CAN_UPDATE_ORDER_STATUS,
+        ]);
+        $driver = $this->userWithRole(Role::DRIVER);
+        $customer = User::factory()->create();
+        $order = Order::query()->create([
+            'user_id' => $customer->id,
+            'fulfillment_type' => Order::FULFILLMENT_DELIVERY,
+            'delivery_address' => 'Bole Road',
+            'delivery_phone' => '0911000000',
+            'delivery_notes' => 'Gate 2',
+            'status' => Order::STATUS_PENDING,
+            'total' => 20,
+        ]);
+
+        $managerToken = $this->makeToken([
+            'sub' => $manager->id,
+            'email' => $manager->email,
+            'exp' => time() + 3600,
+        ]);
+        $kitchenToken = $this->makeToken([
+            'sub' => $kitchen->id,
+            'email' => $kitchen->email,
+            'exp' => time() + 3600,
+        ]);
+        $driverToken = $this->makeToken([
+            'sub' => $driver->id,
+            'email' => $driver->email,
+            'exp' => time() + 3600,
+        ]);
+        $customerToken = $this->makeToken([
+            'sub' => $customer->id,
+            'email' => $customer->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
+            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'preparing'])
+            ->assertUnprocessable();
+
+        $this->withHeader('Authorization', 'Bearer '.$managerToken)
+            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'accepted'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'accepted');
+
+        $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
+            ->getJson('/api/orders/queue')
+            ->assertOk()
+            ->assertJsonPath('data.0.id', $order->id);
+
+        $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
+            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'preparing'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'preparing');
+
+        $this->withHeader('Authorization', 'Bearer '.$kitchenToken)
+            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'ready'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'ready');
+
+        $this->withHeader('Authorization', 'Bearer '.$managerToken)
+            ->patchJson("/api/orders/{$order->id}/driver", ['driver_id' => $driver->id])
+            ->assertOk()
+            ->assertJsonPath('data.driver_id', $driver->id);
+
+        $this->withHeader('Authorization', 'Bearer '.$driverToken)
+            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'out_for_delivery'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'out_for_delivery');
+
+        $this->withHeader('Authorization', 'Bearer '.$driverToken)
+            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'delivered'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'delivered');
+
+        $this->withHeader('Authorization', 'Bearer '.$customerToken)
+            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'received'])
+            ->assertOk()
+            ->assertJsonPath('data.status', 'received');
     }
 
     public function test_delivery_order_requires_address_and_phone(): void
@@ -101,10 +216,9 @@ class DeliveryApiTest extends TestCase
             ->assertUnprocessable();
     }
 
-    public function test_staff_can_assign_driver_and_complete_delivery(): void
+    public function test_cannot_start_delivery_without_driver(): void
     {
         $dispatcher = $this->userWithPermission(Permission::CAN_MANAGE_DELIVERIES);
-        $driver = $this->userWithRole(Role::DRIVER);
         $customer = User::factory()->create();
         $order = Order::query()->create([
             'user_id' => $customer->id,
@@ -122,24 +236,8 @@ class DeliveryApiTest extends TestCase
         ]);
 
         $this->withHeader('Authorization', 'Bearer '.$token)
-            ->getJson('/api/deliveries')
-            ->assertOk()
-            ->assertJsonPath('data.0.id', $order->id);
-
-        $this->withHeader('Authorization', 'Bearer '.$token)
-            ->patchJson("/api/orders/{$order->id}/driver", ['driver_id' => $driver->id])
-            ->assertOk()
-            ->assertJsonPath('data.driver_id', $driver->id);
-
-        $this->withHeader('Authorization', 'Bearer '.$token)
             ->patchJson("/api/orders/{$order->id}/status", ['status' => 'out_for_delivery'])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'out_for_delivery');
-
-        $this->withHeader('Authorization', 'Bearer '.$token)
-            ->patchJson("/api/orders/{$order->id}/status", ['status' => 'delivered'])
-            ->assertOk()
-            ->assertJsonPath('data.status', 'delivered');
+            ->assertUnprocessable();
     }
 
     public function test_user_without_delivery_permission_cannot_view_queue(): void

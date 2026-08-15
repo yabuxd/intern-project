@@ -35,6 +35,8 @@ class OrderPolicy
     {
         return $user->can(Permission::CAN_UPDATE_ORDER_STATUS)
             || $user->can(Permission::CAN_MANAGE_DELIVERIES)
+            || $user->can(Permission::CAN_ACCEPT_DELIVERY_ORDERS)
+            || $user->id === $order->user_id
             || $user->id === $order->driver_id;
     }
 

@@ -13,12 +13,12 @@ import { useOrdersRealtime, DELIVERY_ORDERS_FILTER } from '../hooks/useOrdersRea
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { QueuePageSkeleton } from '../components/ui';
-import { DeliveryMap } from '../components/DeliveryMap';
 
 const STATUS_LABELS: Record<string, string> = {
+  pending: 'Awaiting acceptance',
   ready: 'Ready for pickup',
   out_for_delivery: 'Out for delivery',
-  delivered: 'Delivered',
+  delivered: 'Delivered — await customer',
 };
 
 export function DeliveriesPage() {
@@ -27,6 +27,7 @@ export function DeliveriesPage() {
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const canAccept = hasPermission(PERMISSIONS.CAN_ACCEPT_DELIVERY_ORDERS);
   const token = session?.access_token;
 
   const deliveriesQuery = useQuery({
@@ -59,6 +60,21 @@ export function DeliveriesPage() {
     (driversQuery.error instanceof Error && driversQuery.error.message) ||
     error;
 
+  async function setStatus(order: Order, status: OrderStatus) {
+    if (!token) return;
+    setUpdatingId(order.id);
+    setError(null);
+    try {
+      await updateOrderStatus(token, order.id, status);
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update delivery');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   async function assignDriver(order: Order, driverId: string) {
     if (!token || !driverId) return;
     setUpdatingId(order.id);
@@ -68,20 +84,6 @@ export function DeliveriesPage() {
       await queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to assign driver');
-    } finally {
-      setUpdatingId(null);
-    }
-  }
-
-  async function advance(order: Order, status: OrderStatus) {
-    if (!token) return;
-    setUpdatingId(order.id);
-    setError(null);
-    try {
-      await updateOrderStatus(token, order.id, status);
-      await queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update delivery');
     } finally {
       setUpdatingId(null);
     }
@@ -102,7 +104,7 @@ export function DeliveriesPage() {
             Deliveries
           </h1>
           <p className="mt-3 max-w-lg text-[var(--color-cream-muted)]">
-            Assign a driver once the kitchen marks an order ready, then track it to the door.
+            Accept new delivery orders, assign a driver when the kitchen is ready, then track the run.
           </p>
         </header>
         <button
@@ -131,24 +133,33 @@ export function DeliveriesPage() {
               className="border border-[var(--color-brass)]/20 bg-[var(--color-umber)] p-5"
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
+                <div className="min-w-0 flex-1 space-y-1">
                   <p className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
                     Order #{order.id}
                   </p>
-                  <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
-                    {order.delivery_address ?? 'No address'}
-                    {order.delivery_phone ? ` · ${order.delivery_phone}` : ''}
+                  <p className="text-sm text-[var(--color-cream-muted)]">
+                    {order.created_at ? new Date(order.created_at).toLocaleString() : '—'} ·{' '}
+                    {formatEtb(order.total)}
                   </p>
-                  {order.delivery_address && (
-                    <DeliveryMap address={order.delivery_address} className="mt-3 max-w-md" />
-                  )}
-                  {order.delivery_notes && (
-                    <p className="mt-1 text-sm text-[var(--color-brass)]">{order.delivery_notes}</p>
-                  )}
                   {order.user && (
-                    <p className="mt-0.5 text-sm text-[var(--color-cream-muted)]">{order.user.email}</p>
+                    <p className="text-sm text-[var(--color-cream)]">
+                      Customer: {order.user.name ?? 'Guest'} · {order.user.email}
+                    </p>
                   )}
-                  <p className="mt-2 text-sm text-[var(--color-cream)]">{formatEtb(order.total)}</p>
+                  <p className="text-sm text-[var(--color-cream)]">
+                    Address: {order.delivery_address ?? 'No address'}
+                  </p>
+                  <p className="text-sm text-[var(--color-cream-muted)]">
+                    Phone: {order.delivery_phone ?? '—'}
+                  </p>
+                  {order.delivery_notes && (
+                    <p className="text-sm text-[var(--color-brass)]">Notes: {order.delivery_notes}</p>
+                  )}
+                  {order.driver && (
+                    <p className="text-sm text-[var(--color-cream-muted)]">
+                      Driver: {order.driver.name ?? order.driver.email}
+                    </p>
+                  )}
                 </div>
                 <span className="border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-cream)]">
                   {STATUS_LABELS[order.status] ?? order.status}
@@ -156,48 +167,73 @@ export function DeliveriesPage() {
               </div>
               <ul className="mt-4 space-y-1.5 border-t border-[var(--color-brass)]/15 pt-4 text-sm text-[var(--color-cream-muted)]">
                 {order.items.map((item) => (
-                  <li key={item.id}>
-                    <span className="text-[var(--color-brass)]">{item.quantity}×</span>{' '}
-                    {item.menu_item?.name ?? `Item #${item.menu_item_id}`}
+                  <li key={item.id} className="flex justify-between gap-4">
+                    <span>
+                      <span className="text-[var(--color-brass)]">{item.quantity}×</span>{' '}
+                      {item.menu_item?.name ?? `Item #${item.menu_item_id}`}
+                    </span>
+                    <span className="text-[var(--color-cream)]">{formatEtb(item.line_total)}</span>
                   </li>
                 ))}
               </ul>
               <div className="mt-5 flex flex-wrap items-end gap-3">
-                <label className="text-sm text-[var(--color-cream-muted)]">
-                  Driver
-                  <select
-                    value={order.driver_id ?? ''}
-                    disabled={updatingId === order.id}
-                    onChange={(e) => void assignDriver(order, e.target.value)}
-                    className="mt-1 block min-w-48 rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-[var(--color-cream)]"
-                  >
-                    <option value="">Unassigned</option>
-                    {drivers.map((driver) => (
-                      <option key={driver.id} value={driver.id}>
-                        {driver.name ?? driver.email}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                {order.status === 'ready' && order.driver_id && (
+                {order.status === 'pending' && canAccept && (
                   <button
                     type="button"
-                    disabled={updatingId === order.id || !order.driver_id}
-                    onClick={() => void advance(order, 'out_for_delivery')}
+                    disabled={updatingId === order.id}
+                    onClick={() => void setStatus(order, 'accepted')}
                     className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] disabled:opacity-60"
                   >
-                    Out for delivery
+                    Accept order
                   </button>
+                )}
+                {order.status === 'pending' && !canAccept && (
+                  <p className="text-sm text-[var(--color-brass)]">
+                    Waiting for a manager or admin to accept this order.
+                  </p>
+                )}
+                {order.status === 'ready' && (
+                  <>
+                    <label className="text-sm text-[var(--color-cream-muted)]">
+                      Driver
+                      <select
+                        value={order.driver_id ?? ''}
+                        disabled={updatingId === order.id}
+                        onChange={(e) => void assignDriver(order, e.target.value)}
+                        className="mt-1 block min-w-48 rounded-md border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] px-3 py-2 text-[var(--color-cream)]"
+                      >
+                        <option value="">Unassigned</option>
+                        {drivers.map((driver) => (
+                          <option key={driver.id} value={driver.id}>
+                            {driver.name ?? driver.email}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={updatingId === order.id || !order.driver_id}
+                      onClick={() => void setStatus(order, 'out_for_delivery')}
+                      className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] disabled:opacity-60"
+                    >
+                      Start delivery
+                    </button>
+                  </>
                 )}
                 {order.status === 'out_for_delivery' && (
                   <button
                     type="button"
                     disabled={updatingId === order.id}
-                    onClick={() => void advance(order, 'delivered')}
+                    onClick={() => void setStatus(order, 'delivered')}
                     className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] disabled:opacity-60"
                   >
                     Mark delivered
                   </button>
+                )}
+                {order.status === 'delivered' && (
+                  <p className="text-sm text-[var(--color-brass)]">
+                    Waiting for the customer to confirm they received the order.
+                  </p>
                 )}
               </div>
             </li>

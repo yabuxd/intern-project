@@ -11,14 +11,22 @@ abstract class TestCase extends BaseTestCase
 {
     protected function userWithPermission(string $permissionName): User
     {
+        return $this->userWithPermissions([$permissionName]);
+    }
+
+    /**
+     * @param  list<string>  $permissionNames
+     */
+    protected function userWithPermissions(array $permissionNames): User
+    {
         $user = User::factory()->create();
-        $permission = Permission::query()->where('name', $permissionName)->firstOrFail();
+        $permissions = Permission::query()->whereIn('name', $permissionNames)->get();
 
         $role = Role::query()->create([
-            'name' => 'test_'.$permissionName.'_'.$user->id,
-            'description' => 'Test role for '.$permissionName,
+            'name' => 'test_'.implode('_', $permissionNames).'_'.$user->id,
+            'description' => 'Test role',
         ]);
-        $role->permissions()->attach($permission);
+        $role->permissions()->attach($permissions->pluck('id'));
         $user->roles()->attach($role);
 
         return $user->fresh(['roles.permissions']);

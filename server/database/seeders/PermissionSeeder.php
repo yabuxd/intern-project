@@ -18,6 +18,7 @@ class PermissionSeeder extends Seeder
             Permission::CAN_CREATE_RESERVATION => 'Book restaurant tables',
             Permission::CAN_MANAGE_PERMISSIONS => 'Assign roles and edit role permissions',
             Permission::CAN_MANAGE_DELIVERIES => 'Assign drivers and advance delivery orders',
+            Permission::CAN_ACCEPT_DELIVERY_ORDERS => 'Accept new delivery orders before kitchen starts them',
             Permission::CAN_PROPOSE_MENU_CHANGES => 'Request menu add/remove for manager or admin approval',
         ];
 

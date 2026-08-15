@@ -29,6 +29,7 @@ export const PERMISSIONS = {
   CAN_CREATE_RESERVATION: "can_create_reservation",
   CAN_MANAGE_PERMISSIONS: "can_manage_permissions",
   CAN_MANAGE_DELIVERIES: "can_manage_deliveries",
+  CAN_ACCEPT_DELIVERY_ORDERS: "can_accept_delivery_orders",
   CAN_PROPOSE_MENU_CHANGES: "can_propose_menu_changes",
 } as const;
 
@@ -90,11 +91,13 @@ export interface RestaurantTable {
 
 export type OrderStatus =
   | "pending"
+  | "accepted"
   | "preparing"
   | "ready"
   | "served"
   | "out_for_delivery"
   | "delivered"
+  | "received"
   | "cancelled";
 
 export type FulfillmentType = "dine_in" | "delivery";

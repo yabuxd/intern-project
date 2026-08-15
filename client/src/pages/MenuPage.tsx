@@ -7,7 +7,6 @@ import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
 import { formatEtb } from '../utils/format';
 import { MenuSkeleton } from '../components/ui';
-import { DeliveryMap } from '../components/DeliveryMap';
 
 interface CartLine {
   item: MenuItem;
@@ -330,9 +329,6 @@ export function MenuPage() {
               >
                 {placing ? 'Placing…' : 'Place order'}
               </button>
-              {fulfillment === 'delivery' && (
-                <DeliveryMap address={deliveryAddress} compact tone="light" className="mt-4" />
-              )}
             </>
           )}
         </aside>

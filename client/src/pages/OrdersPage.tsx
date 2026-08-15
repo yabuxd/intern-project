@@ -2,39 +2,43 @@ import { useState } from 'react';
 import type { Order, OrderStatus } from '@intern/shared';
 import { Link } from 'react-router-dom';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { cancelOrder, fetchOrdersPage } from '../services';
+import { cancelOrder, fetchOrdersPage, updateOrderStatus } from '../services';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { OrdersPageSkeleton } from '../components/ui';
-import { DeliveryMap } from '../components/DeliveryMap';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
-  pending: 'Pending',
+  pending: 'Pending acceptance',
+  accepted: 'Accepted',
   preparing: 'Preparing',
   ready: 'Ready',
   served: 'Served',
   out_for_delivery: 'Out for delivery',
   delivered: 'Delivered',
+  received: 'Received',
   cancelled: 'Cancelled',
 };
 
 const STATUS_STYLES: Record<OrderStatus, string> = {
   pending: 'bg-[var(--color-brass)]/20 text-[var(--color-brass)]',
+  accepted: 'bg-[var(--color-brass)]/20 text-[var(--color-brass)]',
   preparing: 'bg-[var(--color-cream)]/10 text-[var(--color-cream)]',
   ready: 'bg-emerald-500/20 text-emerald-300',
   served: 'bg-[var(--color-umber)] text-[var(--color-cream-muted)]',
   out_for_delivery: 'bg-[var(--color-brass)]/20 text-[var(--color-brass)]',
   delivered: 'bg-emerald-500/20 text-emerald-300',
+  received: 'bg-emerald-500/20 text-emerald-300',
   cancelled: 'bg-[var(--color-wine)]/25 text-[#e8a0a0]',
 };
 
-const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready', 'out_for_delivery'];
+const CANCELLABLE: OrderStatus[] = ['pending', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
 
 export function OrdersPage() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
   const token = session?.access_token;
 
   const ordersQuery = useInfiniteQuery({
@@ -64,6 +68,20 @@ export function OrdersPage() {
     }
   }
 
+  async function handleConfirmReceived(order: Order) {
+    if (!token || order.status !== 'delivered') return;
+    setConfirmingId(order.id);
+    setError(null);
+    try {
+      await updateOrderStatus(token, order.id, 'received');
+      await queryClient.invalidateQueries({ queryKey: ['orders'] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to confirm delivery');
+    } finally {
+      setConfirmingId(null);
+    }
+  }
+
   if (loading) {
     return <OrdersPageSkeleton />;
   }
@@ -78,7 +96,7 @@ export function OrdersPage() {
           Your orders
         </h1>
         <p className="mt-3 max-w-md text-[var(--color-cream-muted)]">
-          Follow each plate from the kitchen back to your table.
+          Follow each plate from the kitchen — or confirm delivery when it arrives.
         </p>
       </header>
 
@@ -107,20 +125,37 @@ export function OrdersPage() {
               className="border border-[var(--color-brass)]/15 bg-[var(--color-umber)] p-5 transition hover:border-[var(--color-brass)]/35"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+                <div className="space-y-1">
                   <p className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
                     Order #{order.id}
                   </p>
-                  <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
+                  <p className="text-sm text-[var(--color-cream-muted)]">
                     {order.created_at ? new Date(order.created_at).toLocaleString() : '—'}
                     {order.fulfillment_type === 'delivery'
-                      ? ` · Delivery${order.delivery_address ? ` · ${order.delivery_address}` : ''}`
+                      ? ' · Delivery'
                       : order.table?.name
                         ? ` · ${order.table.name}`
                         : ''}
                   </p>
-                  {order.fulfillment_type === 'delivery' && order.delivery_address && (
-                    <DeliveryMap address={order.delivery_address} compact className="mt-3 max-w-md" />
+                  {order.fulfillment_type === 'delivery' && (
+                    <>
+                      <p className="text-sm text-[var(--color-cream)]">
+                        Address: {order.delivery_address ?? '—'}
+                      </p>
+                      <p className="text-sm text-[var(--color-cream-muted)]">
+                        Phone: {order.delivery_phone ?? '—'}
+                      </p>
+                      {order.delivery_notes && (
+                        <p className="text-sm text-[var(--color-brass)]">
+                          Notes: {order.delivery_notes}
+                        </p>
+                      )}
+                      {order.driver && (
+                        <p className="text-sm text-[var(--color-cream-muted)]">
+                          Driver: {order.driver.name ?? order.driver.email}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
                 <div className="text-right">
@@ -142,30 +177,39 @@ export function OrdersPage() {
                   </li>
                 ))}
               </ul>
-              {CANCELLABLE.includes(order.status) && (
-                <button
-                  type="button"
-                  disabled={cancellingId === order.id}
-                  onClick={() => void handleCancel(order)}
-                  className="mt-4 rounded-md border border-[var(--color-wine)]/50 px-4 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/20 disabled:opacity-60"
-                >
-                  {cancellingId === order.id ? 'Cancelling…' : 'Cancel order'}
-                </button>
-              )}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {order.status === 'delivered' && (
+                  <button
+                    type="button"
+                    disabled={confirmingId === order.id}
+                    onClick={() => void handleConfirmReceived(order)}
+                    className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
+                  >
+                    {confirmingId === order.id ? 'Confirming…' : 'Confirm I received it'}
+                  </button>
+                )}
+                {CANCELLABLE.includes(order.status) && (
+                  <button
+                    type="button"
+                    disabled={cancellingId === order.id}
+                    onClick={() => void handleCancel(order)}
+                    className="rounded-md border border-[var(--color-wine)]/50 px-4 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/20 disabled:opacity-60"
+                  >
+                    Cancel order
+                  </button>
+                )}
+              </div>
             </li>
           ))}
         </ul>
       )}
-      {ordersQuery.hasNextPage && (
-        <button
-          type="button"
-          disabled={ordersQuery.isFetchingNextPage}
-          onClick={() => void ordersQuery.fetchNextPage()}
-          className="w-full rounded-md border border-[var(--color-brass)]/40 px-4 py-2 text-sm font-medium text-[var(--color-brass)] disabled:opacity-60"
-        >
-          {ordersQuery.isFetchingNextPage ? 'Loading…' : 'Load more'}
-        </button>
-      )}
+
+      <Link
+        to="/menu"
+        className="inline-block text-sm text-[var(--color-cream-muted)] transition hover:text-[var(--color-brass)]"
+      >
+        ← Back to menu
+      </Link>
     </div>
   );
 }

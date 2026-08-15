@@ -44,11 +44,27 @@ class OrderController extends Controller
         $query = Order::query()
             ->selectApi()
             ->withApiRelations(includeUser: true)
-            ->whereIn('status', [
-                Order::STATUS_PENDING,
-                Order::STATUS_PREPARING,
-                Order::STATUS_READY,
-            ]);
+            ->where(function ($builder) {
+                $builder
+                    ->where(function ($dineIn) {
+                        $dineIn
+                            ->where('fulfillment_type', Order::FULFILLMENT_DINE_IN)
+                            ->whereIn('status', [
+                                Order::STATUS_PENDING,
+                                Order::STATUS_PREPARING,
+                                Order::STATUS_READY,
+                            ]);
+                    })
+                    ->orWhere(function ($delivery) {
+                        $delivery
+                            ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
+                            ->whereIn('status', [
+                                Order::STATUS_ACCEPTED,
+                                Order::STATUS_PREPARING,
+                                Order::STATUS_READY,
+                            ]);
+                    });
+            });
 
         [$orders, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'asc');
 
@@ -68,8 +84,10 @@ class OrderController extends Controller
             ->withApiRelations(includeUser: true)
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->whereIn('status', [
+                Order::STATUS_PENDING,
                 Order::STATUS_READY,
                 Order::STATUS_OUT_FOR_DELIVERY,
+                Order::STATUS_DELIVERED,
             ]);
 
         [$orders, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'asc');
@@ -184,6 +202,12 @@ class OrderController extends Controller
         if (! $order->canUserTransition($request->user(), $nextStatus)) {
             throw ValidationException::withMessages([
                 'status' => ["Cannot transition from {$order->status} to {$nextStatus}."],
+            ]);
+        }
+
+        if ($nextStatus === Order::STATUS_OUT_FOR_DELIVERY && $order->driver_id === null) {
+            throw ValidationException::withMessages([
+                'status' => ['Assign a driver before starting the delivery.'],
             ]);
         }
 

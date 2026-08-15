@@ -22,6 +22,8 @@ class Order extends Model
 {
     public const STATUS_PENDING = 'pending';
 
+    public const STATUS_ACCEPTED = 'accepted';
+
     public const STATUS_PREPARING = 'preparing';
 
     public const STATUS_READY = 'ready';
@@ -31,6 +33,8 @@ class Order extends Model
     public const STATUS_OUT_FOR_DELIVERY = 'out_for_delivery';
 
     public const STATUS_DELIVERED = 'delivered';
+
+    public const STATUS_RECEIVED = 'received';
 
     public const STATUS_CANCELLED = 'cancelled';
 
@@ -45,11 +49,13 @@ class Order extends Model
     {
         return [
             self::STATUS_PENDING,
+            self::STATUS_ACCEPTED,
             self::STATUS_PREPARING,
             self::STATUS_READY,
             self::STATUS_SERVED,
             self::STATUS_OUT_FOR_DELIVERY,
             self::STATUS_DELIVERED,
+            self::STATUS_RECEIVED,
             self::STATUS_CANCELLED,
         ];
     }
@@ -75,13 +81,22 @@ class Order extends Model
      */
     public function allowedNextStatuses(): array
     {
+        if ($this->isDelivery()) {
+            return match ($this->status) {
+                self::STATUS_PENDING => [self::STATUS_ACCEPTED, self::STATUS_CANCELLED],
+                self::STATUS_ACCEPTED => [self::STATUS_PREPARING, self::STATUS_CANCELLED],
+                self::STATUS_PREPARING => [self::STATUS_READY, self::STATUS_CANCELLED],
+                self::STATUS_READY => [self::STATUS_OUT_FOR_DELIVERY, self::STATUS_CANCELLED],
+                self::STATUS_OUT_FOR_DELIVERY => [self::STATUS_DELIVERED, self::STATUS_CANCELLED],
+                self::STATUS_DELIVERED => [self::STATUS_RECEIVED],
+                default => [],
+            };
+        }
+
         return match ($this->status) {
             self::STATUS_PENDING => [self::STATUS_PREPARING, self::STATUS_CANCELLED],
             self::STATUS_PREPARING => [self::STATUS_READY, self::STATUS_CANCELLED],
-            self::STATUS_READY => $this->isDelivery()
-                ? [self::STATUS_OUT_FOR_DELIVERY, self::STATUS_CANCELLED]
-                : [self::STATUS_SERVED, self::STATUS_CANCELLED],
-            self::STATUS_OUT_FOR_DELIVERY => [self::STATUS_DELIVERED, self::STATUS_CANCELLED],
+            self::STATUS_READY => [self::STATUS_SERVED, self::STATUS_CANCELLED],
             default => [],
         };
     }
@@ -100,6 +115,14 @@ class Order extends Model
     {
         if (! $this->canTransitionTo($nextStatus)) {
             return false;
+        }
+
+        if ($nextStatus === self::STATUS_ACCEPTED) {
+            return $user->can(Permission::CAN_ACCEPT_DELIVERY_ORDERS);
+        }
+
+        if ($nextStatus === self::STATUS_RECEIVED) {
+            return $user->id === $this->user_id;
         }
 
         if (in_array($nextStatus, [self::STATUS_PREPARING, self::STATUS_READY, self::STATUS_SERVED], true)) {

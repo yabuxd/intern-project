@@ -6,7 +6,7 @@ const POLL_INTERVAL_MS = 5000;
 /** Wait for Realtime before falling back to polling (avoids double-fetch when subscribed). */
 const POLL_FALLBACK_DELAY_MS = 2500;
 
-export const QUEUE_ORDERS_FILTER = 'status=in.(pending,preparing,ready)';
+export const QUEUE_ORDERS_FILTER = 'status=in.(pending,accepted,preparing,ready)';
 export const DELIVERY_ORDERS_FILTER = 'fulfillment_type=eq.delivery';
 
 /**

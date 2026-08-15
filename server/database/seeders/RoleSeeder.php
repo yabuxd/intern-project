@@ -45,6 +45,7 @@ class RoleSeeder extends Seeder
                 Permission::CAN_PLACE_ORDER,
                 Permission::CAN_CREATE_RESERVATION,
                 Permission::CAN_MANAGE_DELIVERIES,
+                Permission::CAN_ACCEPT_DELIVERY_ORDERS,
             ],
             Role::ADMIN => Permission::catalog(),
             Role::DRIVER => [
