@@ -7,6 +7,7 @@ import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
 import { formatEtb } from '../utils/format';
 import { resolveMenuImageSrc } from '../utils/menuImage';
+import { adminOpsPaths } from '../utils/adminPaths';
 import { MenuSkeleton } from '../components/ui';
 
 interface CartLine {
@@ -29,6 +30,10 @@ export function MenuPage() {
   const canManage =
     hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
     hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
+  const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
+  const manageMenuPath = canManagePermissions
+    ? adminOpsPaths().menuManage
+    : '/menu/manage';
   const menuQuery = useQuery({ queryKey: ['menu'], queryFn: fetchMenu, staleTime: 60_000 });
   const tablesQuery = useQuery({ queryKey: ['tables'], queryFn: fetchTables, staleTime: 15_000 });
   const categories = menuQuery.data ?? [];
@@ -135,7 +140,7 @@ export function MenuPage() {
         </div>
         {canManage && (
           <Link
-            to="/menu/manage"
+            to={manageMenuPath}
             className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white"
           >
             Manage menu

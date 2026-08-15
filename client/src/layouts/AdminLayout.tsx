@@ -56,31 +56,31 @@ export function AdminLayout() {
         Operations
       </p>
       {canViewQueue && (
-        <NavLink to="/orders/queue" className={sideLinkClass} onClick={close}>
+        <NavLink to="/admin/queue" className={sideLinkClass} onClick={close}>
           Queue
         </NavLink>
       )}
       {canManageDeliveries && (
-        <NavLink to="/orders/deliveries" className={sideLinkClass} onClick={close}>
+        <NavLink to="/admin/deliveries" className={sideLinkClass} onClick={close}>
           Deliveries
         </NavLink>
       )}
       {canManagePayments && (
-        <NavLink to="/payments" className={sideLinkClass} onClick={close}>
+        <NavLink to="/admin/payments" className={sideLinkClass} onClick={close}>
           Payments
         </NavLink>
       )}
       {canManageMenu && (
-        <NavLink to="/menu/manage" className={sideLinkClass} onClick={close}>
+        <NavLink to="/admin/menu" className={sideLinkClass} onClick={close}>
           Manage menu
         </NavLink>
       )}
       {canReserve && (
-        <NavLink to="/reservations" className={sideLinkClass} onClick={close}>
+        <NavLink to="/admin/reservations" className={sideLinkClass} onClick={close}>
           Reservations
         </NavLink>
       )}
-      <NavLink to="/tables" className={sideLinkClass} onClick={close}>
+      <NavLink to="/admin/tables" className={sideLinkClass} onClick={close}>
         Tables
       </NavLink>
     </nav>

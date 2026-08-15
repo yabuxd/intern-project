@@ -12,6 +12,7 @@ import {
 import { useOrdersRealtime, DELIVERY_ORDERS_FILTER } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
+import { useOpsPaths } from '../utils/adminPaths';
 import { QueuePageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -23,6 +24,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function DeliveriesPage() {
   const { session, hasPermission } = useAuth();
+  const ops = useOpsPaths();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -242,7 +244,7 @@ export function DeliveriesPage() {
       )}
 
       <Link
-        to="/orders/queue"
+        to={ops.queue}
         className="inline-block text-sm text-[var(--color-cream-muted)] transition hover:text-[var(--color-brass)]"
       >
         ← Kitchen queue

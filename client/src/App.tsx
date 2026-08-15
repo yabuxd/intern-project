@@ -121,6 +121,12 @@ function AppRoutes() {
         >
           <Route index element={<AdminDashboardPage />} />
           <Route path="roles" element={<AdminRolesPage />} />
+          <Route path="queue" element={<OrderQueuePage />} />
+          <Route path="deliveries" element={<DeliveriesPage />} />
+          <Route path="payments" element={<PaymentsPage />} />
+          <Route path="menu" element={<ManageMenuPage />} />
+          <Route path="reservations" element={<ReservationsPage />} />
+          <Route path="tables" element={<TablesPage />} />
         </Route>
         <Route path="/admin/permissions" element={<Navigate to="/admin/roles" replace />} />
       </Routes>

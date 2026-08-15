@@ -7,6 +7,7 @@ import { cancelOrder, fetchOrderQueue, updateOrderStatus } from '../services';
 import { useOrdersRealtime, QUEUE_ORDERS_FILTER } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
+import { useOpsPaths } from '../utils/adminPaths';
 import { QueuePageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -39,6 +40,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function OrderQueuePage() {
   const { session, hasPermission } = useAuth();
+  const ops = useOpsPaths();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
@@ -232,7 +234,7 @@ export function OrderQueuePage() {
         </Link>
         {canManageDeliveries && (
           <Link
-            to="/orders/deliveries"
+            to={ops.deliveries}
             className="inline-block text-sm text-[var(--color-brass)] transition hover:underline"
           >
             Deliveries →

@@ -81,7 +81,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       <NavLink to="/menu" className={navLinkClass} onClick={closeMenu}>
         Menu
       </NavLink>
-      <NavLink to="/tables" className={navLinkClass} onClick={closeMenu}>
+      <NavLink
+        to={canManagePermissions ? '/admin/tables' : '/tables'}
+        className={navLinkClass}
+        onClick={closeMenu}
+      >
         Tables
       </NavLink>
       {session && (
@@ -225,7 +229,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                           </ul>
                         )}
                         <Link
-                          to="/payments"
+                          to={canManagePermissions ? '/admin/payments' : '/payments'}
                           onClick={() => setNotesOpen(false)}
                           className="mt-2 block border-t border-[var(--color-brass)]/20 px-2 pt-2 text-xs text-[var(--color-brass)]"
                         >

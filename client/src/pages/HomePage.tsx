@@ -58,6 +58,64 @@ function useQuickLinks(
 
   if (!session) return [];
 
+  if (canManagePermissions) {
+    const links: QuickLink[] = [
+      {
+        to: '/admin',
+        title: 'Admin dashboard',
+        description: 'Overall orders, payments, and floor analysis',
+      },
+      { to: '/menu', title: 'Browse menu', description: 'Traditional dishes from our kitchen' },
+      { to: '/orders', title: 'Your orders', description: 'Track and place orders' },
+      {
+        to: '/admin/tables',
+        title: 'Tables',
+        description: 'Floor status and seating',
+      },
+    ];
+    if (canReserve || canManageTables) {
+      links.push({
+        to: '/admin/reservations',
+        title: 'Reservations',
+        description: 'Book a table or manage bookings',
+      });
+    }
+    if (canViewQueue) {
+      links.push({
+        to: '/admin/queue',
+        title: 'Kitchen queue',
+        description: 'Orders waiting to be served',
+      });
+    }
+    if (canManageDeliveries) {
+      links.push({
+        to: '/admin/deliveries',
+        title: 'Deliveries',
+        description: 'Assign drivers and track courier orders',
+      });
+    }
+    if (canManagePayments) {
+      links.push({
+        to: '/admin/payments',
+        title: 'Payments desk',
+        description: 'Validate Chapa payments and collect cash',
+      });
+    }
+    if (canManageMenu) {
+      links.push({
+        to: '/admin/menu',
+        title: 'Manage menu',
+        description: 'Update dishes and approve kitchen requests',
+      });
+    }
+    links.push({
+      to: '/admin/roles',
+      title: 'Roles',
+      description: 'Assign roles and edit role permissions',
+    });
+    return links;
+  }
+
   const links: QuickLink[] = [
     { to: '/menu', title: 'Browse menu', description: 'Traditional dishes from our kitchen' },
     { to: '/tables', title: 'View tables', description: 'See what is available now' },
@@ -97,18 +155,6 @@ function useQuickLinks(
       description: hasPermission(PERMISSIONS.CAN_MANAGE_MENU)
         ? 'Update dishes and approve kitchen requests'
         : 'Request add or remove — manager or admin must approve',
-    });
-  }
-  if (canManagePermissions) {
-    links.unshift({
-      to: '/admin',
-      title: 'Admin dashboard',
-      description: 'Overall orders, payments, and floor analysis',
-    });
-    links.push({
-      to: '/admin/roles',
-      title: 'Roles',
-      description: 'Assign roles and edit role permissions',
     });
   }
 

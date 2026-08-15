@@ -254,24 +254,24 @@ export function AdminDashboardPage() {
         <KpiCard
           label="Chapa to validate"
           value={data.payments.awaiting_chapa_validation}
-          to="/payments"
+          to="/admin/payments"
         />
-        <KpiCard label="Open cash" value={data.payments.open_cash} to="/payments" />
+        <KpiCard label="Open cash" value={data.payments.open_cash} to="/admin/payments" />
         <KpiCard
           label="Unread alerts"
           value={data.staff.unread_notifications}
-          to="/payments"
+          to="/admin/payments"
         />
         <KpiCard
           label="Menu approvals"
           value={data.menu_change_requests.pending}
-          to="/menu/manage"
+          to="/admin/menu"
         />
         <KpiCard
           label="Active deliveries"
           value={data.deliveries.active}
           hint={`${data.deliveries.unassigned} unassigned`}
-          to="/orders/deliveries"
+          to="/admin/deliveries"
         />
       </div>
 
@@ -347,7 +347,7 @@ export function AdminDashboardPage() {
             <BarList items={staffItems} emptyLabel="No staff roles yet" />
           </div>
           <div className="mt-4 flex flex-wrap gap-3 text-sm">
-            <Link to="/orders/queue" className="text-[var(--color-brass)] underline">
+            <Link to="/admin/queue" className="text-[var(--color-brass)] underline">
               Open kitchen queue
             </Link>
             <Link to="/admin/roles" className="text-[var(--color-brass)] underline">
