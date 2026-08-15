@@ -100,6 +100,11 @@ function useQuickLinks(
     });
   }
   if (canManagePermissions) {
+    links.unshift({
+      to: '/admin',
+      title: 'Admin dashboard',
+      description: 'Overall orders, payments, and floor analysis',
+    });
     links.push({
       to: '/admin/roles',
       title: 'Roles',
