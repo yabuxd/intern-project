@@ -50,16 +50,28 @@ async function requestJson<T>(
   }
 
   const request = (async () => {
-    const response = await fetch(`${apiBaseUrl}${path}`, {
-      ...rest,
-      signal: rest.signal ?? AbortSignal.timeout(25_000),
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${apiBaseUrl}${path}`, {
+        ...rest,
+        signal: rest.signal ?? AbortSignal.timeout(25_000),
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...headers,
+        },
+      });
+    } catch (err) {
+      const name = err instanceof DOMException ? err.name : '';
+      if (name === 'TimeoutError' || name === 'AbortError') {
+        throw new ApiError('The API took too long to respond. Is php artisan serve running?', 0);
+      }
+      throw new ApiError(
+        `Cannot reach the API at ${apiBaseUrl}. Start it with: cd server && php artisan serve`,
+        0,
+      );
+    }
 
     const body = (await response.json().catch(() => null)) as
       | (ApiResponse<T> & { errors?: Record<string, string[] | string> })
