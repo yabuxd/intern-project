@@ -205,4 +205,41 @@ class UserPermissionsApiTest extends TestCase
             'email' => 'chef@example.com',
         ]);
     }
+
+    public function test_admin_can_delete_a_user(): void
+    {
+        config(['services.supabase.service_role_key' => 'test-service-role']);
+        Http::fake([
+            'https://example.supabase.co/auth/v1/admin/users/*' => Http::response(null, 200),
+        ]);
+
+        $admin = $this->userWithRole(Role::ADMIN);
+        $target = $this->userWithRole(Role::CUSTOMER);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/admin/users/{$target->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'User deleted.');
+
+        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+    }
+
+    public function test_admin_cannot_delete_self(): void
+    {
+        $admin = $this->userWithRole(Role::ADMIN);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/admin/users/{$admin->id}")
+            ->assertForbidden();
+    }
 }

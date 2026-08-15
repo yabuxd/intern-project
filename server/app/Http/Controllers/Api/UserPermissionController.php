@@ -89,6 +89,36 @@ class UserPermissionController extends Controller
         ], 201);
     }
 
+    public function destroy(Request $request, User $user): JsonResponse
+    {
+        $this->authorize('delete', $user);
+
+        if ($request->user()?->id === $user->id) {
+            throw ValidationException::withMessages([
+                'user' => ['You cannot delete your own account.'],
+            ]);
+        }
+
+        try {
+            $this->authUsers->deleteUser($user->id);
+        } catch (RuntimeException $e) {
+            throw ValidationException::withMessages([
+                'user' => [$e->getMessage()],
+            ]);
+        }
+
+        $userId = $user->id;
+        $user->roles()->detach();
+        $user->delete();
+        $this->cache->forgetUserAuth($userId);
+
+        return response()->json([
+            'success' => true,
+            'data' => null,
+            'message' => 'User deleted.',
+        ]);
+    }
+
     public function permissions(): JsonResponse
     {
         $this->authorize('viewAny', User::class);

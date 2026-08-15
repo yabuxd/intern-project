@@ -3,6 +3,7 @@ import type { AdminUser, PermissionName, PermissionRecord, RoleRecord } from '@i
 import { PERMISSIONS } from '@intern/shared';
 import {
   createAdminUser,
+  deleteAdminUser,
   fetchAdminRoles,
   fetchAdminUsers,
   fetchPermissionCatalog,
@@ -21,6 +22,7 @@ export function AdminRolesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [savingRoleId, setSavingRoleId] = useState<number | null>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
   const [userQuery, setUserQuery] = useState('');
@@ -145,6 +147,28 @@ export function AdminRolesPage() {
       setError(err instanceof Error ? err.message : 'Failed to create user');
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function removeUser(user: AdminUser) {
+    if (!session?.access_token) return;
+    if (user.id === currentUser?.id) {
+      setError('You cannot delete your own account.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete ${user.name ?? user.email}? They will lose access immediately.`,
+    );
+    if (!confirmed) return;
+    setDeletingUserId(user.id);
+    setError(null);
+    try {
+      await deleteAdminUser(session.access_token, user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete user');
+    } finally {
+      setDeletingUserId(null);
     }
   }
 
@@ -284,14 +308,26 @@ export function AdminRolesPage() {
                     Effective: {user.permissions.length ? user.permissions.join(', ') : 'none'}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  disabled={savingUserId === user.id}
-                  onClick={() => void saveUser(user)}
-                  className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] disabled:opacity-60"
-                >
-                  {savingUserId === user.id ? 'Saving…' : 'Save roles'}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    disabled={savingUserId === user.id || deletingUserId === user.id}
+                    onClick={() => void saveUser(user)}
+                    className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] disabled:opacity-60"
+                  >
+                    {savingUserId === user.id ? 'Saving…' : 'Save roles'}
+                  </button>
+                  {user.id !== currentUser?.id && (
+                    <button
+                      type="button"
+                      disabled={deletingUserId === user.id || savingUserId === user.id}
+                      onClick={() => void removeUser(user)}
+                      className="rounded-md border border-[var(--color-wine)]/50 px-4 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/15 disabled:opacity-60"
+                    >
+                      {deletingUserId === user.id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  )}
+                </div>
               </div>
 
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

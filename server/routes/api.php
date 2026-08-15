@@ -61,6 +61,7 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::get('/admin/dashboard', AdminDashboardController::class);
     Route::get('/admin/users', [UserPermissionController::class, 'index']);
     Route::post('/admin/users', [UserPermissionController::class, 'store']);
+    Route::delete('/admin/users/{user}', [UserPermissionController::class, 'destroy']);
     Route::get('/admin/permissions', [UserPermissionController::class, 'permissions']);
     Route::get('/admin/roles', [UserPermissionController::class, 'roles']);
     Route::put('/admin/users/{user}/roles', [UserPermissionController::class, 'updateUserRoles']);

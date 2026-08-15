@@ -21,4 +21,13 @@ class UserPolicy
     {
         return $user->can(Permission::CAN_MANAGE_PERMISSIONS);
     }
+
+    public function delete(User $actor, User $target): bool
+    {
+        if ($actor->id === $target->id) {
+            return false;
+        }
+
+        return $actor->can(Permission::CAN_MANAGE_PERMISSIONS);
+    }
 }

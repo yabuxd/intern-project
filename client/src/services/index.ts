@@ -37,6 +37,7 @@ export {
   fetchAdminUsers,
   fetchAdminDashboard,
   createAdminUser,
+  deleteAdminUser,
   fetchPermissionCatalog,
   fetchAdminRoles,
   updateUserRoles,

@@ -53,4 +53,34 @@ class SupabaseAdminUserService
             'email' => is_string($payload['email'] ?? null) ? $payload['email'] : $email,
         ];
     }
+
+    public function deleteUser(string $userId): void
+    {
+        $url = rtrim((string) config('services.supabase.url'), '/');
+        $serviceKey = (string) config('services.supabase.service_role_key');
+
+        if ($url === '' || $serviceKey === '') {
+            throw new RuntimeException('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required to delete users.');
+        }
+
+        $deleted = Http::timeout(8)
+            ->withHeaders([
+                'Authorization' => 'Bearer '.$serviceKey,
+                'apikey' => $serviceKey,
+                'User-Agent' => 'intern-project-api/1.0',
+            ])
+            ->delete($url.'/auth/v1/admin/users/'.$userId);
+
+        if ($deleted->status() === 404) {
+            return;
+        }
+
+        if (! $deleted->successful()) {
+            throw new RuntimeException(
+                $deleted->json('msg')
+                    ?? $deleted->json('message')
+                    ?? 'Failed to delete the auth user.'
+            );
+        }
+    }
 }

@@ -463,6 +463,13 @@ export function createAdminUser(token: string, input: CreateAdminUserInput): Pro
   });
 }
 
+export function deleteAdminUser(token: string, userId: string): Promise<null> {
+  return apiFetch<null>(`/admin/users/${userId}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export function fetchPermissionCatalog(token: string): Promise<PermissionRecord[]> {
   return apiFetch<PermissionRecord[]>('/admin/permissions', { token });
 }
