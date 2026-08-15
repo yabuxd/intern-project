@@ -203,7 +203,7 @@ export function MenuPage() {
           )}
         </div>
 
-        <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
+        <aside className="h-fit max-h-[min(100vh-3rem,52rem)] overflow-y-auto overscroll-contain rounded-2xl border border-stone-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
           <h2 className="font-[family-name:var(--font-display)] text-xl text-stone-900">Cart</h2>
           {!session ? (
             <p className="mt-3 text-sm text-stone-600">
@@ -292,9 +292,9 @@ export function MenuPage() {
                       onChange={(e) => setDeliveryAddress(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
                       placeholder="Street, neighborhood, Addis Ababa"
+                      autoComplete="street-address"
                     />
                   </label>
-                  <DeliveryMap address={deliveryAddress} compact className="rounded-lg" />
                   <label className="block text-sm text-stone-600">
                     Phone
                     <input
@@ -302,6 +302,8 @@ export function MenuPage() {
                       onChange={(e) => setDeliveryPhone(e.target.value)}
                       className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
                       placeholder="+251…"
+                      autoComplete="tel"
+                      inputMode="tel"
                     />
                   </label>
                   <label className="block text-sm text-stone-600">
@@ -318,12 +320,19 @@ export function MenuPage() {
               {checkoutError && <p className="mt-2 text-sm text-red-600">{checkoutError}</p>}
               <button
                 type="button"
-                disabled={placing}
+                disabled={
+                  placing ||
+                  (fulfillment === 'delivery' &&
+                    (!deliveryAddress.trim() || !deliveryPhone.trim()))
+                }
                 onClick={() => void checkout()}
                 className="mt-4 w-full rounded-xl bg-stone-900 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {placing ? 'Placing…' : 'Place order'}
               </button>
+              {fulfillment === 'delivery' && (
+                <DeliveryMap address={deliveryAddress} compact tone="light" className="mt-4" />
+              )}
             </>
           )}
         </aside>

@@ -52,6 +52,7 @@ async function requestJson<T>(
   const request = (async () => {
     const response = await fetch(`${apiBaseUrl}${path}`, {
       ...rest,
+      signal: rest.signal ?? AbortSignal.timeout(25_000),
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
@@ -60,10 +61,20 @@ async function requestJson<T>(
       },
     });
 
-    const body = (await response.json().catch(() => null)) as ApiResponse<T> | null;
+    const body = (await response.json().catch(() => null)) as
+      | (ApiResponse<T> & { errors?: Record<string, string[] | string> })
+      | null;
 
     if (!response.ok) {
-      throw new ApiError(body?.message ?? `Request failed (${response.status})`, response.status);
+      const fieldErrors = body?.errors
+        ? Object.values(body.errors)
+            .flatMap((value) => (Array.isArray(value) ? value : [value]))
+            .filter(Boolean)
+        : [];
+      throw new ApiError(
+        fieldErrors[0] ?? body?.message ?? `Request failed (${response.status})`,
+        response.status,
+      );
     }
 
     return (body ?? { success: true, data: null as T }) as ApiResponse<T>;
