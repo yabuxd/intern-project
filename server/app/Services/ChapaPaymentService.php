@@ -30,20 +30,22 @@ class ChapaPaymentService
             'amount' => number_format((float) $order->total, 2, '.', ''),
             'currency' => 'ETB',
             'email' => $user->email,
-            'first_name' => $firstName,
-            'last_name' => $lastName,
+            'first_name' => mb_substr($firstName, 0, 50),
+            'last_name' => mb_substr($lastName, 0, 50),
             'tx_ref' => $txRef,
             'return_url' => $returnUrl,
+            // Chapa limits customization.title to 16 characters.
             'customization' => [
-                'title' => 'Restaurant Order',
-                'description' => 'Order #'.$order->id,
+                'title' => 'Order #'.$order->id,
+                'description' => 'Restaurant order payment',
             ],
             'meta' => [
                 'order_id' => (string) $order->id,
             ],
         ];
 
-        if ($callbackUrl) {
+        // Chapa requires a public HTTPS callback; skip localhost/dev URLs.
+        if (is_string($callbackUrl) && $callbackUrl !== '' && $this->isPublicHttpsUrl($callbackUrl)) {
             $payload['callback_url'] = $callbackUrl;
         }
 
@@ -60,10 +62,10 @@ class ChapaPaymentService
             ->post($baseUrl.'/v1/transaction/initialize', $payload);
 
         if (! $response->successful()) {
-            throw new RuntimeException(
-                $response->json('message')
-                    ?? 'Failed to initialize Chapa payment.'
-            );
+            throw new RuntimeException($this->extractErrorMessage(
+                $response->json(),
+                'Failed to initialize Chapa payment.'
+            ));
         }
 
         $checkoutUrl = $response->json('data.checkout_url');
@@ -95,10 +97,10 @@ class ChapaPaymentService
             ->get($baseUrl.'/v1/transaction/verify/'.rawurlencode($txRef));
 
         if (! $response->successful()) {
-            throw new RuntimeException(
-                $response->json('message')
-                    ?? 'Failed to verify Chapa payment.'
-            );
+            throw new RuntimeException($this->extractErrorMessage(
+                $response->json(),
+                'Failed to verify Chapa payment.'
+            ));
         }
 
         $status = strtolower((string) ($response->json('data.status') ?? ''));
@@ -114,5 +116,67 @@ class ChapaPaymentService
     public function isSuccessfulStatus(string $status): bool
     {
         return in_array(strtolower($status), ['success', 'successful'], true);
+    }
+
+    private function isPublicHttpsUrl(string $url): bool
+    {
+        if (! str_starts_with($url, 'https://')) {
+            return false;
+        }
+
+        $host = parse_url($url, PHP_URL_HOST);
+        if (! is_string($host) || $host === '') {
+            return false;
+        }
+
+        $host = strtolower($host);
+
+        return ! in_array($host, ['localhost', '127.0.0.1', '::1'], true)
+            && ! str_ends_with($host, '.local');
+    }
+
+    /**
+     * @param  mixed  $payload
+     */
+    private function extractErrorMessage(mixed $payload, string $fallback): string
+    {
+        if (! is_array($payload)) {
+            return $fallback;
+        }
+
+        $message = $payload['message'] ?? null;
+
+        if (is_string($message) && $message !== '') {
+            return $message;
+        }
+
+        if (is_array($message)) {
+            $parts = [];
+            array_walk_recursive($message, function ($value) use (&$parts): void {
+                if (is_string($value) && $value !== '') {
+                    $parts[] = $value;
+                }
+            });
+
+            if ($parts !== []) {
+                return implode(' ', $parts);
+            }
+        }
+
+        $data = $payload['data'] ?? null;
+        if (is_array($data)) {
+            $parts = [];
+            array_walk_recursive($data, function ($value) use (&$parts): void {
+                if (is_string($value) && $value !== '') {
+                    $parts[] = $value;
+                }
+            });
+
+            if ($parts !== []) {
+                return implode(' ', $parts);
+            }
+        }
+
+        return $fallback;
     }
 }
