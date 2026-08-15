@@ -34,9 +34,9 @@ class ChapaPaymentService
             'last_name' => mb_substr($lastName, 0, 50),
             'tx_ref' => $txRef,
             'return_url' => $returnUrl,
-            // Chapa limits customization.title to 16 characters.
+            // Chapa: title max 16 chars; letters, numbers, hyphens, underscores, spaces, dots only.
             'customization' => [
-                'title' => 'Order #'.$order->id,
+                'title' => 'Order '.$order->id,
                 'description' => 'Restaurant order payment',
             ],
             'meta' => [
