@@ -5,15 +5,34 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMenuItemRequest;
 use App\Http\Requests\UpdateMenuItemRequest;
+use App\Http\Requests\UploadMenuImageRequest;
 use App\Models\MenuItem;
 use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class MenuItemController extends Controller
 {
     public function __construct(
         private readonly ApiCacheService $cache,
     ) {}
+
+    public function uploadImage(UploadMenuImageRequest $request): JsonResponse
+    {
+        $file = $request->file('image');
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg');
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $path = $file->storeAs('menu', $filename, 'public');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'image_url' => Storage::disk('public')->url($path),
+            ],
+            'message' => 'Image uploaded.',
+        ], 201);
+    }
 
     public function store(StoreMenuItemRequest $request): JsonResponse
     {

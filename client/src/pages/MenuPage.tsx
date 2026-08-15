@@ -6,6 +6,7 @@ import { createOrder, fetchMenu, fetchTables } from '../services';
 import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
 import { formatEtb } from '../utils/format';
+import { resolveMenuImageSrc } from '../utils/menuImage';
 import { MenuSkeleton } from '../components/ui';
 
 interface CartLine {
@@ -156,14 +157,16 @@ export function MenuPage() {
                     {category.name}
                   </h2>
                   <ul className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                    {category.items.map((item) => (
+                    {category.items.map((item) => {
+                      const imageSrc = resolveMenuImageSrc(item.image_url);
+                      return (
                       <li
                         key={item.id}
                         className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm sm:rounded-2xl"
                       >
-                        {item.image_url ? (
+                        {imageSrc ? (
                           <img
-                            src={item.image_url}
+                            src={imageSrc}
                             alt={item.name}
                             className="h-24 w-full object-cover sm:h-40 md:h-44"
                             loading="lazy"
@@ -200,7 +203,8 @@ export function MenuPage() {
                           )}
                         </div>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </section>
               ),

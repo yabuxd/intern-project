@@ -46,6 +46,7 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::patch('/notifications/{notification}/read', [StaffNotificationController::class, 'markRead']);
     Route::get('/me', MeController::class);
     Route::get('/menu/manage', [MenuController::class, 'manage']);
+    Route::post('/menu-items/upload-image', [MenuItemController::class, 'uploadImage']);
     Route::apiResource('menu-items', MenuItemController::class)->except(['index']);
     Route::get('/menu-change-requests', [MenuChangeRequestController::class, 'index']);
     Route::post('/menu-change-requests', [MenuChangeRequestController::class, 'store']);

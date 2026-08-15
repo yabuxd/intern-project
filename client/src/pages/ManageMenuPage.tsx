@@ -10,9 +10,11 @@ import {
   fetchMenuChangeRequests,
   rejectMenuChangeRequest,
   updateMenuItem,
+  uploadMenuImage,
 } from '../services';
 import { useAuth } from '../store';
 import { MenuSkeleton } from '../components/ui';
+import { resolveMenuImageSrc } from '../utils/menuImage';
 
 const emptyForm = {
   menu_category_id: 0,
@@ -22,6 +24,8 @@ const emptyForm = {
   price: '',
   is_available: true,
 };
+
+type ImageSource = 'url' | 'device';
 
 export function ManageMenuPage() {
   const { session, hasPermission, loading: authLoading } = useAuth();
@@ -38,6 +42,10 @@ export function ManageMenuPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [reviewingId, setReviewingId] = useState<number | null>(null);
+  const [imageSource, setImageSource] = useState<ImageSource>('url');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const flatItems = useMemo(
     () => categories.flatMap((category) => category.items.map((item) => ({ ...item, categoryName: category.name }))),
@@ -47,6 +55,23 @@ export function ManageMenuPage() {
     () => requests.filter((request) => request.status === 'pending'),
     [requests],
   );
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview?.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
+
+  function resetImageFields() {
+    if (imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImageFile(null);
+    setImagePreview(null);
+    setImageSource('url');
+  }
 
   async function reload() {
     if (!token) return;
@@ -104,17 +129,41 @@ export function ManageMenuPage() {
     );
   }
 
+  async function resolveImageUrl(): Promise<string | null> {
+    if (imageSource === 'device') {
+      if (!imageFile) {
+        return form.image_url.trim() || null;
+      }
+      if (!token) return null;
+      setUploadingImage(true);
+      try {
+        const uploaded = await uploadMenuImage(token, imageFile);
+        return uploaded.image_url || null;
+      } finally {
+        setUploadingImage(false);
+      }
+    }
+
+    const value = form.image_url.trim();
+    if (!value) return null;
+    if (/^https?:\/\//i.test(value) || value.startsWith('/')) {
+      return value;
+    }
+    throw new Error('Use a full image URL (https://…) or upload a file from your device.');
+  }
+
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
     setSaving(true);
     setError(null);
     try {
+      const imageUrl = await resolveImageUrl();
       const payload = {
         menu_category_id: Number(form.menu_category_id),
         name: form.name.trim(),
         description: form.description.trim() || null,
-        image_url: form.image_url.trim() || null,
+        image_url: imageUrl,
         price: Number(form.price),
         is_available: form.is_available,
       };
@@ -130,6 +179,7 @@ export function ManageMenuPage() {
         menu_category_id: categories[0]?.id || 0,
       });
       setEditingId(null);
+      resetImageFields();
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -148,6 +198,23 @@ export function ManageMenuPage() {
       price: String(item.price),
       is_available: item.is_available,
     });
+    if (imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImageFile(null);
+    setImagePreview(resolveMenuImageSrc(item.image_url));
+    setImageSource('url');
+  }
+
+  function onPickFile(file: File | null) {
+    if (imagePreview?.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImageFile(file);
+    setImagePreview(file ? URL.createObjectURL(file) : null);
+    if (file) {
+      setForm((prev) => ({ ...prev, image_url: '' }));
+    }
   }
 
   async function onDelete(id: number) {
@@ -166,6 +233,7 @@ export function ManageMenuPage() {
       if (editingId === id) {
         setEditingId(null);
         setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
+        resetImageFields();
       }
       await reload();
     } catch (err) {
@@ -192,6 +260,8 @@ export function ManageMenuPage() {
   }
 
   if (loading) return <MenuSkeleton />;
+
+  const previewSrc = imagePreview ?? resolveMenuImageSrc(form.image_url);
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-8 text-left">
@@ -311,15 +381,86 @@ export function ManageMenuPage() {
               className="min-h-20 w-full rounded-xl border border-stone-300 px-3 py-2"
             />
           </label>
-          <label className="block space-y-1 text-sm md:col-span-2">
-            <span className="font-medium text-stone-700">Image URL</span>
-            <input
-              value={form.image_url}
-              onChange={(e) => setForm((prev) => ({ ...prev, image_url: e.target.value }))}
-              placeholder="/images/menu/doro-wat.jpg"
-              className="w-full rounded-xl border border-stone-300 px-3 py-2"
-            />
-          </label>
+
+          <div className="space-y-3 md:col-span-2">
+            <p className="text-sm font-medium text-stone-700">Dish image</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setImageSource('url');
+                  onPickFile(null);
+                }}
+                className={`rounded-lg px-3 py-1.5 text-sm ${
+                  imageSource === 'url'
+                    ? 'bg-stone-900 text-white'
+                    : 'border border-stone-300 text-stone-700'
+                }`}
+              >
+                Image URL
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageSource('device')}
+                className={`rounded-lg px-3 py-1.5 text-sm ${
+                  imageSource === 'device'
+                    ? 'bg-stone-900 text-white'
+                    : 'border border-stone-300 text-stone-700'
+                }`}
+              >
+                Upload from device
+              </button>
+            </div>
+
+            {imageSource === 'url' ? (
+              <label className="block space-y-1 text-sm">
+                <span className="text-stone-600">Paste an internet image URL</span>
+                <input
+                  type="text"
+                  value={form.image_url}
+                  onChange={(e) => {
+                    setForm((prev) => ({ ...prev, image_url: e.target.value }));
+                    setImagePreview(null);
+                  }}
+                  placeholder="https://example.com/dish.jpg"
+                  className="w-full rounded-xl border border-stone-300 px-3 py-2"
+                />
+              </label>
+            ) : (
+              <label className="block space-y-1 text-sm">
+                <span className="text-stone-600">
+                  Choose a photo from this device (JPEG, PNG, WebP, GIF · max 5MB)
+                </span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(e) => onPickFile(e.target.files?.[0] ?? null)}
+                  className="block w-full text-sm text-stone-700 file:mr-3 file:rounded-lg file:border-0 file:bg-stone-900 file:px-3 file:py-2 file:text-sm file:font-medium file:text-white"
+                />
+              </label>
+            )}
+
+            {previewSrc && (
+              <div className="flex items-center gap-3">
+                <img
+                  src={previewSrc}
+                  alt="Dish preview"
+                  className="h-20 w-20 rounded-lg object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((prev) => ({ ...prev, image_url: '' }));
+                    onPickFile(null);
+                  }}
+                  className="text-sm text-stone-600 underline"
+                >
+                  Clear image
+                </button>
+              </div>
+            )}
+          </div>
+
           <label className="flex items-center gap-2 text-sm md:col-span-2">
             <input
               type="checkbox"
@@ -332,11 +473,13 @@ export function ManageMenuPage() {
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"
-            disabled={saving || categories.length === 0}
+            disabled={saving || uploadingImage || categories.length === 0}
             className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           >
-            {saving
-              ? 'Saving…'
+            {saving || uploadingImage
+              ? uploadingImage
+                ? 'Uploading image…'
+                : 'Saving…'
               : editingId
                 ? 'Update item'
                 : canManage
@@ -349,6 +492,7 @@ export function ManageMenuPage() {
               onClick={() => {
                 setEditingId(null);
                 setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
+                resetImageFields();
               }}
               className="rounded-xl border border-stone-300 px-4 py-2 text-sm"
             >
@@ -362,50 +506,53 @@ export function ManageMenuPage() {
         {flatItems.length === 0 ? (
           <li className="px-5 py-8 text-center text-stone-600">No items yet. Create one above.</li>
         ) : (
-          flatItems.map((item) => (
-            <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-              <div className="flex items-center gap-3">
-                {item.image_url ? (
-                  <img
-                    src={item.image_url}
-                    alt={item.name}
-                    className="h-14 w-14 rounded-lg object-cover"
-                  />
-                ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-stone-100 text-[10px] text-stone-400">
-                    N/A
+          flatItems.map((item) => {
+            const src = resolveMenuImageSrc(item.image_url);
+            return (
+              <li key={item.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <div className="flex items-center gap-3">
+                  {src ? (
+                    <img
+                      src={src}
+                      alt={item.name}
+                      className="h-14 w-14 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-stone-100 text-[10px] text-stone-400">
+                      N/A
+                    </div>
+                  )}
+                  <div>
+                    <p className="font-semibold text-stone-900">
+                      {item.name}{' '}
+                      <span className="text-xs font-normal text-stone-500">({item.categoryName})</span>
+                    </p>
+                    <p className="text-sm text-stone-600">
+                      {Number(item.price).toFixed(2)} ETB · {item.is_available ? 'Available' : 'Hidden'}
+                    </p>
                   </div>
-                )}
-                <div>
-                  <p className="font-semibold text-stone-900">
-                    {item.name}{' '}
-                    <span className="text-xs font-normal text-stone-500">({item.categoryName})</span>
-                  </p>
-                  <p className="text-sm text-stone-600">
-                    {Number(item.price).toFixed(2)} ETB · {item.is_available ? 'Available' : 'Hidden'}
-                  </p>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                {canManage && (
+                <div className="flex gap-2">
+                  {canManage && (
+                    <button
+                      type="button"
+                      onClick={() => startEdit(item)}
+                      className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm"
+                    >
+                      Edit
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => startEdit(item)}
-                    className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm"
+                    onClick={() => void onDelete(item.id)}
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700"
                   >
-                    Edit
+                    {canManage ? 'Delete' : 'Request remove'}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void onDelete(item.id)}
-                  className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700"
-                >
-                  {canManage ? 'Delete' : 'Request remove'}
-                </button>
-              </div>
-            </li>
-          ))
+                </div>
+              </li>
+            );
+          })
         )}
       </ul>
     </div>

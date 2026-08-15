@@ -3,6 +3,7 @@ export {
   fetchMenu,
   fetchManageMenu,
   createMenuItem,
+  uploadMenuImage,
   updateMenuItem,
   deleteMenuItem,
   fetchMenuChangeRequests,

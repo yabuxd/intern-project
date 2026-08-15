@@ -132,6 +132,53 @@ export function fetchManageMenu(token: string): Promise<MenuCategory[]> {
   return apiFetch<MenuCategory[]>('/menu/manage', { token });
 }
 
+export async function uploadMenuImage(
+  token: string,
+  file: File,
+): Promise<{ image_url: string }> {
+  let response: Response;
+  try {
+    const body = new FormData();
+    body.append('image', file);
+    response = await fetch(`${apiBaseUrl}/menu-items/upload-image`, {
+      method: 'POST',
+      signal: AbortSignal.timeout(60_000),
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body,
+    });
+  } catch (err) {
+    const name = err instanceof DOMException ? err.name : '';
+    if (name === 'TimeoutError' || name === 'AbortError') {
+      throw new ApiError('Image upload timed out. Is php artisan serve running?', 0);
+    }
+    throw new ApiError(
+      `Cannot reach the API at ${apiBaseUrl}. Start it with: cd server && php artisan serve`,
+      0,
+    );
+  }
+
+  const payload = (await response.json().catch(() => null)) as
+    | (ApiResponse<{ image_url: string }> & { errors?: Record<string, string[] | string> })
+    | null;
+
+  if (!response.ok) {
+    const fieldErrors = payload?.errors
+      ? Object.values(payload.errors)
+          .flatMap((value) => (Array.isArray(value) ? value : [value]))
+          .filter(Boolean)
+      : [];
+    throw new ApiError(
+      fieldErrors[0] ?? payload?.message ?? `Upload failed (${response.status})`,
+      response.status,
+    );
+  }
+
+  return payload?.data ?? { image_url: '' };
+}
+
 export function createMenuItem(token: string, input: MenuItemInput): Promise<MenuItem> {
   return apiFetch<MenuItem>('/menu-items', {
     method: 'POST',
