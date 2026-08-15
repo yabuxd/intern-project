@@ -54,6 +54,7 @@ function useQuickLinks(
     hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
     hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
   const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const canManagePayments = hasPermission(PERMISSIONS.CAN_MANAGE_PAYMENTS);
 
   if (!session) return [];
 
@@ -80,6 +81,13 @@ function useQuickLinks(
       to: '/orders/deliveries',
       title: 'Deliveries',
       description: 'Assign drivers and track courier orders',
+    });
+  }
+  if (canManagePayments) {
+    links.push({
+      to: '/payments',
+      title: 'Payments desk',
+      description: 'Validate Chapa payments and collect cash',
     });
   }
   if (canManageMenu) {

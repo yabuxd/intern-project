@@ -12,13 +12,16 @@ import type {
   MenuItemInput,
   Order,
   OrderDriver,
+  OrderReceipt,
   OrderStatus,
   PageMeta,
+  PaymentDesk,
   PermissionName,
   PermissionRecord,
   Reservation,
   RestaurantTable,
   RoleRecord,
+  StaffNotification,
   TableStatus,
 } from '@intern/shared';
 
@@ -280,6 +283,42 @@ export function verifyOrderPayment(
     ? `?trx_ref=${encodeURIComponent(txRef)}`
     : '';
   return apiFetch<Order>(`/orders/${orderId}/payment/verify${query}`, { token });
+}
+
+export function fetchOrderReceipt(token: string, orderId: number): Promise<OrderReceipt> {
+  return apiFetch<OrderReceipt>(`/orders/${orderId}/receipt`, { token });
+}
+
+export function fetchPaymentDesk(token: string): Promise<PaymentDesk> {
+  return apiFetch<PaymentDesk>('/payments/desk', { token });
+}
+
+export function approveCashierPayment(token: string, orderId: number): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/cashier/approve`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function collectCashPayment(token: string, orderId: number): Promise<Order> {
+  return apiFetch<Order>(`/orders/${orderId}/cashier/collect-cash`, {
+    method: 'POST',
+    token,
+  });
+}
+
+export function fetchStaffNotifications(token: string): Promise<StaffNotification[]> {
+  return apiFetch<StaffNotification[]>('/notifications', { token });
+}
+
+export function markStaffNotificationRead(
+  token: string,
+  notificationId: number,
+): Promise<StaffNotification> {
+  return apiFetch<StaffNotification>(`/notifications/${notificationId}/read`, {
+    method: 'PATCH',
+    token,
+  });
 }
 
 export function updateOrderStatus(

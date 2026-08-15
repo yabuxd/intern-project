@@ -10,6 +10,8 @@ import { MenuPage } from './pages/MenuPage';
 import { DeliveriesPage } from './pages/DeliveriesPage';
 import { OrderQueuePage } from './pages/OrderQueuePage';
 import { OrdersPage } from './pages/OrdersPage';
+import { PaymentsPage } from './pages/PaymentsPage';
+import { ReceiptPage } from './pages/ReceiptPage';
 import { ReservationsPage } from './pages/ReservationsPage';
 import { TablesPage } from './pages/TablesPage';
 import { SignupPage } from './pages/SignupPage';
@@ -56,6 +58,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <OrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/orders/:orderId/receipt"
+          element={
+            <ProtectedRoute>
+              <ReceiptPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/payments"
+          element={
+            <ProtectedRoute>
+              <PaymentsPage />
             </ProtectedRoute>
           }
         />

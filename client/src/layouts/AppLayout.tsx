@@ -1,6 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { PERMISSIONS } from '@intern/shared';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { PERMISSIONS, ROLES } from '@intern/shared';
+import { fetchStaffNotifications, markStaffNotificationRead } from '../services';
 import { useAuth } from '../store';
 
 interface AppLayoutProps {
@@ -17,15 +19,32 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { session, user, signOut, loading, hasPermission } = useAuth();
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
   const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
   const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const canManagePayments = hasPermission(PERMISSIONS.CAN_MANAGE_PAYMENTS);
   const canManageMenu =
     hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
     hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
+  const canSeeNotifications =
+    Boolean(user?.roles?.includes(ROLES.ADMIN) || user?.roles?.includes(ROLES.MANAGER)) ||
+    canManagePermissions;
+
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications', session?.access_token],
+    enabled: Boolean(session?.access_token) && canSeeNotifications,
+    queryFn: () => fetchStaffNotifications(session!.access_token),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const notifications = notificationsQuery.data ?? [];
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -45,6 +64,16 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   function closeMenu() {
     setMenuOpen(false);
+  }
+
+  async function markRead(id: number) {
+    if (!session?.access_token) return;
+    try {
+      await markStaffNotificationRead(session.access_token, id);
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } catch {
+      // ignore
+    }
   }
 
   const navLinks = (
@@ -73,6 +102,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       {session && canManageDeliveries && (
         <NavLink to="/orders/deliveries" className={navLinkClass} onClick={closeMenu}>
           Deliveries
+        </NavLink>
+      )}
+      {session && canManagePayments && (
+        <NavLink to="/payments" className={navLinkClass} onClick={closeMenu}>
+          Payments
         </NavLink>
       )}
       {session && canManageMenu && (
@@ -143,6 +177,61 @@ export function AppLayout({ children }: AppLayoutProps) {
             )}
             {!loading && session && (
               <>
+                {canSeeNotifications && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setNotesOpen((open) => !open)}
+                      className="relative rounded-md border border-[var(--color-brass)]/30 px-3 py-2 font-medium text-[var(--color-cream)]"
+                      aria-label="Payment notifications"
+                    >
+                      Alerts
+                      {unreadCount > 0 && (
+                        <span className="absolute -right-1 -top-1 rounded-full bg-[var(--color-brass)] px-1.5 text-[10px] font-bold text-[var(--color-espresso)]">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                    {notesOpen && (
+                      <div className="absolute right-0 z-50 mt-2 w-80 max-w-[90vw] border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] p-2 shadow-lg">
+                        {notifications.length === 0 ? (
+                          <p className="px-2 py-3 text-sm text-[var(--color-cream-muted)]">
+                            No payment alerts yet.
+                          </p>
+                        ) : (
+                          <ul className="max-h-80 space-y-1 overflow-y-auto">
+                            {notifications.map((note) => (
+                              <li key={note.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void markRead(note.id);
+                                    setNotesOpen(false);
+                                  }}
+                                  className={`w-full rounded-md px-2 py-2 text-left text-sm ${
+                                    note.read_at
+                                      ? 'text-[var(--color-cream-muted)]'
+                                      : 'bg-[var(--color-umber)] text-[var(--color-cream)]'
+                                  }`}
+                                >
+                                  <p className="font-medium">{note.title}</p>
+                                  <p className="mt-0.5 text-xs opacity-80">{note.body}</p>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <Link
+                          to="/payments"
+                          onClick={() => setNotesOpen(false)}
+                          className="mt-2 block border-t border-[var(--color-brass)]/20 px-2 pt-2 text-xs text-[var(--color-brass)]"
+                        >
+                          Open payments desk →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <span className="hidden max-w-[140px] truncate text-[var(--color-cream-muted)] lg:inline">
                   {user?.name ?? user?.email ?? 'Signed in'}
                 </span>

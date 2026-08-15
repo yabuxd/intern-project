@@ -218,6 +218,12 @@ export function OrdersPage() {
                 ))}
               </ul>
               <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  to={`/orders/${order.id}/receipt`}
+                  className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
+                >
+                  View receipt
+                </Link>
                 {order.status === 'delivered' && (
                   <button
                     type="button"
