@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\StaffNotificationService;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +22,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'payment_status',
     'payment_reference',
     'paid_at',
+    'cashier_approved_at',
+    'cashier_approved_by',
+    'cash_collected_at',
+    'cash_collected_by',
 ])]
 class Order extends Model
 {
@@ -93,12 +98,44 @@ class Order extends Model
         ], true);
     }
 
+    public function isReadyForKitchen(): bool
+    {
+        if ($this->payment_status === self::PAYMENT_NOT_REQUIRED) {
+            return true;
+        }
+
+        return $this->payment_status === self::PAYMENT_PAID
+            && $this->cashier_approved_at !== null;
+    }
+
     public function markPaid(?string $reference = null): void
     {
+        $wasPaid = $this->payment_status === self::PAYMENT_PAID;
+
         $this->forceFill([
             'payment_status' => self::PAYMENT_PAID,
             'payment_reference' => $reference ?? $this->payment_reference,
             'paid_at' => $this->paid_at ?? now(),
+        ])->save();
+
+        if (! $wasPaid) {
+            app(StaffNotificationService::class)->notifyManagersOfChapaPaid($this->fresh() ?? $this);
+        }
+    }
+
+    public function approveByCashier(User $cashier): void
+    {
+        $this->forceFill([
+            'cashier_approved_at' => now(),
+            'cashier_approved_by' => $cashier->id,
+        ])->save();
+    }
+
+    public function collectCash(User $cashier): void
+    {
+        $this->forceFill([
+            'cash_collected_at' => now(),
+            'cash_collected_by' => $cashier->id,
         ])->save();
     }
 
@@ -250,21 +287,32 @@ class Order extends Model
             'payment_status',
             'payment_reference',
             'paid_at',
+            'cashier_approved_at',
+            'cashier_approved_by',
+            'cash_collected_at',
+            'cash_collected_by',
             'created_at',
             'updated_at',
         ]);
     }
 
     /**
+     * Kitchen/delivery visibility: cash immediately, Chapa only after cashier approval.
+     *
      * @param  \Illuminate\Database\Eloquent\Builder<Order>  $query
      * @return \Illuminate\Database\Eloquent\Builder<Order>
      */
     public function scopePaymentSettled($query)
     {
-        return $query->whereIn('payment_status', [
-            self::PAYMENT_PAID,
-            self::PAYMENT_NOT_REQUIRED,
-        ]);
+        return $query->where(function ($builder) {
+            $builder
+                ->where('payment_status', self::PAYMENT_NOT_REQUIRED)
+                ->orWhere(function ($chapa) {
+                    $chapa
+                        ->where('payment_status', self::PAYMENT_PAID)
+                        ->whereNotNull('cashier_approved_at');
+                });
+        });
     }
 
     /**
@@ -295,6 +343,8 @@ class Order extends Model
         return [
             'total' => 'decimal:2',
             'paid_at' => 'datetime',
+            'cashier_approved_at' => 'datetime',
+            'cash_collected_at' => 'datetime',
         ];
     }
 }

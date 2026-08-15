@@ -28,6 +28,8 @@ class Permission extends Model
 
     public const CAN_PROPOSE_MENU_CHANGES = 'can_propose_menu_changes';
 
+    public const CAN_MANAGE_PAYMENTS = 'can_manage_payments';
+
     /**
      * @return list<string>
      */
@@ -44,6 +46,7 @@ class Permission extends Model
             self::CAN_MANAGE_DELIVERIES,
             self::CAN_ACCEPT_DELIVERY_ORDERS,
             self::CAN_PROPOSE_MENU_CHANGES,
+            self::CAN_MANAGE_PAYMENTS,
         ];
     }
 }

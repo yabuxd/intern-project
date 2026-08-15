@@ -31,6 +31,7 @@ export const PERMISSIONS = {
   CAN_MANAGE_DELIVERIES: "can_manage_deliveries",
   CAN_ACCEPT_DELIVERY_ORDERS: "can_accept_delivery_orders",
   CAN_PROPOSE_MENU_CHANGES: "can_propose_menu_changes",
+  CAN_MANAGE_PAYMENTS: "can_manage_payments",
 } as const;
 
 export type PermissionName = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
@@ -42,6 +43,7 @@ export const ROLES = {
   MANAGER: "manager",
   ADMIN: "admin",
   DRIVER: "driver",
+  CASHIER: "cashier",
 } as const;
 
 export type RoleName = (typeof ROLES)[keyof typeof ROLES];
@@ -144,6 +146,10 @@ export interface Order {
   payment_status: PaymentStatus;
   payment_reference: string | null;
   paid_at: string | null;
+  cashier_approved_at: string | null;
+  cashier_approved_by: string | null;
+  cash_collected_at: string | null;
+  cash_collected_by: string | null;
   created_at: string | null;
   updated_at: string | null;
   table?: {
@@ -177,6 +183,29 @@ export interface CreateOrderInput {
 export interface CreateOrderResult {
   order: Order;
   checkout_url?: string | null;
+}
+
+export type StaffNotificationType = "order_cash" | "order_chapa_paid";
+
+export interface StaffNotification {
+  id: number;
+  order_id: number;
+  type: StaffNotificationType;
+  title: string;
+  body: string;
+  read_at: string | null;
+  created_at: string | null;
+}
+
+export interface PaymentDesk {
+  awaiting_chapa_validation: Order[];
+  open_cash: Order[];
+}
+
+export interface OrderReceipt {
+  receipt_number: string;
+  issued_at: string;
+  order: Order;
 }
 
 export type ReservationStatus = "confirmed" | "cancelled";

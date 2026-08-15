@@ -21,6 +21,8 @@ class Role extends Model
 
     public const DRIVER = 'driver';
 
+    public const CASHIER = 'cashier';
+
     /**
      * @return list<string>
      */
@@ -33,6 +35,7 @@ class Role extends Model
             self::MANAGER,
             self::ADMIN,
             self::DRIVER,
+            self::CASHIER,
         ];
     }
 
