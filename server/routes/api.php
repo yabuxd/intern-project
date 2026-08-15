@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\ChapaPaymentController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\MenuChangeRequestController;
 use App\Http\Controllers\Api\MenuController;
@@ -21,6 +22,9 @@ Route::get('/health', function () {
 Route::get('/menu', [MenuController::class, 'index']);
 Route::get('/tables', [TableController::class, 'index']);
 
+Route::get('/payments/chapa/callback', [ChapaPaymentController::class, 'callback']);
+Route::post('/payments/chapa/webhook', [ChapaPaymentController::class, 'webhook']);
+
 Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::patch('/tables/{restaurantTable}', [TableController::class, 'update']);
     Route::get('/orders', [OrderController::class, 'index']);
@@ -28,6 +32,7 @@ Route::middleware(VerifySupabaseJwt::class)->group(function () {
     Route::get('/deliveries', [OrderController::class, 'deliveries']);
     Route::get('/deliveries/drivers', [OrderController::class, 'drivers']);
     Route::post('/orders', [OrderController::class, 'store']);
+    Route::get('/orders/{order}/payment/verify', [OrderController::class, 'verifyPayment']);
     Route::patch('/orders/{order}/status', [OrderController::class, 'updateStatus']);
     Route::patch('/orders/{order}/driver', [OrderController::class, 'assignDriver']);
     Route::delete('/orders/{order}', [OrderController::class, 'cancel']);

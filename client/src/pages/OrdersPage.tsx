@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import type { Order, OrderStatus } from '@intern/shared';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import type { Order, OrderStatus, PaymentStatus } from '@intern/shared';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { cancelOrder, fetchOrdersPage, updateOrderStatus } from '../services';
+import { cancelOrder, fetchOrdersPage, updateOrderStatus, verifyOrderPayment } from '../services';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { OrdersPageSkeleton } from '../components/ui';
@@ -31,11 +31,20 @@ const STATUS_STYLES: Record<OrderStatus, string> = {
   cancelled: 'bg-[var(--color-wine)]/25 text-[#e8a0a0]',
 };
 
+const PAYMENT_LABELS: Record<PaymentStatus, string> = {
+  pending: 'Payment pending',
+  paid: 'Paid',
+  failed: 'Payment failed',
+  refunded: 'Refunded',
+  not_required: 'Cash / later',
+};
+
 const CANCELLABLE: OrderStatus[] = ['pending', 'accepted', 'preparing', 'ready', 'out_for_delivery'];
 
 export function OrdersPage() {
   const { session } = useAuth();
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmingId, setConfirmingId] = useState<number | null>(null);
@@ -49,6 +58,34 @@ export function OrdersPage() {
     getNextPageParam: (lastPage) =>
       lastPage.meta?.has_more ? Number(lastPage.meta.next_cursor) : undefined,
   });
+
+  useEffect(() => {
+    if (!token) return;
+    const orderIdRaw = searchParams.get('order_id');
+    const txRef = searchParams.get('trx_ref') ?? searchParams.get('tx_ref');
+    if (!orderIdRaw) return;
+    const orderId = Number(orderIdRaw);
+    if (!Number.isFinite(orderId)) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        await verifyOrderPayment(token, orderId, txRef);
+        if (!cancelled) {
+          await queryClient.invalidateQueries({ queryKey: ['orders'] });
+          setSearchParams({}, { replace: true });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Could not verify payment');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, searchParams, queryClient, setSearchParams]);
 
   const orders: Order[] = ordersQuery.data?.pages.flatMap((page) => page.data) ?? [];
   const loading = ordersQuery.isLoading;
@@ -164,6 +201,9 @@ export function OrdersPage() {
                   >
                     {STATUS_LABELS[order.status]}
                   </span>
+                  <p className="mt-2 text-xs font-medium uppercase tracking-wide text-[var(--color-cream-muted)]">
+                    {PAYMENT_LABELS[order.payment_status ?? 'not_required']}
+                  </p>
                   <p className="mt-2 font-medium text-[var(--color-brass)]">{formatEtb(order.total)}</p>
                 </div>
               </div>

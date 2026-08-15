@@ -25,6 +25,7 @@ class StoreOrderRequest extends FormRequest
             'delivery_address' => ['nullable', 'string', 'max:500'],
             'delivery_phone' => ['nullable', 'string', 'max:40'],
             'delivery_notes' => ['nullable', 'string', 'max:500'],
+            'payment_method' => ['sometimes', 'string', Rule::in(Order::paymentMethods())],
             'items' => ['required', 'array', 'min:1'],
             'items.*.menu_item_id' => ['required', 'integer', 'exists:menu_items,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:99'],

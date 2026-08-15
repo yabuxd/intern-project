@@ -53,4 +53,11 @@ return [
         'user_id' => env('ADMIN_USER_ID'),
     ],
 
+    'chapa' => [
+        'public_key' => env('CHAPA_PUBLIC_KEY'),
+        'secret_key' => env('CHAPA_SECRET_KEY'),
+        'encryption_key' => env('CHAPA_ENCRYPTION_KEY'),
+        'base_url' => rtrim((string) env('CHAPA_BASE_URL', 'https://api.chapa.co'), '/'),
+    ],
+
 ];

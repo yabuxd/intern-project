@@ -11,14 +11,21 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ChapaPaymentService;
 use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
 
 class OrderController extends Controller
 {
+    public function __construct(
+        private readonly ChapaPaymentService $chapa,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -44,6 +51,7 @@ class OrderController extends Controller
         $query = Order::query()
             ->selectApi()
             ->withApiRelations(includeUser: true)
+            ->paymentSettled()
             ->where(function ($builder) {
                 $builder
                     ->where(function ($dineIn) {
@@ -82,6 +90,7 @@ class OrderController extends Controller
         $query = Order::query()
             ->selectApi()
             ->withApiRelations(includeUser: true)
+            ->paymentSettled()
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->whereIn('status', [
                 Order::STATUS_PENDING,
@@ -125,8 +134,9 @@ class OrderController extends Controller
         $validated = $request->validated();
         $user = $request->user();
         $fulfillment = $validated['fulfillment_type'] ?? Order::FULFILLMENT_DINE_IN;
+        $paymentMethod = $validated['payment_method'] ?? Order::PAYMENT_METHOD_CASH;
 
-        $order = DB::transaction(function () use ($validated, $user, $fulfillment) {
+        $order = DB::transaction(function () use ($validated, $user, $fulfillment, $paymentMethod) {
             $menuItemIds = collect($validated['items'])->pluck('menu_item_id')->unique()->all();
             $menuItems = MenuItem::query()
                 ->select(['id', 'name', 'price', 'is_available'])
@@ -158,6 +168,10 @@ class OrderController extends Controller
                     : null,
                 'status' => Order::STATUS_PENDING,
                 'total' => 0,
+                'payment_method' => $paymentMethod,
+                'payment_status' => $paymentMethod === Order::PAYMENT_METHOD_CHAPA
+                    ? Order::PAYMENT_PENDING
+                    : Order::PAYMENT_NOT_REQUIRED,
             ]);
 
             $total = 0;
@@ -188,11 +202,118 @@ class OrderController extends Controller
             ]);
         });
 
+        $checkoutUrl = null;
+
+        if ($paymentMethod === Order::PAYMENT_METHOD_CHAPA) {
+            try {
+                $clientUrl = rtrim((string) env('CLIENT_URL', 'http://localhost:5173'), '/');
+                $returnUrl = $clientUrl.'/orders?order_id='.$order->id;
+                $callbackUrl = rtrim((string) config('app.url'), '/').'/api/payments/chapa/callback';
+
+                $initialized = $this->chapa->initialize($order, $user, $returnUrl, $callbackUrl);
+                $order->update(['payment_reference' => $initialized['tx_ref']]);
+                $checkoutUrl = $initialized['checkout_url'];
+            } catch (Throwable $error) {
+                $order->update(['payment_status' => Order::PAYMENT_FAILED]);
+
+                throw ValidationException::withMessages([
+                    'payment_method' => [$error->getMessage() ?: 'Could not start online payment.'],
+                ]);
+            }
+        }
+
+        $response = [
+            'success' => true,
+            'data' => $this->transform($order->fresh([
+                'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+                'items.menuItem:id,name',
+                'table:id,name',
+                'driver:id,name,email',
+            ])),
+            'message' => $paymentMethod === Order::PAYMENT_METHOD_CHAPA
+                ? 'Order created. Complete payment to send it to the kitchen.'
+                : 'Order placed.',
+        ];
+
+        if ($checkoutUrl) {
+            $response['checkout_url'] = $checkoutUrl;
+        }
+
+        return response()->json($response, 201);
+    }
+
+    public function verifyPayment(Request $request, Order $order): JsonResponse
+    {
+        $this->authorize('view', $order);
+
+        if ($order->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($order->payment_method !== Order::PAYMENT_METHOD_CHAPA) {
+            return response()->json([
+                'success' => true,
+                'data' => $this->transform($order->load([
+                    'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+                    'items.menuItem:id,name',
+                    'table:id,name',
+                    'driver:id,name,email',
+                ])),
+                'message' => 'No online payment required.',
+            ]);
+        }
+
+        if ($order->payment_status === Order::PAYMENT_PAID) {
+            return response()->json([
+                'success' => true,
+                'data' => $this->transform($order->load([
+                    'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+                    'items.menuItem:id,name',
+                    'table:id,name',
+                    'driver:id,name,email',
+                ])),
+                'message' => 'Payment already confirmed.',
+            ]);
+        }
+
+        $txRef = $request->query('tx_ref')
+            ?? $request->query('trx_ref')
+            ?? $order->payment_reference;
+
+        if (! is_string($txRef) || $txRef === '') {
+            throw ValidationException::withMessages([
+                'tx_ref' => ['Missing payment reference.'],
+            ]);
+        }
+
+        try {
+            $verified = $this->chapa->verify($txRef);
+        } catch (RuntimeException $error) {
+            throw ValidationException::withMessages([
+                'payment' => [$error->getMessage()],
+            ]);
+        }
+
+        if ($this->chapa->isSuccessfulStatus($verified['status'])) {
+            $order->markPaid($txRef);
+        } else {
+            $order->update(['payment_status' => Order::PAYMENT_FAILED]);
+        }
+
+        $order->load([
+            'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
+            'items.menuItem:id,name',
+            'table:id,name',
+            'driver:id,name,email',
+        ]);
+
         return response()->json([
             'success' => true,
             'data' => $this->transform($order),
-            'message' => 'Order placed.',
-        ], 201);
+            'message' => $order->payment_status === Order::PAYMENT_PAID
+                ? 'Payment confirmed.'
+                : 'Payment not completed yet.',
+        ]);
     }
 
     public function updateStatus(UpdateOrderStatusRequest $request, Order $order): JsonResponse
@@ -301,6 +422,10 @@ class OrderController extends Controller
             'driver_id' => $order->driver_id,
             'status' => $order->status,
             'total' => $order->total,
+            'payment_method' => $order->payment_method ?? Order::PAYMENT_METHOD_CASH,
+            'payment_status' => $order->payment_status ?? Order::PAYMENT_NOT_REQUIRED,
+            'payment_reference' => $order->payment_reference,
+            'paid_at' => $order->paid_at?->toIso8601String(),
             'created_at' => $order->created_at?->toIso8601String(),
             'updated_at' => $order->updated_at?->toIso8601String(),
             'table' => $order->relationLoaded('table') && $order->table

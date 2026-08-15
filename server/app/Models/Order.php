@@ -17,6 +17,10 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'driver_id',
     'status',
     'total',
+    'payment_method',
+    'payment_status',
+    'payment_reference',
+    'paid_at',
 ])]
 class Order extends Model
 {
@@ -41,6 +45,62 @@ class Order extends Model
     public const FULFILLMENT_DINE_IN = 'dine_in';
 
     public const FULFILLMENT_DELIVERY = 'delivery';
+
+    public const PAYMENT_METHOD_CASH = 'cash';
+
+    public const PAYMENT_METHOD_CHAPA = 'chapa';
+
+    public const PAYMENT_PENDING = 'pending';
+
+    public const PAYMENT_PAID = 'paid';
+
+    public const PAYMENT_FAILED = 'failed';
+
+    public const PAYMENT_REFUNDED = 'refunded';
+
+    public const PAYMENT_NOT_REQUIRED = 'not_required';
+
+    /**
+     * @return list<string>
+     */
+    public static function paymentMethods(): array
+    {
+        return [
+            self::PAYMENT_METHOD_CASH,
+            self::PAYMENT_METHOD_CHAPA,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function paymentStatuses(): array
+    {
+        return [
+            self::PAYMENT_PENDING,
+            self::PAYMENT_PAID,
+            self::PAYMENT_FAILED,
+            self::PAYMENT_REFUNDED,
+            self::PAYMENT_NOT_REQUIRED,
+        ];
+    }
+
+    public function isPaymentSettled(): bool
+    {
+        return in_array($this->payment_status, [
+            self::PAYMENT_PAID,
+            self::PAYMENT_NOT_REQUIRED,
+        ], true);
+    }
+
+    public function markPaid(?string $reference = null): void
+    {
+        $this->forceFill([
+            'payment_status' => self::PAYMENT_PAID,
+            'payment_reference' => $reference ?? $this->payment_reference,
+            'paid_at' => $this->paid_at ?? now(),
+        ])->save();
+    }
 
     /**
      * @return list<string>
@@ -186,8 +246,24 @@ class Order extends Model
             'driver_id',
             'status',
             'total',
+            'payment_method',
+            'payment_status',
+            'payment_reference',
+            'paid_at',
             'created_at',
             'updated_at',
+        ]);
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<Order>  $query
+     * @return \Illuminate\Database\Eloquent\Builder<Order>
+     */
+    public function scopePaymentSettled($query)
+    {
+        return $query->whereIn('payment_status', [
+            self::PAYMENT_PAID,
+            self::PAYMENT_NOT_REQUIRED,
         ]);
     }
 
@@ -218,6 +294,7 @@ class Order extends Model
     {
         return [
             'total' => 'decimal:2',
+            'paid_at' => 'datetime',
         ];
     }
 }

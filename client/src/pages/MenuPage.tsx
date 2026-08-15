@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { FulfillmentType, MenuItem } from '@intern/shared';
+import type { FulfillmentType, MenuItem, PaymentMethod } from '@intern/shared';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { createOrder, fetchMenu, fetchTables } from '../services';
@@ -19,6 +19,7 @@ export function MenuPage() {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [tableId, setTableId] = useState<number | ''>('');
   const [fulfillment, setFulfillment] = useState<FulfillmentType>('dine_in');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('chapa');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [deliveryPhone, setDeliveryPhone] = useState('');
   const [deliveryNotes, setDeliveryNotes] = useState('');
@@ -80,7 +81,7 @@ export function MenuPage() {
     setPlacing(true);
     setCheckoutError(null);
     try {
-      await createOrder(session.access_token, {
+      const result = await createOrder(session.access_token, {
         items: cart.map((line) => ({
           menu_item_id: line.item.id,
           quantity: line.quantity,
@@ -90,12 +91,17 @@ export function MenuPage() {
         delivery_address: fulfillment === 'delivery' ? deliveryAddress.trim() : null,
         delivery_phone: fulfillment === 'delivery' ? deliveryPhone.trim() : null,
         delivery_notes: fulfillment === 'delivery' ? deliveryNotes.trim() || null : null,
+        payment_method: paymentMethod,
       });
       setCart([]);
       setTableId('');
       setDeliveryAddress('');
       setDeliveryPhone('');
       setDeliveryNotes('');
+      if (result.checkout_url) {
+        window.location.assign(result.checkout_url);
+        return;
+      }
       navigate('/orders');
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : 'Failed to place order');
@@ -317,6 +323,38 @@ export function MenuPage() {
                 </div>
               )}
               {checkoutError && <p className="mt-2 text-sm text-red-600">{checkoutError}</p>}
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-stone-700">Payment</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('chapa')}
+                    className={`rounded-lg border py-2 font-medium ${
+                      paymentMethod === 'chapa'
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-300 text-stone-800'
+                    }`}
+                  >
+                    Pay online
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`rounded-lg border py-2 font-medium ${
+                      paymentMethod === 'cash'
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-300 text-stone-800'
+                    }`}
+                  >
+                    Cash / later
+                  </button>
+                </div>
+                <p className="text-xs text-stone-500">
+                  {paymentMethod === 'chapa'
+                    ? 'You will complete payment with Chapa before the kitchen sees the order.'
+                    : 'Pay at the restaurant or on delivery. The kitchen gets the order right away.'}
+                </p>
+              </div>
               <button
                 type="button"
                 disabled={
@@ -327,7 +365,13 @@ export function MenuPage() {
                 onClick={() => void checkout()}
                 className="mt-4 w-full rounded-xl bg-stone-900 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {placing ? 'Placing…' : 'Place order'}
+                {placing
+                  ? paymentMethod === 'chapa'
+                    ? 'Starting payment…'
+                    : 'Placing…'
+                  : paymentMethod === 'chapa'
+                    ? 'Pay & place order'
+                    : 'Place order'}
               </button>
             </>
           )}

@@ -102,6 +102,15 @@ export type OrderStatus =
 
 export type FulfillmentType = "dine_in" | "delivery";
 
+export type PaymentMethod = "cash" | "chapa";
+
+export type PaymentStatus =
+  | "pending"
+  | "paid"
+  | "failed"
+  | "refunded"
+  | "not_required";
+
 export interface OrderDriver {
   id: string;
   name: string | null;
@@ -131,6 +140,10 @@ export interface Order {
   driver_id: string | null;
   status: OrderStatus;
   total: string | number;
+  payment_method: PaymentMethod;
+  payment_status: PaymentStatus;
+  payment_reference: string | null;
+  paid_at: string | null;
   created_at: string | null;
   updated_at: string | null;
   table?: {
@@ -158,6 +171,12 @@ export interface CreateOrderInput {
   delivery_address?: string | null;
   delivery_phone?: string | null;
   delivery_notes?: string | null;
+  payment_method?: PaymentMethod;
+}
+
+export interface CreateOrderResult {
+  order: Order;
+  checkout_url?: string | null;
 }
 
 export type ReservationStatus = "confirmed" | "cancelled";

@@ -4,6 +4,7 @@ import type {
   AuthUser,
   CreateAdminUserInput,
   CreateOrderInput,
+  CreateOrderResult,
   CreateReservationInput,
   MenuCategory,
   MenuChangeRequest,
@@ -249,12 +250,36 @@ export function assignOrderDriver(
   });
 }
 
-export function createOrder(token: string, input: CreateOrderInput): Promise<Order> {
-  return apiFetch<Order>('/orders', {
+export async function createOrder(
+  token: string,
+  input: CreateOrderInput,
+): Promise<CreateOrderResult> {
+  const body = await requestJson<Order>('/orders', {
     method: 'POST',
     token,
     body: JSON.stringify(input),
   });
+
+  const checkoutUrl =
+    typeof (body as { checkout_url?: unknown }).checkout_url === 'string'
+      ? (body as { checkout_url: string }).checkout_url
+      : null;
+
+  return {
+    order: body.data,
+    checkout_url: checkoutUrl,
+  };
+}
+
+export function verifyOrderPayment(
+  token: string,
+  orderId: number,
+  txRef?: string | null,
+): Promise<Order> {
+  const query = txRef
+    ? `?trx_ref=${encodeURIComponent(txRef)}`
+    : '';
+  return apiFetch<Order>(`/orders/${orderId}/payment/verify${query}`, { token });
 }
 
 export function updateOrderStatus(

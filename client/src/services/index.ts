@@ -18,6 +18,7 @@ export {
   fetchDeliveryDrivers,
   assignOrderDriver,
   createOrder,
+  verifyOrderPayment,
   updateOrderStatus,
   cancelOrder,
   fetchReservations,
