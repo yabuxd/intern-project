@@ -29,7 +29,9 @@ Route::get('/payments/chapa/callback', [ChapaPaymentController::class, 'callback
 Route::post('/payments/chapa/webhook', [ChapaPaymentController::class, 'webhook']);
 
 Route::middleware(VerifySupabaseJwt::class)->group(function () {
+    Route::post('/tables', [TableController::class, 'store']);
     Route::patch('/tables/{restaurantTable}', [TableController::class, 'update']);
+    Route::delete('/tables/{restaurantTable}', [TableController::class, 'destroy']);
     Route::get('/orders', [OrderController::class, 'index']);
     Route::get('/orders/queue', [OrderController::class, 'queue']);
     Route::get('/deliveries', [OrderController::class, 'deliveries']);

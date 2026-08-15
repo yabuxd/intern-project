@@ -264,6 +264,36 @@ export function updateTableStatus(
   });
 }
 
+export function updateTable(
+  token: string,
+  id: number,
+  input: { name?: string; capacity?: number | null; status?: TableStatus },
+): Promise<RestaurantTable> {
+  return apiFetch<RestaurantTable>(`/tables/${id}`, {
+    method: 'PATCH',
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export function createTable(
+  token: string,
+  input: { name: string; capacity?: number | null; status?: TableStatus },
+): Promise<RestaurantTable> {
+  return apiFetch<RestaurantTable>('/tables', {
+    method: 'POST',
+    token,
+    body: JSON.stringify(input),
+  });
+}
+
+export function deleteTable(token: string, id: number): Promise<null> {
+  return apiFetch<null>(`/tables/${id}`, {
+    method: 'DELETE',
+    token,
+  });
+}
+
 export function fetchOrders(token: string, afterId?: number): Promise<Order[]> {
   const query = afterId ? `?after_id=${afterId}` : '';
   return apiFetch<Order[]>(`/orders${query}`, { token });

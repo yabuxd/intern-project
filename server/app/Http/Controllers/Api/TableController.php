@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreTableRequest;
 use App\Http\Requests\UpdateTableRequest;
+use App\Models\Permission;
 use App\Models\RestaurantTable;
 use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class TableController extends Controller
 {
@@ -31,6 +34,21 @@ class TableController extends Controller
         ])->header('Cache-Control', 'public, max-age=15');
     }
 
+    public function store(StoreTableRequest $request): JsonResponse
+    {
+        $data = $request->validated();
+        $data['status'] = $data['status'] ?? RestaurantTable::STATUS_FREE;
+
+        $table = RestaurantTable::query()->create($data);
+        $this->cache->forgetTables();
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->transform($table),
+            'message' => 'Table created.',
+        ], 201);
+    }
+
     public function update(UpdateTableRequest $request, RestaurantTable $restaurantTable): JsonResponse
     {
         $restaurantTable->update($request->validated());
@@ -39,7 +57,28 @@ class TableController extends Controller
         return response()->json([
             'success' => true,
             'data' => $this->transform($restaurantTable->fresh()),
-            'message' => 'Table status updated.',
+            'message' => 'Table updated.',
+        ]);
+    }
+
+    public function destroy(Request $request, RestaurantTable $restaurantTable): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless(
+            $user !== null && (
+                $user->can(Permission::CAN_MANAGE_TABLES)
+                || $user->can(Permission::CAN_MANAGE_PERMISSIONS)
+            ),
+            403,
+        );
+
+        $restaurantTable->delete();
+        $this->cache->forgetTables();
+
+        return response()->json([
+            'success' => true,
+            'data' => null,
+            'message' => 'Table deleted.',
         ]);
     }
 
