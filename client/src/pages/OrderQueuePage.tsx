@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Order, OrderStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import { Link, Navigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelOrder, fetchOrderQueue, updateOrderStatus } from '../services';
 import { useOrdersRealtime, QUEUE_ORDERS_FILTER } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
@@ -35,66 +36,45 @@ const STATUS_STYLES: Record<string, string> = {
 
 export function OrderQueuePage() {
   const { session, hasPermission } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const canView = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
   const canUpdate = hasPermission(PERMISSIONS.CAN_UPDATE_ORDER_STATUS);
   const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const token = session?.access_token;
 
-  const reload = useCallback(async () => {
-    if (!session?.access_token) return;
-    try {
-      const data = await fetchOrderQueue(session.access_token);
-      setOrders(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load queue');
-    }
-  }, [session?.access_token]);
+  const queueQuery = useQuery({
+    queryKey: ['orders', 'queue', token],
+    enabled: Boolean(token) && canView,
+    queryFn: () => fetchOrderQueue(token!),
+    staleTime: 10_000,
+  });
 
   useOrdersRealtime(() => {
-    void reload();
+    void queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
   }, QUEUE_ORDERS_FILTER);
-
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      if (!session?.access_token) return;
-      try {
-        const data = await fetchOrderQueue(session.access_token);
-        if (mounted) setOrders(data);
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load queue');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [session?.access_token]);
 
   if (!canView) {
     return <Navigate to="/" replace />;
   }
 
+  const orders = queueQuery.data ?? [];
+  const loading = queueQuery.isLoading;
+  const loadError =
+    queueQuery.error instanceof Error ? queueQuery.error.message : error;
+
   async function advanceStatus(order: Order) {
-    if (!session?.access_token || !canUpdate) return;
+    if (!token || !canUpdate) return;
     if (order.fulfillment_type === 'delivery' && order.status === 'ready') return;
     const next = NEXT_STATUS[order.status];
     if (!next) return;
 
     setUpdatingId(order.id);
+    setError(null);
     try {
-      const updated = await updateOrderStatus(session.access_token, order.id, next);
-      setOrders((prev) => {
-        if (updated.status === 'served') {
-          return prev.filter((o) => o.id !== updated.id);
-        }
-        return prev.map((o) => (o.id === updated.id ? updated : o));
-      });
+      await updateOrderStatus(token, order.id, next);
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update order');
     } finally {
@@ -103,13 +83,13 @@ export function OrderQueuePage() {
   }
 
   async function handleCancel(order: Order) {
-    if (!session?.access_token || !canUpdate || !CANCELLABLE.includes(order.status)) return;
+    if (!token || !canUpdate || !CANCELLABLE.includes(order.status)) return;
 
     setUpdatingId(order.id);
+    setError(null);
     try {
-      await cancelOrder(session.access_token, order.id);
-      setOrders((prev) => prev.filter((o) => o.id !== order.id));
-      setError(null);
+      await cancelOrder(token, order.id);
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel order');
     } finally {
@@ -137,14 +117,14 @@ export function OrderQueuePage() {
         </header>
         <button
           type="button"
-          onClick={() => void reload()}
+          onClick={() => void queueQuery.refetch()}
           className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
         >
           Refresh
         </button>
       </div>
 
-      {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
+      {loadError && <p className="text-sm text-[#e8a0a0]">{loadError}</p>}
 
       {orders.length === 0 ? (
         <p className="border border-dashed border-[var(--color-brass)]/30 bg-[var(--color-umber)]/40 px-8 py-12 text-center text-[var(--color-cream-muted)]">

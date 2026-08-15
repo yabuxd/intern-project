@@ -2,101 +2,118 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropIndex(['user_id', 'created_at']);
-            $table->dropIndex(['status', 'created_at']);
-            $table->dropIndex(['fulfillment_type', 'status']);
+        $this->dropIndexIfExists('orders', ['user_id', 'created_at']);
+        $this->dropIndexIfExists('orders', ['status', 'created_at']);
+        $this->dropIndexIfExists('orders', ['fulfillment_type', 'status']);
+        $this->addIndexIfMissing('orders', ['table_id']);
+        $this->addIndexIfMissing('orders', ['driver_id']);
+        $this->addIndexIfMissing('orders', ['user_id', 'id']);
+        $this->addIndexIfMissing('orders', ['status', 'id']);
+        $this->addIndexIfMissing('orders', ['fulfillment_type', 'status', 'id']);
 
-            $table->index('table_id');
-            $table->index('driver_id');
-            $table->index(['user_id', 'id']);
-            $table->index(['status', 'id']);
-            $table->index(['fulfillment_type', 'status', 'id']);
-        });
+        $this->addIndexIfMissing('order_items', ['order_id']);
+        $this->addIndexIfMissing('order_items', ['menu_item_id']);
 
-        Schema::table('order_items', function (Blueprint $table) {
-            $table->index('order_id');
-            $table->index('menu_item_id');
-        });
+        $this->addIndexIfMissing('user_roles', ['role_id']);
+        $this->addIndexIfMissing('role_permissions', ['permission_id']);
 
-        Schema::table('user_roles', function (Blueprint $table) {
-            $table->index('role_id');
-        });
+        $this->addIndexIfMissing('tables', ['status']);
+        $this->addIndexIfMissing('tables', ['name']);
 
-        Schema::table('role_permissions', function (Blueprint $table) {
-            $table->index('permission_id');
-        });
+        $this->addIndexIfMissing('menu_categories', ['sort_order', 'name']);
 
-        Schema::table('tables', function (Blueprint $table) {
-            $table->index('status');
-            $table->index('name');
-        });
+        $this->dropIndexIfExists('reservations', ['table_id', 'starts_at', 'ends_at']);
+        $this->addIndexIfMissing('reservations', ['table_id', 'status', 'starts_at', 'ends_at']);
+        $this->addIndexIfMissing('reservations', ['status', 'id']);
 
-        Schema::table('menu_categories', function (Blueprint $table) {
-            $table->index(['sort_order', 'name']);
-        });
-
-        Schema::table('reservations', function (Blueprint $table) {
-            $table->dropIndex(['table_id', 'starts_at', 'ends_at']);
-            $table->index(['table_id', 'status', 'starts_at', 'ends_at']);
-            $table->index(['status', 'id']);
-        });
-
-        Schema::table('users', function (Blueprint $table) {
-            $table->index('name');
-        });
+        $this->addIndexIfMissing('users', ['name']);
     }
 
     public function down(): void
     {
-        Schema::table('orders', function (Blueprint $table) {
-            $table->dropIndex(['table_id']);
-            $table->dropIndex(['driver_id']);
-            $table->dropIndex(['user_id', 'id']);
-            $table->dropIndex(['status', 'id']);
-            $table->dropIndex(['fulfillment_type', 'status', 'id']);
+        $this->dropIndexIfExists('orders', ['table_id']);
+        $this->dropIndexIfExists('orders', ['driver_id']);
+        $this->dropIndexIfExists('orders', ['user_id', 'id']);
+        $this->dropIndexIfExists('orders', ['status', 'id']);
+        $this->dropIndexIfExists('orders', ['fulfillment_type', 'status', 'id']);
+        $this->addIndexIfMissing('orders', ['user_id', 'created_at']);
+        $this->addIndexIfMissing('orders', ['status', 'created_at']);
+        $this->addIndexIfMissing('orders', ['fulfillment_type', 'status']);
 
-            $table->index(['user_id', 'created_at']);
-            $table->index(['status', 'created_at']);
-            $table->index(['fulfillment_type', 'status']);
-        });
+        $this->dropIndexIfExists('order_items', ['order_id']);
+        $this->dropIndexIfExists('order_items', ['menu_item_id']);
 
-        Schema::table('order_items', function (Blueprint $table) {
-            $table->dropIndex(['order_id']);
-            $table->dropIndex(['menu_item_id']);
-        });
+        $this->dropIndexIfExists('user_roles', ['role_id']);
+        $this->dropIndexIfExists('role_permissions', ['permission_id']);
 
-        Schema::table('user_roles', function (Blueprint $table) {
-            $table->dropIndex(['role_id']);
-        });
+        $this->dropIndexIfExists('tables', ['status']);
+        $this->dropIndexIfExists('tables', ['name']);
 
-        Schema::table('role_permissions', function (Blueprint $table) {
-            $table->dropIndex(['permission_id']);
-        });
+        $this->dropIndexIfExists('menu_categories', ['sort_order', 'name']);
 
-        Schema::table('tables', function (Blueprint $table) {
-            $table->dropIndex(['status']);
-            $table->dropIndex(['name']);
-        });
+        $this->dropIndexIfExists('reservations', ['table_id', 'status', 'starts_at', 'ends_at']);
+        $this->dropIndexIfExists('reservations', ['status', 'id']);
+        $this->addIndexIfMissing('reservations', ['table_id', 'starts_at', 'ends_at']);
 
-        Schema::table('menu_categories', function (Blueprint $table) {
-            $table->dropIndex(['sort_order', 'name']);
-        });
+        $this->dropIndexIfExists('users', ['name']);
+    }
 
-        Schema::table('reservations', function (Blueprint $table) {
-            $table->dropIndex(['table_id', 'status', 'starts_at', 'ends_at']);
-            $table->dropIndex(['status', 'id']);
-            $table->index(['table_id', 'starts_at', 'ends_at']);
-        });
+    /**
+     * @param  list<string>  $columns
+     */
+    private function dropIndexIfExists(string $table, array $columns): void
+    {
+        $name = $this->indexName($table, $columns);
+        if (! $this->indexExists($table, $name)) {
+            return;
+        }
 
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropIndex(['name']);
+        Schema::table($table, function (Blueprint $blueprint) use ($columns) {
+            $blueprint->dropIndex($columns);
         });
+    }
+
+    /**
+     * @param  list<string>  $columns
+     */
+    private function addIndexIfMissing(string $table, array $columns): void
+    {
+        $name = $this->indexName($table, $columns);
+        if ($this->indexExists($table, $name)) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) use ($columns) {
+            $blueprint->index($columns);
+        });
+    }
+
+    /**
+     * @param  list<string>  $columns
+     */
+    private function indexName(string $table, array $columns): string
+    {
+        return $table.'_'.implode('_', $columns).'_index';
+    }
+
+    private function indexExists(string $table, string $indexName): bool
+    {
+        if (DB::getDriverName() === 'pgsql') {
+            $row = DB::selectOne(
+                'SELECT 1 AS ok FROM pg_indexes WHERE schemaname = current_schema() AND tablename = ? AND indexname = ?',
+                [$table, $indexName],
+            );
+
+            return $row !== null;
+        }
+
+        return Schema::hasIndex($table, $indexName);
     }
 };

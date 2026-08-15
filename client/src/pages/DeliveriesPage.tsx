@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { Order, OrderDriver, OrderStatus } from '@intern/shared';
+import { useState } from 'react';
+import type { Order, OrderStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import { Link, Navigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   assignOrderDriver,
   fetchDeliveries,
@@ -22,69 +23,49 @@ const STATUS_LABELS: Record<string, string> = {
 
 export function DeliveriesPage() {
   const { session, hasPermission } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [drivers, setDrivers] = useState<OrderDriver[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const token = session?.access_token;
 
-  const reload = useCallback(async () => {
-    if (!session?.access_token) return;
-    try {
-      const [deliveryData, driverData] = await Promise.all([
-        fetchDeliveries(session.access_token),
-        fetchDeliveryDrivers(session.access_token),
-      ]);
-      setOrders(deliveryData);
-      setDrivers(driverData);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load deliveries');
-    }
-  }, [session]);
+  const deliveriesQuery = useQuery({
+    queryKey: ['orders', 'deliveries', token],
+    enabled: Boolean(token) && canManage,
+    queryFn: () => fetchDeliveries(token!),
+    staleTime: 10_000,
+  });
+
+  const driversQuery = useQuery({
+    queryKey: ['orders', 'delivery-drivers', token],
+    enabled: Boolean(token) && canManage,
+    queryFn: () => fetchDeliveryDrivers(token!),
+    staleTime: 60_000,
+  });
 
   useOrdersRealtime(() => {
-    void reload();
+    void queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
   }, DELIVERY_ORDERS_FILTER);
-
-  useEffect(() => {
-    if (!session?.access_token || !canManage) {
-      return;
-    }
-    let mounted = true;
-    void (async () => {
-      try {
-        const [deliveryData, driverData] = await Promise.all([
-          fetchDeliveries(session.access_token),
-          fetchDeliveryDrivers(session.access_token),
-        ]);
-        if (mounted) {
-          setOrders(deliveryData);
-          setDrivers(driverData);
-        }
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load deliveries');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [session, canManage]);
 
   if (!canManage) {
     return <Navigate to="/" replace />;
   }
 
+  const orders = deliveriesQuery.data ?? [];
+  const drivers = driversQuery.data ?? [];
+  const loading = deliveriesQuery.isLoading || driversQuery.isLoading;
+  const loadError =
+    (deliveriesQuery.error instanceof Error && deliveriesQuery.error.message) ||
+    (driversQuery.error instanceof Error && driversQuery.error.message) ||
+    error;
+
   async function assignDriver(order: Order, driverId: string) {
-    if (!session?.access_token || !driverId) return;
+    if (!token || !driverId) return;
     setUpdatingId(order.id);
+    setError(null);
     try {
-      const updated = await assignOrderDriver(session.access_token, order.id, driverId);
-      setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
-      setError(null);
+      await assignOrderDriver(token, order.id, driverId);
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to assign driver');
     } finally {
@@ -93,17 +74,12 @@ export function DeliveriesPage() {
   }
 
   async function advance(order: Order, status: OrderStatus) {
-    if (!session?.access_token) return;
+    if (!token) return;
     setUpdatingId(order.id);
+    setError(null);
     try {
-      const updated = await updateOrderStatus(session.access_token, order.id, status);
-      setOrders((prev) => {
-        if (updated.status === 'delivered') {
-          return prev.filter((o) => o.id !== updated.id);
-        }
-        return prev.map((o) => (o.id === updated.id ? updated : o));
-      });
-      setError(null);
+      await updateOrderStatus(token, order.id, status);
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update delivery');
     } finally {
@@ -131,14 +107,17 @@ export function DeliveriesPage() {
         </header>
         <button
           type="button"
-          onClick={() => void reload()}
+          onClick={() => {
+            void deliveriesQuery.refetch();
+            void driversQuery.refetch();
+          }}
           className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
         >
           Refresh
         </button>
       </div>
 
-      {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
+      {loadError && <p className="text-sm text-[#e8a0a0]">{loadError}</p>}
 
       {orders.length === 0 ? (
         <p className="border border-dashed border-[var(--color-brass)]/30 bg-[var(--color-umber)]/40 px-8 py-12 text-center text-[var(--color-cream-muted)]">
