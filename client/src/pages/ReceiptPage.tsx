@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
-import type { OrderReceipt } from '@intern/shared';
+import { useQuery } from '@tanstack/react-query';
 import { fetchOrderReceipt } from '../services';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
@@ -9,39 +8,26 @@ import { OrdersPageSkeleton } from '../components/ui';
 export function ReceiptPage() {
   const { orderId } = useParams();
   const { session } = useAuth();
-  const [receipt, setReceipt] = useState<OrderReceipt | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const id = Number(orderId);
 
-  useEffect(() => {
-    if (!session?.access_token || !Number.isFinite(id)) {
-      setLoading(false);
-      return;
-    }
-    let mounted = true;
-    void (async () => {
-      try {
-        const data = await fetchOrderReceipt(session.access_token, id);
-        if (mounted) setReceipt(data);
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load receipt');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [session?.access_token, id]);
+  const receiptQuery = useQuery({
+    queryKey: ['receipt', session?.access_token, id],
+    enabled: Boolean(session?.access_token) && Number.isFinite(id),
+    queryFn: () => fetchOrderReceipt(session!.access_token, id),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+  });
 
   if (!session) {
     return <Navigate to="/login" replace />;
   }
 
-  if (loading) {
+  if (receiptQuery.isLoading) {
     return <OrdersPageSkeleton />;
   }
+
+  const receipt = receiptQuery.data;
+  const error = receiptQuery.error instanceof Error ? receiptQuery.error.message : null;
 
   if (error || !receipt) {
     return (

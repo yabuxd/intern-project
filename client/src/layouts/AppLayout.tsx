@@ -2,7 +2,20 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PERMISSIONS, ROLES } from '@intern/shared';
-import { fetchStaffNotifications, markStaffNotificationRead } from '../services';
+import {
+  cancelPrefetch,
+  debouncePrefetch,
+  fetchStaffNotifications,
+  markStaffNotificationRead,
+  prefetchAdminDashboard,
+  prefetchDeliveriesData,
+  prefetchManageMenuData,
+  prefetchMenu,
+  prefetchOrderQueue,
+  prefetchPaymentDeskData,
+  prefetchReservationsData,
+  prefetchTables,
+} from '../services';
 import { useAuth } from '../store';
 
 interface AppLayoutProps {
@@ -45,6 +58,7 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const notifications = notificationsQuery.data ?? [];
   const unreadCount = notifications.filter((n) => !n.read_at).length;
+  const token = session?.access_token;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -78,13 +92,23 @@ export function AppLayout({ children }: AppLayoutProps) {
 
   const navLinks = (
     <>
-      <NavLink to="/menu" className={navLinkClass} onClick={closeMenu}>
+      <NavLink
+        to="/menu"
+        className={navLinkClass}
+        onClick={closeMenu}
+        onMouseEnter={() => debouncePrefetch(() => prefetchMenu())}
+        onMouseLeave={cancelPrefetch}
+        onFocus={() => prefetchMenu()}
+      >
         Menu
       </NavLink>
       <NavLink
         to={canManagePermissions ? '/admin/tables' : '/tables'}
         className={navLinkClass}
         onClick={closeMenu}
+        onMouseEnter={() => debouncePrefetch(() => prefetchTables())}
+        onMouseLeave={cancelPrefetch}
+        onFocus={() => prefetchTables()}
       >
         Tables
       </NavLink>
@@ -94,33 +118,76 @@ export function AppLayout({ children }: AppLayoutProps) {
         </NavLink>
       )}
       {canManagePermissions ? (
-        <NavLink to="/admin" className={navLinkClass} onClick={closeMenu}>
+        <NavLink
+          to="/admin"
+          className={navLinkClass}
+          onClick={closeMenu}
+          onMouseEnter={() => debouncePrefetch(() => prefetchAdminDashboard(token))}
+          onMouseLeave={cancelPrefetch}
+          onFocus={() => prefetchAdminDashboard(token)}
+        >
           Admin
         </NavLink>
       ) : (
         <>
           {session && (canReserve || canManageTables) && (
-            <NavLink to="/reservations" className={navLinkClass} onClick={closeMenu}>
+            <NavLink
+              to="/reservations"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchReservationsData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchReservationsData(token)}
+            >
               Reservations
             </NavLink>
           )}
           {session && canViewQueue && (
-            <NavLink to="/orders/queue" className={navLinkClass} end onClick={closeMenu}>
+            <NavLink
+              to="/orders/queue"
+              className={navLinkClass}
+              end
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchOrderQueue(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchOrderQueue(token)}
+            >
               Queue
             </NavLink>
           )}
           {session && canManageDeliveries && (
-            <NavLink to="/orders/deliveries" className={navLinkClass} onClick={closeMenu}>
+            <NavLink
+              to="/orders/deliveries"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchDeliveriesData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchDeliveriesData(token)}
+            >
               Deliveries
             </NavLink>
           )}
           {session && canManagePayments && (
-            <NavLink to="/payments" className={navLinkClass} onClick={closeMenu}>
+            <NavLink
+              to="/payments"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchPaymentDeskData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchPaymentDeskData(token)}
+            >
               Payments
             </NavLink>
           )}
           {session && canManageMenu && (
-            <NavLink to="/menu/manage" className={navLinkClass} onClick={closeMenu}>
+            <NavLink
+              to="/menu/manage"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchManageMenuData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchManageMenuData(token)}
+            >
               Manage menu
             </NavLink>
           )}

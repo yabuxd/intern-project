@@ -25,8 +25,9 @@ import type {
   StaffNotification,
   TableStatus,
 } from '@intern/shared';
+import { queryClient } from '../queryClient';
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api';
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
 const inflightGets = new Map<string, Promise<unknown>>();
 
 export class ApiError extends Error {
@@ -342,8 +343,8 @@ export async function createOrder(
   });
 
   const checkoutUrl =
-    typeof (body as { checkout_url?: unknown }).checkout_url === 'string'
-      ? (body as { checkout_url: string }).checkout_url
+    typeof (body as unknown as { checkout_url?: unknown }).checkout_url === 'string'
+      ? (body as unknown as { checkout_url: string }).checkout_url
       : null;
 
   return {
@@ -501,3 +502,106 @@ export function updateRolePermissions(
     body: JSON.stringify({ permissions }),
   });
 }
+
+let prefetchTimer: ReturnType<typeof setTimeout> | null = null;
+
+export function debouncePrefetch(fn: () => void, delayMs = 120): void {
+  if (prefetchTimer) {
+    clearTimeout(prefetchTimer);
+  }
+  prefetchTimer = setTimeout(() => {
+    fn();
+    prefetchTimer = null;
+  }, delayMs);
+}
+
+export function cancelPrefetch(): void {
+  if (prefetchTimer) {
+    clearTimeout(prefetchTimer);
+    prefetchTimer = null;
+  }
+}
+
+export function prefetchMenu(): void {
+  void queryClient.prefetchQuery({
+    queryKey: ['menu'],
+    queryFn: fetchMenu,
+    staleTime: 60_000,
+  });
+}
+
+export function prefetchTables(): void {
+  void queryClient.prefetchQuery({
+    queryKey: ['tables'],
+    queryFn: fetchTables,
+    staleTime: 15_000,
+  });
+}
+
+export function prefetchAdminDashboard(
+  token?: string | null,
+  range?: { from?: string; to?: string },
+): void {
+  if (!token) return;
+  void queryClient.prefetchQuery({
+    queryKey: ['admin', 'dashboard', token, range?.from, range?.to],
+    queryFn: () => fetchAdminDashboard(token, range),
+    staleTime: 30_000,
+  });
+}
+
+export function prefetchAdminRolesData(token?: string | null): void {
+  if (!token) return;
+  void queryClient.prefetchQuery({
+    queryKey: ['admin', 'roles', token],
+    queryFn: () => fetchAdminRoles(token),
+    staleTime: 60_000,
+  });
+}
+
+export function prefetchOrderQueue(token?: string | null): void {
+  if (!token) return;
+  void queryClient.prefetchQuery({
+    queryKey: ['orders', 'queue', token],
+    queryFn: () => fetchOrderQueue(token),
+    staleTime: 10_000,
+  });
+}
+
+export function prefetchDeliveriesData(token?: string | null): void {
+  if (!token) return;
+  void queryClient.prefetchQuery({
+    queryKey: ['orders', 'deliveries', token],
+    queryFn: () => fetchDeliveries(token),
+    staleTime: 10_000,
+  });
+}
+
+export function prefetchPaymentDeskData(token?: string | null): void {
+  if (!token) return;
+  void queryClient.prefetchQuery({
+    queryKey: ['payments', 'desk', token],
+    queryFn: () => fetchPaymentDesk(token),
+    staleTime: 5_000,
+  });
+}
+
+export function prefetchManageMenuData(token?: string | null): void {
+  if (!token) return;
+  void queryClient.prefetchQuery({
+    queryKey: ['menu', 'manage', token],
+    queryFn: () => fetchManageMenu(token),
+    staleTime: 30_000,
+  });
+}
+
+export function prefetchReservationsData(token?: string | null): void {
+  if (!token) return;
+  void queryClient.prefetchQuery({
+    queryKey: ['reservations', token],
+    queryFn: () => fetchReservations(token),
+    staleTime: 15_000,
+  });
+}
+
+

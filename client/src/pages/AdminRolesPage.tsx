@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { AdminUser, PermissionName, PermissionRecord, RoleRecord } from '@intern/shared';
+import { useMemo, useState } from 'react';
+import type { AdminUser, PermissionName } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createAdminUser,
   deleteAdminUser,
@@ -12,14 +13,42 @@ import {
 } from '../services';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useAuth } from '../store';
-import { AdminPageSkeleton } from '../components/ui';
+import { AdminPageSkeleton, ConfirmModal } from '../components/ui';
 
 export function AdminRolesPage() {
   const { session, hasPermission, refreshMe, user: currentUser } = useAuth();
-  const [users, setUsers] = useState<AdminUser[]>([]);
-  const [roles, setRoles] = useState<RoleRecord[]>([]);
-  const [catalog, setCatalog] = useState<PermissionRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
+  const token = session?.access_token;
+
+  const usersQuery = useQuery({
+    queryKey: ['admin', 'users', token],
+    enabled: Boolean(token) && canManage,
+    queryFn: () => fetchAdminUsers(token!),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const rolesQuery = useQuery({
+    queryKey: ['admin', 'roles', token],
+    enabled: Boolean(token) && canManage,
+    queryFn: () => fetchAdminRoles(token!),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const catalogQuery = useQuery({
+    queryKey: ['admin', 'permissions', token],
+    enabled: Boolean(token) && canManage,
+    queryFn: () => fetchPermissionCatalog(token!),
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const catalog = useMemo(() => catalogQuery.data ?? [], [catalogQuery.data]);
+
+  const [userRoleEdits, setUserRoleEdits] = useState<Record<string, string[]>>({});
+  const [rolePermEdits, setRolePermEdits] = useState<Record<number, PermissionName[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
@@ -29,56 +58,34 @@ export function AdminRolesPage() {
   const [creating, setCreating] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'customer' });
   const debouncedUserQuery = useDebouncedValue(userQuery, 300);
-  const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
 
-  const reload = useCallback(async () => {
-    if (!session?.access_token) return;
-    try {
-      const [usersData, rolesData, catalogData] = await Promise.all([
-        fetchAdminUsers(session.access_token),
-        fetchAdminRoles(session.access_token),
-        fetchPermissionCatalog(session.access_token),
-      ]);
-      setUsers(usersData);
-      setRoles(rolesData);
-      setCatalog(catalogData);
-      setSelectedRoleId((prev) => prev ?? rolesData[0]?.id ?? null);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load roles');
-    }
-  }, [session]);
+  const users = useMemo(() => {
+    const base = usersQuery.data ?? [];
+    return base.map((u) => ({
+      ...u,
+      roles: userRoleEdits[u.id] ?? u.roles,
+    }));
+  }, [usersQuery.data, userRoleEdits]);
 
-  useEffect(() => {
-    if (!session?.access_token || !canManage) {
-      return;
-    }
-    let mounted = true;
-    void (async () => {
-      try {
-        const [usersData, rolesData, catalogData] = await Promise.all([
-          fetchAdminUsers(session.access_token),
-          fetchAdminRoles(session.access_token),
-          fetchPermissionCatalog(session.access_token),
-        ]);
-        if (mounted) {
-          setUsers(usersData);
-          setRoles(rolesData);
-          setCatalog(catalogData);
-          setSelectedRoleId(rolesData[0]?.id ?? null);
-        }
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [session, canManage]);
+  const roles = useMemo(() => {
+    const base = rolesQuery.data ?? [];
+    return base.map((r) => ({
+      ...r,
+      permissions: rolePermEdits[r.id] ?? r.permissions,
+    }));
+  }, [rolesQuery.data, rolePermEdits]);
 
-  const selectedRole = roles.find((role) => role.id === selectedRoleId) ?? null;
+  const reload = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'roles'] }),
+      queryClient.invalidateQueries({ queryKey: ['admin', 'permissions'] }),
+    ]);
+  };
+
+  const activeRoleId = selectedRoleId ?? roles[0]?.id ?? null;
+  const selectedRole = roles.find((role) => role.id === activeRoleId) ?? null;
+
   const visibleUsers = useMemo(() => {
     const needle = debouncedUserQuery.trim().toLowerCase();
     if (!needle) return users;
@@ -90,26 +97,23 @@ export function AdminRolesPage() {
   }, [users, debouncedUserQuery]);
 
   function toggleUserRole(user: AdminUser, roleName: string, enabled: boolean) {
+    const current = userRoleEdits[user.id] ?? user.roles;
     const next = enabled
-      ? [...user.roles, roleName]
-      : user.roles.filter((name) => name !== roleName);
-    setUsers((prev) =>
-      prev.map((u) => (u.id === user.id ? { ...u, roles: next.sort() } : u)),
-    );
+      ? [...current, roleName]
+      : current.filter((name) => name !== roleName);
+    setUserRoleEdits((prev) => ({ ...prev, [user.id]: next.sort() }));
   }
 
   function toggleRolePermission(permission: PermissionName, enabled: boolean) {
     if (!selectedRole) return;
+    const current = rolePermEdits[selectedRole.id] ?? selectedRole.permissions;
     const next = enabled
-      ? [...selectedRole.permissions, permission]
-      : selectedRole.permissions.filter((p) => p !== permission);
-    setRoles((prev) =>
-      prev.map((role) =>
-        role.id === selectedRole.id
-          ? { ...role, permissions: [...next].sort() as PermissionName[] }
-          : role,
-      ),
-    );
+      ? [...current, permission]
+      : current.filter((p) => p !== permission);
+    setRolePermEdits((prev) => ({
+      ...prev,
+      [selectedRole.id]: [...next].sort() as PermissionName[],
+    }));
   }
 
   async function saveUser(user: AdminUser) {
@@ -118,7 +122,12 @@ export function AdminRolesPage() {
     setError(null);
     try {
       const updated = await updateUserRoles(session.access_token, user.id, user.roles);
-      setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
+      setUserRoleEdits((prev) => {
+        const next = { ...prev };
+        delete next[user.id];
+        return next;
+      });
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       if (currentUser?.id === updated.id) {
         await refreshMe();
       }
@@ -135,14 +144,14 @@ export function AdminRolesPage() {
     setCreating(true);
     setError(null);
     try {
-      const created = await createAdminUser(session.access_token, {
+      await createAdminUser(session.access_token, {
         name: newUser.name.trim() || undefined,
         email: newUser.email.trim(),
         password: newUser.password,
         roles: [newUser.role],
       });
-      setUsers((prev) => [created, ...prev]);
       setNewUser({ name: '', email: '', password: '', role: 'customer' });
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create user');
     } finally {
@@ -150,21 +159,31 @@ export function AdminRolesPage() {
     }
   }
 
-  async function removeUser(user: AdminUser) {
-    if (!session?.access_token) return;
+  const [userToDelete, setUserToDelete] = useState<AdminUser | null>(null);
+
+  function requestDeleteUser(user: AdminUser) {
     if (user.id === currentUser?.id) {
       setError('You cannot delete your own account.');
       return;
     }
-    const confirmed = window.confirm(
-      `Delete ${user.name ?? user.email}? They will lose access immediately.`,
-    );
-    if (!confirmed) return;
-    setDeletingUserId(user.id);
+    setError(null);
+    setUserToDelete(user);
+  }
+
+  async function handleConfirmDeleteUser() {
+    if (!session?.access_token || !userToDelete) return;
+    const target = userToDelete;
+    setDeletingUserId(target.id);
     setError(null);
     try {
-      await deleteAdminUser(session.access_token, user.id);
-      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      await deleteAdminUser(session.access_token, target.id);
+      setUserRoleEdits((prev) => {
+        const next = { ...prev };
+        delete next[target.id];
+        return next;
+      });
+      setUserToDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete user');
     } finally {
@@ -177,13 +196,17 @@ export function AdminRolesPage() {
     setSavingRoleId(selectedRole.id);
     setError(null);
     try {
-      const updated = await updateRolePermissions(
+      await updateRolePermissions(
         session.access_token,
         selectedRole.id,
         selectedRole.permissions,
       );
-      setRoles((prev) => prev.map((role) => (role.id === updated.id ? updated : role)));
-      await reload();
+      setRolePermEdits((prev) => {
+        const next = { ...prev };
+        delete next[selectedRole.id];
+        return next;
+      });
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'roles'] });
       if (currentUser) {
         await refreshMe();
       }
@@ -208,7 +231,12 @@ export function AdminRolesPage() {
     );
   }
 
-  if (loading) {
+  const isLoading =
+    (usersQuery.isLoading || rolesQuery.isLoading || catalogQuery.isLoading) &&
+    users.length === 0 &&
+    roles.length === 0;
+
+  if (isLoading) {
     return <AdminPageSkeleton />;
   }
 
@@ -321,7 +349,7 @@ export function AdminRolesPage() {
                     <button
                       type="button"
                       disabled={deletingUserId === user.id || savingUserId === user.id}
-                      onClick={() => void removeUser(user)}
+                      onClick={() => requestDeleteUser(user)}
                       className="rounded-md border border-[var(--color-wine)]/50 px-4 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/15 disabled:opacity-60"
                     >
                       {deletingUserId === user.id ? 'Deleting…' : 'Delete'}
@@ -432,6 +460,38 @@ export function AdminRolesPage() {
           </div>
         )}
       </section>
+
+      {/* Attractive User Deletion Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(userToDelete)}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={handleConfirmDeleteUser}
+        title="Delete User Account"
+        description="Are you sure you want to permanently delete this user? Their account access, authentication credentials, and all assigned role permissions will be immediately revoked."
+        confirmText="Delete User"
+        cancelText="Keep Account"
+        variant="danger"
+        isLoading={Boolean(deletingUserId)}
+        details={[
+          { label: 'User Name', value: userToDelete?.name || '—' },
+          { label: 'Email Address', value: userToDelete?.email || '—' },
+          {
+            label: 'Assigned Roles',
+            value: (
+              <span className="inline-flex flex-wrap gap-1">
+                {(userToDelete?.roles.length ? userToDelete.roles : ['customer']).map((r) => (
+                  <span
+                    key={r}
+                    className="rounded bg-[var(--color-brass)]/15 px-1.5 py-0.5 text-xs font-medium text-[var(--color-brass)] border border-[var(--color-brass)]/30"
+                  >
+                    {r}
+                  </span>
+                ))}
+              </span>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

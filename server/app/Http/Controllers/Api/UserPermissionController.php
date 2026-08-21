@@ -81,6 +81,7 @@ class UserPermissionController extends Controller
         $user->roles()->sync($roleIds);
         $user->load('roles.permissions');
         $this->cache->forgetUserAuth($user->id);
+        $this->cache->forgetDrivers();
 
         return response()->json([
             'success' => true,
@@ -111,6 +112,7 @@ class UserPermissionController extends Controller
         $user->roles()->detach();
         $user->delete();
         $this->cache->forgetUserAuth($userId);
+        $this->cache->forgetDrivers();
 
         return response()->json([
             'success' => true,
@@ -173,6 +175,7 @@ class UserPermissionController extends Controller
         $user->roles()->sync($roleIds);
         $user->load('roles.permissions');
         $this->cache->forgetUserAuth($user->id);
+        $this->cache->forgetDrivers();
 
         return response()->json([
             'success' => true,

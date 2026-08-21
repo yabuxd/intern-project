@@ -141,9 +141,10 @@ export function AdminDashboardPage() {
     enabled: Boolean(session?.access_token) && canManage,
     queryFn: () => fetchAdminDashboard(session!.access_token, range),
     staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
   });
 
-  if (dashboardQuery.isLoading) {
+  if (dashboardQuery.isLoading && !dashboardQuery.data) {
     return <AdminPageSkeleton />;
   }
 

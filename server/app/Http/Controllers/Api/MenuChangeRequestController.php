@@ -84,6 +84,7 @@ class MenuChangeRequestController extends Controller
         ]);
 
         $change->load(['requester:id,name,email', 'menuItem:id,name']);
+        $this->cache->forgetAdminDashboard();
 
         return response()->json([
             'success' => true,
@@ -115,6 +116,7 @@ class MenuChangeRequestController extends Controller
         ])['review_note'] ?? null;
 
         $change = $this->changes->reject($menuChangeRequest, $request->user(), $note);
+        $this->cache->forgetAdminDashboard();
 
         return response()->json([
             'success' => true,

@@ -24,13 +24,14 @@ export function PaymentsPage() {
     enabled: Boolean(token) && canManage,
     queryFn: () => fetchPaymentDesk(token!),
     staleTime: 5_000,
+    placeholderData: (prev) => prev,
   });
 
   if (!canManage) {
     return <Navigate to="/" replace />;
   }
 
-  if (deskQuery.isLoading) {
+  if (deskQuery.isLoading && !deskQuery.data) {
     return <QueuePageSkeleton />;
   }
 

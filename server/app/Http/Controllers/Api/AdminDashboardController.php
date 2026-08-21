@@ -8,10 +8,10 @@ use App\Models\MenuItem;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Permission;
-use App\Models\Reservation;
 use App\Models\RestaurantTable;
 use App\Models\Role;
 use App\Models\StaffNotification;
+use App\Services\ApiCacheService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\DB;
 
 class AdminDashboardController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
+
     public function __invoke(Request $request): JsonResponse
     {
         abort_unless($request->user()?->can(Permission::CAN_MANAGE_PERMISSIONS), 403);
@@ -33,152 +37,141 @@ class AdminDashboardController extends Controller
             [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
         }
 
-        $ordersInRange = Order::query()
-            ->whereBetween('created_at', [$from, $to]);
+        $fromIso = $from->toIso8601String();
+        $toIso = $to->toIso8601String();
 
-        $totalOrders = (clone $ordersInRange)->count();
-        $cancelled = (clone $ordersInRange)->where('status', Order::STATUS_CANCELLED)->count();
+        $data = $this->cache->rememberAdminDashboard($fromIso, $toIso, function () use ($from, $to, $fromIso, $toIso) {
+            $orderStats = DB::table('orders')
+                ->whereBetween('created_at', [$from, $to])
+                ->selectRaw("
+                    count(*) as total_orders,
+                    count(case when status = 'cancelled' then 1 end) as cancelled,
+                    count(case when payment_status = 'paid' then 1 end) as paid_count,
+                    coalesce(sum(case when payment_status = 'paid' then total else 0 end), 0) as revenue_paid
+                ")
+                ->first();
 
-        $byStatus = (clone $ordersInRange)
-            ->select('status', DB::raw('count(*) as aggregate'))
-            ->groupBy('status')
-            ->pluck('aggregate', 'status')
-            ->map(fn ($count) => (int) $count)
-            ->all();
+            $totalOrders = (int) ($orderStats?->total_orders ?? 0);
+            $cancelled = (int) ($orderStats?->cancelled ?? 0);
+            $paidCount = (int) ($orderStats?->paid_count ?? 0);
+            $revenuePaid = (float) ($orderStats?->revenue_paid ?? 0);
+            $aov = $paidCount > 0 ? round($revenuePaid / $paidCount, 2) : 0.0;
 
-        $byFulfillment = (clone $ordersInRange)
-            ->select('fulfillment_type', DB::raw('count(*) as aggregate'))
-            ->groupBy('fulfillment_type')
-            ->pluck('aggregate', 'fulfillment_type')
-            ->map(fn ($count) => (int) $count)
-            ->all();
+            $byStatus = Order::query()
+                ->whereBetween('created_at', [$from, $to])
+                ->select('status', DB::raw('count(*) as aggregate'))
+                ->groupBy('status')
+                ->pluck('aggregate', 'status')
+                ->map(fn ($count) => (int) $count)
+                ->all();
 
-        $paidOrders = (clone $ordersInRange)->where('payment_status', Order::PAYMENT_PAID);
-        $paidCount = (clone $paidOrders)->count();
-        $revenuePaid = (float) (clone $paidOrders)->sum('total');
-        $aov = $paidCount > 0 ? round($revenuePaid / $paidCount, 2) : 0.0;
+            $byFulfillment = Order::query()
+                ->whereBetween('created_at', [$from, $to])
+                ->select('fulfillment_type', DB::raw('count(*) as aggregate'))
+                ->groupBy('fulfillment_type')
+                ->pluck('aggregate', 'fulfillment_type')
+                ->map(fn ($count) => (int) $count)
+                ->all();
 
-        $paymentByMethod = (clone $ordersInRange)
-            ->select('payment_method', DB::raw('count(*) as aggregate'))
-            ->groupBy('payment_method')
-            ->pluck('aggregate', 'payment_method')
-            ->map(fn ($count) => (int) $count)
-            ->all();
+            $paymentByMethod = Order::query()
+                ->whereBetween('created_at', [$from, $to])
+                ->select('payment_method', DB::raw('count(*) as aggregate'))
+                ->groupBy('payment_method')
+                ->pluck('aggregate', 'payment_method')
+                ->map(fn ($count) => (int) $count)
+                ->all();
 
-        $paymentByStatus = (clone $ordersInRange)
-            ->select('payment_status', DB::raw('count(*) as aggregate'))
-            ->groupBy('payment_status')
-            ->pluck('aggregate', 'payment_status')
-            ->map(fn ($count) => (int) $count)
-            ->all();
+            $paymentByStatus = Order::query()
+                ->whereBetween('created_at', [$from, $to])
+                ->select('payment_status', DB::raw('count(*) as aggregate'))
+                ->groupBy('payment_status')
+                ->pluck('aggregate', 'payment_status')
+                ->map(fn ($count) => (int) $count)
+                ->all();
 
-        $awaitingChapa = Order::query()
-            ->where('payment_method', Order::PAYMENT_METHOD_CHAPA)
-            ->where('payment_status', Order::PAYMENT_PAID)
-            ->whereNull('cashier_approved_at')
-            ->count();
+            $paymentDeskStats = DB::table('orders')
+                ->selectRaw("
+                    count(case when payment_method = 'chapa' and payment_status = 'paid' and cashier_approved_at is null then 1 end) as awaiting_chapa,
+                    count(case when payment_method = 'cash' and payment_status = 'not_required' and cash_collected_at is null and status != 'cancelled' then 1 end) as open_cash
+                ")
+                ->first();
 
-        $openCash = Order::query()
-            ->where('payment_method', Order::PAYMENT_METHOD_CASH)
-            ->where('payment_status', Order::PAYMENT_NOT_REQUIRED)
-            ->whereNull('cash_collected_at')
-            ->whereNotIn('status', [Order::STATUS_CANCELLED])
-            ->count();
+            $deliveryStats = DB::table('orders')
+                ->where('fulfillment_type', 'delivery')
+                ->whereBetween('created_at', [$from, $to])
+                ->selectRaw("
+                    count(case when status in ('pending', 'accepted', 'preparing', 'ready', 'out_for_delivery') then 1 end) as active,
+                    count(case when driver_id is null and status not in ('cancelled', 'received', 'delivered') then 1 end) as unassigned,
+                    count(case when status in ('delivered', 'received') then 1 end) as completed
+                ")
+                ->first();
 
-        $deliveryBase = Order::query()
-            ->where('fulfillment_type', 'delivery')
-            ->whereBetween('created_at', [$from, $to]);
+            $reservationStats = DB::table('reservations')
+                ->selectRaw("
+                    count(case when status = 'confirmed' and starts_at between ? and ? then 1 end) as confirmed,
+                    count(case when status = 'cancelled' and starts_at between ? and ? then 1 end) as cancelled,
+                    count(case when status = 'confirmed' and starts_at >= ? then 1 end) as upcoming
+                ", [$from, $to, $from, $to, now()])
+                ->first();
 
-        $deliveriesActive = (clone $deliveryBase)
-            ->whereIn('status', [
-                Order::STATUS_PENDING,
-                Order::STATUS_ACCEPTED,
-                Order::STATUS_PREPARING,
-                Order::STATUS_READY,
-                Order::STATUS_OUT_FOR_DELIVERY,
-            ])
-            ->count();
+            $menuStats = DB::table('menu_items')
+                ->selectRaw("
+                    count(case when is_available is true then 1 end) as available,
+                    count(case when is_available is not true then 1 end) as unavailable
+                ")
+                ->first();
 
-        $deliveriesUnassigned = (clone $deliveryBase)
-            ->whereNull('driver_id')
-            ->whereNotIn('status', [Order::STATUS_CANCELLED, Order::STATUS_RECEIVED, Order::STATUS_DELIVERED])
-            ->count();
+            $topItems = OrderItem::query()
+                ->select(
+                    'menu_item_id',
+                    DB::raw('sum(quantity) as quantity_sold'),
+                    DB::raw('sum(line_total) as revenue'),
+                )
+                ->whereHas('order', function ($query) use ($from, $to) {
+                    $query->whereBetween('created_at', [$from, $to])
+                        ->where('status', '!=', Order::STATUS_CANCELLED);
+                })
+                ->groupBy('menu_item_id')
+                ->orderByDesc('quantity_sold')
+                ->limit(8)
+                ->get();
 
-        $deliveriesCompleted = (clone $deliveryBase)
-            ->whereIn('status', [Order::STATUS_DELIVERED, Order::STATUS_RECEIVED])
-            ->count();
+            $menuNames = MenuItem::query()
+                ->whereIn('id', $topItems->pluck('menu_item_id'))
+                ->pluck('name', 'id');
 
-        $reservationsConfirmed = Reservation::query()
-            ->where('status', Reservation::STATUS_CONFIRMED)
-            ->whereBetween('starts_at', [$from, $to])
-            ->count();
+            $topSellers = $topItems->map(fn ($row) => [
+                'menu_item_id' => (int) $row->menu_item_id,
+                'name' => $menuNames[$row->menu_item_id] ?? 'Item #'.$row->menu_item_id,
+                'quantity_sold' => (int) $row->quantity_sold,
+                'revenue' => number_format((float) $row->revenue, 2, '.', ''),
+            ])->values()->all();
 
-        $reservationsCancelled = Reservation::query()
-            ->where('status', Reservation::STATUS_CANCELLED)
-            ->whereBetween('starts_at', [$from, $to])
-            ->count();
+            $tablesByStatus = RestaurantTable::query()
+                ->select('status', DB::raw('count(*) as aggregate'))
+                ->groupBy('status')
+                ->pluck('aggregate', 'status')
+                ->map(fn ($count) => (int) $count)
+                ->all();
 
-        $reservationsUpcoming = Reservation::query()
-            ->where('status', Reservation::STATUS_CONFIRMED)
-            ->where('starts_at', '>=', now())
-            ->count();
+            $staffByRole = Role::query()
+                ->withCount('users')
+                ->get()
+                ->mapWithKeys(fn (Role $role) => [$role->name => (int) $role->users_count])
+                ->all();
 
-        $menuAvailable = MenuItem::query()->where('is_available', true)->count();
-        $menuUnavailable = MenuItem::query()->where('is_available', false)->count();
+            $unreadNotifications = StaffNotification::query()
+                ->whereNull('read_at')
+                ->count();
 
-        $topItems = OrderItem::query()
-            ->select(
-                'menu_item_id',
-                DB::raw('sum(quantity) as quantity_sold'),
-                DB::raw('sum(line_total) as revenue'),
-            )
-            ->whereHas('order', function ($query) use ($from, $to) {
-                $query->whereBetween('created_at', [$from, $to])
-                    ->where('status', '!=', Order::STATUS_CANCELLED);
-            })
-            ->groupBy('menu_item_id')
-            ->orderByDesc('quantity_sold')
-            ->limit(8)
-            ->get();
+            $pendingMenuChanges = MenuChangeRequest::query()
+                ->where('status', MenuChangeRequest::STATUS_PENDING)
+                ->count();
 
-        $menuNames = MenuItem::query()
-            ->whereIn('id', $topItems->pluck('menu_item_id'))
-            ->pluck('name', 'id');
-
-        $topSellers = $topItems->map(fn ($row) => [
-            'menu_item_id' => (int) $row->menu_item_id,
-            'name' => $menuNames[$row->menu_item_id] ?? 'Item #'.$row->menu_item_id,
-            'quantity_sold' => (int) $row->quantity_sold,
-            'revenue' => number_format((float) $row->revenue, 2, '.', ''),
-        ])->values()->all();
-
-        $tablesByStatus = RestaurantTable::query()
-            ->select('status', DB::raw('count(*) as aggregate'))
-            ->groupBy('status')
-            ->pluck('aggregate', 'status')
-            ->map(fn ($count) => (int) $count)
-            ->all();
-
-        $staffByRole = Role::query()
-            ->withCount('users')
-            ->get()
-            ->mapWithKeys(fn (Role $role) => [$role->name => (int) $role->users_count])
-            ->all();
-
-        $unreadNotifications = StaffNotification::query()
-            ->whereNull('read_at')
-            ->count();
-
-        $pendingMenuChanges = MenuChangeRequest::query()
-            ->where('status', MenuChangeRequest::STATUS_PENDING)
-            ->count();
-
-        return response()->json([
-            'success' => true,
-            'data' => [
+            return [
                 'range' => [
-                    'from' => $from->toIso8601String(),
-                    'to' => $to->toIso8601String(),
+                    'from' => $fromIso,
+                    'to' => $toIso,
                 ],
                 'orders' => [
                     'total' => $totalOrders,
@@ -191,22 +184,22 @@ class AdminDashboardController extends Controller
                 'payments' => [
                     'by_method' => $paymentByMethod,
                     'by_status' => $paymentByStatus,
-                    'awaiting_chapa_validation' => $awaitingChapa,
-                    'open_cash' => $openCash,
+                    'awaiting_chapa_validation' => (int) ($paymentDeskStats?->awaiting_chapa ?? 0),
+                    'open_cash' => (int) ($paymentDeskStats?->open_cash ?? 0),
                 ],
                 'deliveries' => [
-                    'active' => $deliveriesActive,
-                    'unassigned' => $deliveriesUnassigned,
-                    'completed' => $deliveriesCompleted,
+                    'active' => (int) ($deliveryStats?->active ?? 0),
+                    'unassigned' => (int) ($deliveryStats?->unassigned ?? 0),
+                    'completed' => (int) ($deliveryStats?->completed ?? 0),
                 ],
                 'reservations' => [
-                    'confirmed' => $reservationsConfirmed,
-                    'cancelled' => $reservationsCancelled,
-                    'upcoming' => $reservationsUpcoming,
+                    'confirmed' => (int) ($reservationStats?->confirmed ?? 0),
+                    'cancelled' => (int) ($reservationStats?->cancelled ?? 0),
+                    'upcoming' => (int) ($reservationStats?->upcoming ?? 0),
                 ],
                 'menu' => [
-                    'available' => $menuAvailable,
-                    'unavailable' => $menuUnavailable,
+                    'available' => (int) ($menuStats?->available ?? 0),
+                    'unavailable' => (int) ($menuStats?->unavailable ?? 0),
                     'top_items' => $topSellers,
                 ],
                 'floor' => [
@@ -219,8 +212,13 @@ class AdminDashboardController extends Controller
                 'menu_change_requests' => [
                     'pending' => $pendingMenuChanges,
                 ],
-            ],
-        ]);
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $data,
+        ])->header('Cache-Control', 'private, max-age=15');
     }
 
     private function parseDate(mixed $value, Carbon $fallback): Carbon

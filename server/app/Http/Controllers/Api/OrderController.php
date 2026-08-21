@@ -12,6 +12,7 @@ use App\Models\OrderItem;
 use App\Models\Permission;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ApiCacheService;
 use App\Services\ChapaPaymentService;
 use App\Services\StaffNotificationService;
 use App\Support\KeysetPaginator;
@@ -27,6 +28,7 @@ class OrderController extends Controller
     public function __construct(
         private readonly ChapaPaymentService $chapa,
         private readonly StaffNotificationService $notifications,
+        private readonly ApiCacheService $cache,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -97,12 +99,15 @@ class OrderController extends Controller
             ->where('fulfillment_type', Order::FULFILLMENT_DELIVERY)
             ->whereIn('status', [
                 Order::STATUS_PENDING,
+                Order::STATUS_ACCEPTED,
+                Order::STATUS_PREPARING,
                 Order::STATUS_READY,
                 Order::STATUS_OUT_FOR_DELIVERY,
                 Order::STATUS_DELIVERED,
+                Order::STATUS_RECEIVED,
             ]);
 
-        [$orders, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'asc');
+        [$orders, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'desc');
 
         return response()->json([
             'success' => true,
@@ -115,16 +120,19 @@ class OrderController extends Controller
     {
         $this->authorize('viewDeliveries', Order::class);
 
-        $drivers = User::query()
-            ->select(['id', 'name', 'email'])
-            ->whereHas('roles', fn ($query) => $query->where('name', Role::DRIVER))
-            ->orderBy('name')
-            ->get()
-            ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ]);
+        $drivers = $this->cache->rememberDrivers(function () {
+            return User::query()
+                ->select(['id', 'name', 'email'])
+                ->whereHas('roles', fn ($query) => $query->whereIn('name', [Role::DELIVERY, Role::DRIVER]))
+                ->orderBy('name')
+                ->get()
+                ->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                ])
+                ->all();
+        });
 
         return response()->json([
             'success' => true,
@@ -246,6 +254,8 @@ class OrderController extends Controller
             $response['checkout_url'] = $checkoutUrl;
         }
 
+        $this->cache->forgetAdminDashboard();
+
         return response()->json($response, 201);
     }
 
@@ -337,6 +347,8 @@ class OrderController extends Controller
             $order->update(['payment_status' => Order::PAYMENT_FAILED]);
         }
 
+        $this->cache->forgetAdminDashboard();
+
         $order->load([
             'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
             'items.menuItem:id,name',
@@ -370,6 +382,7 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => $nextStatus]);
+        $this->cache->forgetAdminDashboard();
         $order->load([
             'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
             'items.menuItem:id,name',
@@ -387,22 +400,23 @@ class OrderController extends Controller
 
     public function assignDriver(AssignOrderDriverRequest $request, Order $order): JsonResponse
     {
-        if (! in_array($order->status, [Order::STATUS_READY, Order::STATUS_OUT_FOR_DELIVERY], true)) {
+        if (! in_array($order->status, [Order::STATUS_ACCEPTED, Order::STATUS_PREPARING, Order::STATUS_READY, Order::STATUS_OUT_FOR_DELIVERY], true)) {
             throw ValidationException::withMessages([
-                'driver_id' => ['A driver can only be assigned after the order is ready.'],
+                'driver_id' => ['A driver cannot be assigned to an order in this status.'],
             ]);
         }
 
         $driver = User::query()->findOrFail($request->validated('driver_id'));
         $driver->loadMissing('roles');
 
-        if (! $driver->roles->contains('name', Role::DRIVER)) {
+        if (! $driver->roles->contains(fn ($r) => in_array($r->name, [Role::DELIVERY, Role::DRIVER], true))) {
             throw ValidationException::withMessages([
-                'driver_id' => ['Selected user does not have the driver role.'],
+                'driver_id' => ['Selected user does not have the delivery role.'],
             ]);
         }
 
         $order->update(['driver_id' => $driver->id]);
+        $this->cache->forgetAdminDashboard();
         $order->load([
             'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
             'items.menuItem:id,name',
@@ -429,6 +443,7 @@ class OrderController extends Controller
         }
 
         $order->update(['status' => Order::STATUS_CANCELLED]);
+        $this->cache->forgetAdminDashboard();
         $order->load([
             'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
             'items.menuItem:id,name',

@@ -93,7 +93,7 @@ class DeliveryApiTest extends TestCase
             Permission::CAN_VIEW_ALL_ORDERS,
             Permission::CAN_UPDATE_ORDER_STATUS,
         ]);
-        $driver = $this->userWithRole(Role::DRIVER);
+        $driver = $this->userWithRole(Role::DELIVERY);
         $customer = User::factory()->create();
         $order = Order::query()->create([
             'user_id' => $customer->id,

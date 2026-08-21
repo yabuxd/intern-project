@@ -17,6 +17,7 @@ export type {
   OrderReceipt,
   OrderStatus,
   OrderDriver,
+  DeliveryCourier,
   PageMeta,
   PaymentDesk,
   PaymentMethod,

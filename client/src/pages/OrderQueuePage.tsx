@@ -48,12 +48,12 @@ export function OrderQueuePage() {
   const canUpdate = hasPermission(PERMISSIONS.CAN_UPDATE_ORDER_STATUS);
   const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
   const token = session?.access_token;
-
   const queueQuery = useQuery({
     queryKey: ['orders', 'queue', token],
     enabled: Boolean(token) && canView,
     queryFn: () => fetchOrderQueue(token!),
     staleTime: 10_000,
+    placeholderData: (prev) => prev,
   });
 
   useOrdersRealtime(() => {
@@ -65,7 +65,7 @@ export function OrderQueuePage() {
   }
 
   const orders = queueQuery.data ?? [];
-  const loading = queueQuery.isLoading;
+  const loading = queueQuery.isLoading && orders.length === 0;
   const loadError =
     queueQuery.error instanceof Error ? queueQuery.error.message : error;
 
@@ -193,7 +193,7 @@ export function OrderQueuePage() {
                 <div className="mt-5 flex flex-wrap gap-2">
                   {order.fulfillment_type === 'delivery' && order.status === 'ready' ? (
                     <p className="text-sm text-[var(--color-brass)]">
-                      Ready for courier — open Deliveries to assign a driver and start the run.
+                      Ready for courier — open Deliveries to assign a courier and start the run.
                     </p>
                   ) : (
                     NEXT_STATUS[order.status] &&

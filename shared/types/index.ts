@@ -42,11 +42,12 @@ export const ROLES = {
   HOST: "host",
   MANAGER: "manager",
   ADMIN: "admin",
-  DRIVER: "driver",
+  DELIVERY: "delivery",
+  DRIVER: "delivery",
   CASHIER: "cashier",
 } as const;
 
-export type RoleName = (typeof ROLES)[keyof typeof ROLES];
+export type RoleName = (typeof ROLES)[keyof typeof ROLES] | "driver";
 
 export interface MenuItem {
   id: number;
@@ -118,6 +119,8 @@ export interface OrderDriver {
   name: string | null;
   email: string;
 }
+
+export type DeliveryCourier = OrderDriver;
 
 export interface OrderItem {
   id: number;

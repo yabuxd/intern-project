@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Models\Permission;
+use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class CashierController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
     public function desk(Request $request): JsonResponse
     {
         abort_unless($request->user()?->can(Permission::CAN_MANAGE_PAYMENTS), 403);
@@ -78,6 +82,7 @@ class CashierController extends Controller
         }
 
         $order->approveByCashier($request->user());
+        $this->cache->forgetAdminDashboard();
         $order->load([
             'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
             'items.menuItem:id,name',
@@ -118,6 +123,7 @@ class CashierController extends Controller
         }
 
         $order->collectCash($request->user());
+        $this->cache->forgetAdminDashboard();
         $order->load([
             'items:id,order_id,menu_item_id,quantity,unit_price,line_total',
             'items.menuItem:id,name',

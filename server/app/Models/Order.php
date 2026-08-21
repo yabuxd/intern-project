@@ -215,11 +215,13 @@ class Order extends Model
         }
 
         if ($nextStatus === self::STATUS_ACCEPTED) {
-            return $user->can(Permission::CAN_ACCEPT_DELIVERY_ORDERS);
+            return $user->can(Permission::CAN_ACCEPT_DELIVERY_ORDERS)
+                || $user->can(Permission::CAN_MANAGE_DELIVERIES);
         }
 
         if ($nextStatus === self::STATUS_RECEIVED) {
-            return $user->id === $this->user_id;
+            return $user->id === $this->user_id
+                || $user->can(Permission::CAN_MANAGE_DELIVERIES);
         }
 
         if (in_array($nextStatus, [self::STATUS_PREPARING, self::STATUS_READY, self::STATUS_SERVED], true)) {

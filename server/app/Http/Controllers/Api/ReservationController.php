@@ -6,12 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReservationRequest;
 use App\Models\Permission;
 use App\Models\Reservation;
+use App\Services\ApiCacheService;
 use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ReservationController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Reservation::class);
@@ -51,6 +56,7 @@ class ReservationController extends Controller
             'user_id' => $request->user()->id,
         ]);
 
+        $this->cache->forgetAdminDashboard();
         $reservation->load(['table:id,name,capacity', 'user:id,name,email']);
 
         return response()->json([
@@ -65,6 +71,7 @@ class ReservationController extends Controller
         $this->authorize('delete', $reservation);
 
         $reservation->update(['status' => Reservation::STATUS_CANCELLED]);
+        $this->cache->forgetAdminDashboard();
 
         return response()->json([
             'success' => true,

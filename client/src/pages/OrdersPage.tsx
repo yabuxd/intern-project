@@ -57,6 +57,7 @@ export function OrdersPage() {
     queryFn: ({ pageParam }) => fetchOrdersPage(token!, pageParam),
     getNextPageParam: (lastPage) =>
       lastPage.meta?.has_more ? Number(lastPage.meta.next_cursor) : undefined,
+    placeholderData: (prev) => prev,
   });
 
   useEffect(() => {
@@ -88,7 +89,7 @@ export function OrdersPage() {
   }, [token, searchParams, queryClient, setSearchParams]);
 
   const orders: Order[] = ordersQuery.data?.pages.flatMap((page) => page.data) ?? [];
-  const loading = ordersQuery.isLoading;
+  const loading = ordersQuery.isLoading && orders.length === 0;
   const loadError = ordersQuery.error instanceof Error ? ordersQuery.error.message : error;
 
   async function handleCancel(order: Order) {
@@ -189,7 +190,7 @@ export function OrdersPage() {
                       )}
                       {order.driver && (
                         <p className="text-sm text-[var(--color-cream-muted)]">
-                          Driver: {order.driver.name ?? order.driver.email}
+                          Delivery Courier: {order.driver.name ?? order.driver.email}
                         </p>
                       )}
                     </>
@@ -207,6 +208,36 @@ export function OrdersPage() {
                   <p className="mt-2 font-medium text-[var(--color-brass)]">{formatEtb(order.total)}</p>
                 </div>
               </div>
+
+              {order.fulfillment_type === 'delivery' && order.status === 'delivered' && (
+                <div className="mt-4 rounded-lg border border-purple-500/40 bg-purple-950/40 p-4 space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full bg-purple-400 animate-pulse"></span>
+                    <p className="text-sm font-semibold text-purple-200">
+                      Courier has dropped off your order!
+                    </p>
+                  </div>
+                  <p className="text-xs text-purple-300 leading-relaxed">
+                    Please check your food and click confirm below to complete the dual-validation process.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={confirmingId === order.id}
+                    onClick={() => void handleConfirmReceived(order)}
+                    className="rounded-md bg-purple-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-purple-700 shadow-md disabled:opacity-60"
+                  >
+                    {confirmingId === order.id ? 'Confirming…' : '✓ Confirm I Received My Order (Validate Delivery)'}
+                  </button>
+                </div>
+              )}
+
+              {order.fulfillment_type === 'delivery' && order.status === 'received' && (
+                <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-950/40 px-3 py-1 text-xs font-medium text-emerald-300">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400"></span>
+                  <span>Dual-Validated: Delivered by Courier & Confirmed by You</span>
+                </div>
+              )}
+
               <ul className="mt-4 space-y-2 border-t border-[var(--color-brass)]/15 pt-4 text-sm text-[var(--color-cream-muted)]">
                 {order.items.map((item) => (
                   <li key={item.id} className="flex justify-between gap-4">
@@ -224,16 +255,6 @@ export function OrdersPage() {
                 >
                   View receipt
                 </Link>
-                {order.status === 'delivered' && (
-                  <button
-                    type="button"
-                    disabled={confirmingId === order.id}
-                    onClick={() => void handleConfirmReceived(order)}
-                    className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
-                  >
-                    {confirmingId === order.id ? 'Confirming…' : 'Confirm I received it'}
-                  </button>
-                )}
                 {CANCELLABLE.includes(order.status) && (
                   <button
                     type="button"

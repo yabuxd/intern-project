@@ -18,7 +18,8 @@ class RoleSeeder extends Seeder
             Role::HOST => 'Manage dining tables and reservations',
             Role::MANAGER => 'Run menu, floor, and kitchen operations',
             Role::ADMIN => 'Full access including role assignment',
-            Role::DRIVER => 'Pick up ready orders and mark them delivered',
+            Role::DELIVERY => 'Pick up ready orders, deliver to customers, and validate dropoff',
+            Role::DRIVER => 'Pick up ready orders, deliver to customers, and validate dropoff',
             Role::CASHIER => 'Validate online payments and collect cash before kitchen prep',
         ];
 
@@ -50,6 +51,10 @@ class RoleSeeder extends Seeder
                 Permission::CAN_MANAGE_PAYMENTS,
             ],
             Role::ADMIN => Permission::catalog(),
+            Role::DELIVERY => [
+                Permission::CAN_PLACE_ORDER,
+                Permission::CAN_MANAGE_DELIVERIES,
+            ],
             Role::DRIVER => [
                 Permission::CAN_PLACE_ORDER,
                 Permission::CAN_MANAGE_DELIVERIES,

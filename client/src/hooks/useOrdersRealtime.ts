@@ -15,7 +15,9 @@ export const DELIVERY_ORDERS_FILTER = 'fulfillment_type=eq.delivery';
  */
 export function useOrdersRealtime(onChange: () => void, filter?: string) {
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   const trigger = useCallback(() => {
     onChangeRef.current();

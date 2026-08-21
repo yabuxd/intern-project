@@ -91,7 +91,7 @@ function useQuickLinks(
       links.push({
         to: '/admin/deliveries',
         title: 'Deliveries',
-        description: 'Assign drivers and track courier orders',
+        description: 'Assign delivery couriers and track orders',
       });
     }
     if (canManagePayments) {
@@ -138,7 +138,7 @@ function useQuickLinks(
     links.push({
       to: '/orders/deliveries',
       title: 'Deliveries',
-      description: 'Assign drivers and track courier orders',
+      description: 'Assign delivery couriers and track orders',
     });
   }
   if (canManagePayments) {

@@ -19,6 +19,8 @@ class Role extends Model
 
     public const ADMIN = 'admin';
 
+    public const DELIVERY = 'delivery';
+
     public const DRIVER = 'driver';
 
     public const CASHIER = 'cashier';
@@ -34,7 +36,7 @@ class Role extends Model
             self::HOST,
             self::MANAGER,
             self::ADMIN,
-            self::DRIVER,
+            self::DELIVERY,
             self::CASHIER,
         ];
     }

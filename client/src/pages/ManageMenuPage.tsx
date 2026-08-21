@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { PERMISSIONS, type MenuCategory, type MenuChangeRequest, type MenuItem } from '@intern/shared';
+import { PERMISSIONS, type MenuItem } from '@intern/shared';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   approveMenuChangeRequest,
   createMenuChangeRequest,
@@ -13,7 +14,7 @@ import {
   uploadMenuImage,
 } from '../services';
 import { useAuth } from '../store';
-import { MenuSkeleton } from '../components/ui';
+import { ConfirmModal, MenuSkeleton } from '../components/ui';
 import { resolveMenuImageSrc } from '../utils/menuImage';
 
 const emptyForm = {
@@ -29,14 +30,31 @@ type ImageSource = 'url' | 'device';
 
 export function ManageMenuPage() {
   const { session, hasPermission, loading: authLoading } = useAuth();
+  const queryClient = useQueryClient();
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
   const canPropose = hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
   const canAccess = canManage || canPropose;
   const token = session?.access_token;
 
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [requests, setRequests] = useState<MenuChangeRequest[]>([]);
-  const [loading, setLoading] = useState(true);
+  const menuQuery = useQuery({
+    queryKey: ['menu', 'manage', token],
+    enabled: Boolean(token) && canAccess,
+    queryFn: () => fetchManageMenu(token!),
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const requestsQuery = useQuery({
+    queryKey: ['menu', 'change-requests', token, canManage ? 'pending' : 'all'],
+    enabled: Boolean(token) && canAccess,
+    queryFn: () => fetchMenuChangeRequests(token!, canManage ? 'pending' : undefined),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const categories = useMemo(() => menuQuery.data ?? [], [menuQuery.data]);
+  const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
+
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -74,49 +92,16 @@ export function ManageMenuPage() {
   }
 
   async function reload() {
-    if (!token) return;
-    const [data, changeRequests] = await Promise.all([
-      fetchManageMenu(token),
-      fetchMenuChangeRequests(token, canManage ? 'pending' : undefined),
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['menu'] }),
+      queryClient.invalidateQueries({ queryKey: ['menu', 'manage'] }),
+      queryClient.invalidateQueries({ queryKey: ['menu', 'change-requests'] }),
     ]);
-    setCategories(data);
-    setRequests(changeRequests);
-    if (data[0] && form.menu_category_id === 0) {
-      setForm((prev) => ({ ...prev, menu_category_id: data[0].id }));
-    }
   }
 
-  useEffect(() => {
-    if (!token || !canAccess) {
-      setLoading(false);
-      return;
-    }
-    let mounted = true;
-    void (async () => {
-      try {
-        const [data, changeRequests] = await Promise.all([
-          fetchManageMenu(token),
-          fetchMenuChangeRequests(token, canManage ? 'pending' : undefined),
-        ]);
-        if (!mounted) return;
-        setCategories(data);
-        setRequests(changeRequests);
-        setForm((prev) => ({
-          ...prev,
-          menu_category_id: prev.menu_category_id || data[0]?.id || 0,
-        }));
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load menu');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [token, canAccess, canManage]);
+  const loading = (menuQuery.isLoading || requestsQuery.isLoading) && categories.length === 0;
 
-  if (authLoading) return <MenuSkeleton />;
+  if (authLoading || loading) return <MenuSkeleton />;
   if (!session) return <Navigate to="/login" replace />;
   if (!canAccess) {
     return (
@@ -159,8 +144,9 @@ export function ManageMenuPage() {
     setError(null);
     try {
       const imageUrl = await resolveImageUrl();
+      const catId = form.menu_category_id || categories[0]?.id || 0;
       const payload = {
-        menu_category_id: Number(form.menu_category_id),
+        menu_category_id: Number(catId),
         name: form.name.trim(),
         description: form.description.trim() || null,
         image_url: imageUrl,
@@ -174,10 +160,7 @@ export function ManageMenuPage() {
       } else {
         await createMenuChangeRequest(token, { action: 'create', ...payload });
       }
-      setForm({
-        ...emptyForm,
-        menu_category_id: categories[0]?.id || 0,
-      });
+      setForm(emptyForm);
       setEditingId(null);
       resetImageFields();
       await reload();
@@ -217,27 +200,37 @@ export function ManageMenuPage() {
     }
   }
 
-  async function onDelete(id: number) {
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  function requestDeleteItem(item: MenuItem) {
     if (!token) return;
-    const confirmed = window.confirm(
-      canManage ? 'Delete this menu item?' : 'Send a remove request for manager or admin approval?',
-    );
-    if (!confirmed) return;
+    setError(null);
+    setItemToDelete(item);
+  }
+
+  async function handleConfirmDelete() {
+    if (!token || !itemToDelete) return;
+    const item = itemToDelete;
+    setDeleting(true);
     setError(null);
     try {
       if (canManage) {
-        await deleteMenuItem(token, id);
+        await deleteMenuItem(token, item.id);
       } else {
-        await createMenuChangeRequest(token, { action: 'delete', menu_item_id: id });
+        await createMenuChangeRequest(token, { action: 'delete', menu_item_id: item.id });
       }
-      if (editingId === id) {
+      if (editingId === item.id) {
         setEditingId(null);
         setForm({ ...emptyForm, menu_category_id: categories[0]?.id || 0 });
         resetImageFields();
       }
+      setItemToDelete(null);
       await reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Delete failed');
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -341,7 +334,7 @@ export function ManageMenuPage() {
             <span className="font-medium text-stone-700">Category</span>
             <select
               required
-              value={form.menu_category_id}
+              value={form.menu_category_id || categories[0]?.id || ''}
               onChange={(e) => setForm((prev) => ({ ...prev, menu_category_id: Number(e.target.value) }))}
               className="w-full rounded-xl border border-stone-300 px-3 py-2"
             >
@@ -544,8 +537,8 @@ export function ManageMenuPage() {
                   )}
                   <button
                     type="button"
-                    onClick={() => void onDelete(item.id)}
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700"
+                    onClick={() => requestDeleteItem(item)}
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-sm text-red-700 hover:bg-red-50 transition"
                   >
                     {canManage ? 'Delete' : 'Request remove'}
                   </button>
@@ -555,6 +548,38 @@ export function ManageMenuPage() {
           })
         )}
       </ul>
+
+      {/* Attractive Menu Item Deletion Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(itemToDelete)}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title={canManage ? 'Delete Menu Dish' : 'Request Dish Removal'}
+        description={
+          canManage
+            ? 'Are you sure you want to delete this dish from the menu? It will be removed from all customer ordering screens immediately.'
+            : 'Submit a formal request to remove this item from the active menu? A manager or admin will review your proposal.'
+        }
+        confirmText={canManage ? 'Delete Dish' : 'Submit Removal Request'}
+        cancelText="Keep Dish"
+        variant={canManage ? 'danger' : 'warning'}
+        isLoading={deleting}
+        details={[
+          { label: 'Dish Name', value: itemToDelete?.name || '—' },
+          {
+            label: 'Price',
+            value: itemToDelete ? `${Number(itemToDelete.price).toFixed(2)} ETB` : '—',
+          },
+          {
+            label: 'Current Availability',
+            value: (
+              <span className={itemToDelete?.is_available ? 'text-emerald-400 font-semibold' : 'text-stone-400'}>
+                {itemToDelete?.is_available ? 'Available' : 'Hidden'}
+              </span>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

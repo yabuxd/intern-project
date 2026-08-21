@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Services\ApiCacheService;
 use App\Services\SupabaseJwtService;
 use Closure;
 use Illuminate\Http\Request;
@@ -16,6 +17,7 @@ class VerifySupabaseJwt
 {
     public function __construct(
         private readonly SupabaseJwtService $jwtService,
+        private readonly ApiCacheService $cache,
     ) {}
 
     /**
@@ -76,38 +78,65 @@ class VerifySupabaseJwt
         $emailVerified = isset($claims['email_confirmed_at'])
             || filter_var($claims['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
         $emailVerifiedAt = $emailVerified ? now() : null;
+        $userId = (string) ($claims['sub'] ?? '');
 
-        $user = User::query()->firstOrCreate(
-            ['id' => $claims['sub']],
-            [
-                'email' => $email,
-                'name' => $name,
-                'email_verified_at' => $emailVerifiedAt,
-            ],
-        );
-
-        if ($user->wasRecentlyCreated) {
-            $customerId = Role::query()
-                ->where('name', Role::CUSTOMER)
-                ->value('id');
-
-            if ($customerId) {
-                $user->roles()->syncWithoutDetaching([$customerId]);
-            }
+        if ($userId === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Token is missing a sub claim.',
+            ], 401);
         }
 
-        $needsUpdate = $user->email !== $email
-            || $user->name !== $name
-            || ($emailVerified && $user->email_verified_at === null)
-            || (! $emailVerified && $user->email_verified_at !== null);
+        $cachedAttrs = $this->cache->rememberUserEntity($userId, function () use ($userId, $email, $name, $emailVerifiedAt) {
+            $user = User::query()->firstOrCreate(
+                ['id' => $userId],
+                [
+                    'email' => $email,
+                    'name' => $name,
+                    'email_verified_at' => $emailVerifiedAt,
+                ],
+            );
+
+            if ($user->wasRecentlyCreated) {
+                $customerId = Role::query()
+                    ->where('name', Role::CUSTOMER)
+                    ->value('id');
+
+                if ($customerId) {
+                    $user->roles()->syncWithoutDetaching([$customerId]);
+                }
+            }
+
+            return $user->getAttributes();
+        });
+
+        $needsUpdate = ! is_array($cachedAttrs)
+            || ($cachedAttrs['email'] ?? null) !== $email
+            || ($cachedAttrs['name'] ?? null) !== $name
+            || ($emailVerified && empty($cachedAttrs['email_verified_at']))
+            || (! $emailVerified && ! empty($cachedAttrs['email_verified_at']));
 
         if ($needsUpdate) {
+            $user = User::query()->firstOrCreate(
+                ['id' => $userId],
+                [
+                    'email' => $email,
+                    'name' => $name,
+                    'email_verified_at' => $emailVerifiedAt,
+                ],
+            );
             $user->fill([
                 'email' => $email,
                 'name' => $name,
                 'email_verified_at' => $emailVerifiedAt,
             ]);
             $user->save();
+            $this->cache->forgetUserEntity($userId);
+            $this->cache->rememberUserEntity($userId, fn () => $user->getAttributes());
+        } else {
+            $user = new User;
+            $user->setRawAttributes($cachedAttrs, true);
+            $user->exists = true;
         }
 
         Auth::setUser($user);

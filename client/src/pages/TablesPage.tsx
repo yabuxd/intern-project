@@ -10,7 +10,7 @@ import {
   updateTableStatus,
 } from '../services';
 import { useAuth } from '../store';
-import { TablesPageSkeleton } from '../components/ui';
+import { ConfirmModal, TablesPageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<TableStatus, string> = {
   free: 'Free',
@@ -65,9 +65,14 @@ export function TablesPage() {
     hasPermission(PERMISSIONS.CAN_MANAGE_TABLES) ||
     hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
 
-  const tablesQuery = useQuery({ queryKey: ['tables'], queryFn: fetchTables, staleTime: 15_000 });
-  const tables = tablesQuery.data ?? [];
-  const loading = tablesQuery.isLoading;
+  const tablesQuery = useQuery({
+    queryKey: ['tables'],
+    queryFn: fetchTables,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+  const tables = useMemo(() => tablesQuery.data ?? [], [tablesQuery.data]);
+  const loading = tablesQuery.isLoading && tables.length === 0;
   const queryError = tablesQuery.error instanceof Error ? tablesQuery.error.message : error;
 
   async function setStatus(table: RestaurantTable, status: TableStatus) {
@@ -144,15 +149,23 @@ export function TablesPage() {
     }
   }
 
-  async function onDelete(table: RestaurantTable) {
+  const [tableToDelete, setTableToDelete] = useState<RestaurantTable | null>(null);
+
+  function requestDeleteTable(table: RestaurantTable) {
     if (!session?.access_token || !canManage) return;
-    const confirmed = window.confirm(`Delete ${table.name}? This cannot be undone.`);
-    if (!confirmed) return;
+    setError(null);
+    setTableToDelete(table);
+  }
+
+  async function handleConfirmDeleteTable() {
+    if (!session?.access_token || !canManage || !tableToDelete) return;
+    const table = tableToDelete;
     setUpdatingId(table.id);
     setError(null);
     try {
       await deleteTable(session.access_token, table.id);
       if (editing?.id === table.id) cancelForm();
+      setTableToDelete(null);
       await queryClient.invalidateQueries({ queryKey: ['tables'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete table');
@@ -402,7 +415,7 @@ export function TablesPage() {
                       <button
                         type="button"
                         disabled={busy}
-                        onClick={() => void onDelete(table)}
+                        onClick={() => requestDeleteTable(table)}
                         className="w-full rounded-md border border-[var(--color-wine)]/40 px-3 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/15 disabled:opacity-60"
                       >
                         Delete
@@ -421,6 +434,31 @@ export function TablesPage() {
           Host tip: tap the table image to cycle Free → Reserved → Occupied, or use Edit for name and seats.
         </p>
       )}
+
+      {/* Attractive Table Deletion Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(tableToDelete)}
+        onClose={() => setTableToDelete(null)}
+        onConfirm={handleConfirmDeleteTable}
+        title="Delete Dining Table"
+        description="Are you sure you want to remove this table from the dining floor? This table will no longer be available for dine-in seating or customer bookings."
+        confirmText="Delete Table"
+        cancelText="Keep Table"
+        variant="danger"
+        isLoading={Boolean(updatingId && tableToDelete?.id === updatingId)}
+        details={[
+          { label: 'Table Name', value: tableToDelete?.name || '—' },
+          { label: 'Seating Capacity', value: tableToDelete?.capacity ? `${tableToDelete.capacity} seats` : 'Open' },
+          {
+            label: 'Current Status',
+            value: (
+              <span className="capitalize font-semibold text-[var(--color-brass)]">
+                {tableToDelete?.status || 'free'}
+              </span>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

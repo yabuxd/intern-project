@@ -42,5 +42,16 @@ export {
   fetchAdminRoles,
   updateUserRoles,
   updateRolePermissions,
+  prefetchMenu,
+  prefetchTables,
+  prefetchAdminDashboard,
+  prefetchAdminRolesData,
+  prefetchOrderQueue,
+  prefetchDeliveriesData,
+  prefetchPaymentDeskData,
+  prefetchManageMenuData,
+  prefetchReservationsData,
+  debouncePrefetch,
+  cancelPrefetch,
 } from './api';
 export { supabase } from './supabase';

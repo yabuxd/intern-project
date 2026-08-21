@@ -7,6 +7,9 @@ export const PERMISSIONS = {
     CAN_CREATE_RESERVATION: "can_create_reservation",
     CAN_MANAGE_PERMISSIONS: "can_manage_permissions",
     CAN_MANAGE_DELIVERIES: "can_manage_deliveries",
+    CAN_ACCEPT_DELIVERY_ORDERS: "can_accept_delivery_orders",
+    CAN_PROPOSE_MENU_CHANGES: "can_propose_menu_changes",
+    CAN_MANAGE_PAYMENTS: "can_manage_payments",
 };
 export const ROLES = {
     CUSTOMER: "customer",
@@ -14,5 +17,7 @@ export const ROLES = {
     HOST: "host",
     MANAGER: "manager",
     ADMIN: "admin",
-    DRIVER: "driver",
+    DELIVERY: "delivery",
+    DRIVER: "delivery",
+    CASHIER: "cashier",
 };

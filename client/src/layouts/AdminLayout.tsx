@@ -3,6 +3,18 @@ import { NavLink, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { PERMISSIONS } from '@intern/shared';
 import { useAuth } from '../store';
 import { HeroSkeleton } from '../components/ui';
+import {
+  cancelPrefetch,
+  debouncePrefetch,
+  prefetchAdminDashboard,
+  prefetchAdminRolesData,
+  prefetchDeliveriesData,
+  prefetchManageMenuData,
+  prefetchOrderQueue,
+  prefetchPaymentDeskData,
+  prefetchReservationsData,
+  prefetchTables,
+} from '../services';
 
 const sideLinkClass = ({ isActive }: { isActive: boolean }) =>
   [
@@ -24,7 +36,7 @@ const PAGE_TITLES: Record<string, string> = {
 };
 
 export function AdminLayout() {
-  const { loading, hasPermission } = useAuth();
+  const { session, loading, hasPermission } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
@@ -40,9 +52,11 @@ export function AdminLayout() {
 
   const pageTitle = PAGE_TITLES[location.pathname] ?? 'Admin';
 
-  useEffect(() => {
+  const [lastPath, setLastPath] = useState(location.pathname);
+  if (location.pathname !== lastPath) {
+    setLastPath(location.pathname);
     setSidebarOpen(false);
-  }, [location.pathname]);
+  }
 
   useEffect(() => {
     if (!sidebarOpen) return;
@@ -66,16 +80,32 @@ export function AdminLayout() {
   if (!canManage) return <Navigate to="/" replace />;
 
   const close = () => setSidebarOpen(false);
+  const token = session?.access_token;
 
   const nav = (
     <nav className="flex flex-col gap-1 p-3" aria-label="Admin navigation">
       <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-brass)]">
         Admin
       </p>
-      <NavLink to="/admin" end className={sideLinkClass} onClick={close}>
+      <NavLink
+        to="/admin"
+        end
+        className={sideLinkClass}
+        onClick={close}
+        onMouseEnter={() => debouncePrefetch(() => prefetchAdminDashboard(token))}
+        onMouseLeave={cancelPrefetch}
+        onFocus={() => prefetchAdminDashboard(token)}
+      >
         Dashboard
       </NavLink>
-      <NavLink to="/admin/roles" className={sideLinkClass} onClick={close}>
+      <NavLink
+        to="/admin/roles"
+        className={sideLinkClass}
+        onClick={close}
+        onMouseEnter={() => debouncePrefetch(() => prefetchAdminRolesData(token))}
+        onMouseLeave={cancelPrefetch}
+        onFocus={() => prefetchAdminRolesData(token)}
+      >
         Roles
       </NavLink>
 
@@ -83,31 +113,73 @@ export function AdminLayout() {
         Operations
       </p>
       {canViewQueue && (
-        <NavLink to="/admin/queue" className={sideLinkClass} onClick={close}>
+        <NavLink
+          to="/admin/queue"
+          className={sideLinkClass}
+          onClick={close}
+          onMouseEnter={() => debouncePrefetch(() => prefetchOrderQueue(token))}
+          onMouseLeave={cancelPrefetch}
+          onFocus={() => prefetchOrderQueue(token)}
+        >
           Queue
         </NavLink>
       )}
       {canManageDeliveries && (
-        <NavLink to="/admin/deliveries" className={sideLinkClass} onClick={close}>
+        <NavLink
+          to="/admin/deliveries"
+          className={sideLinkClass}
+          onClick={close}
+          onMouseEnter={() => debouncePrefetch(() => prefetchDeliveriesData(token))}
+          onMouseLeave={cancelPrefetch}
+          onFocus={() => prefetchDeliveriesData(token)}
+        >
           Deliveries
         </NavLink>
       )}
       {canManagePayments && (
-        <NavLink to="/admin/payments" className={sideLinkClass} onClick={close}>
+        <NavLink
+          to="/admin/payments"
+          className={sideLinkClass}
+          onClick={close}
+          onMouseEnter={() => debouncePrefetch(() => prefetchPaymentDeskData(token))}
+          onMouseLeave={cancelPrefetch}
+          onFocus={() => prefetchPaymentDeskData(token)}
+        >
           Payments
         </NavLink>
       )}
       {canManageMenu && (
-        <NavLink to="/admin/menu" className={sideLinkClass} onClick={close}>
+        <NavLink
+          to="/admin/menu"
+          className={sideLinkClass}
+          onClick={close}
+          onMouseEnter={() => debouncePrefetch(() => prefetchManageMenuData(token))}
+          onMouseLeave={cancelPrefetch}
+          onFocus={() => prefetchManageMenuData(token)}
+        >
           Manage menu
         </NavLink>
       )}
       {canReserve && (
-        <NavLink to="/admin/reservations" className={sideLinkClass} onClick={close}>
+        <NavLink
+          to="/admin/reservations"
+          className={sideLinkClass}
+          onClick={close}
+          onMouseEnter={() => debouncePrefetch(() => prefetchReservationsData(token))}
+          onMouseLeave={cancelPrefetch}
+          onFocus={() => prefetchReservationsData(token)}
+        >
           Reservations
         </NavLink>
       )}
-      <NavLink to="/admin/tables" className={sideLinkClass} onClick={close}>
+      <NavLink
+        to="/admin/tables"
+        className={sideLinkClass}
+        onClick={close}
+        onMouseEnter={() => debouncePrefetch(() => prefetchTables())}
+        onMouseLeave={cancelPrefetch}
+        onFocus={() => prefetchTables()}
+      >
         Tables
       </NavLink>
     </nav>

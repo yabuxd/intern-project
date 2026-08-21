@@ -34,11 +34,21 @@ export function MenuPage() {
   const manageMenuPath = canManagePermissions
     ? adminOpsPaths().menuManage
     : '/menu/manage';
-  const menuQuery = useQuery({ queryKey: ['menu'], queryFn: fetchMenu, staleTime: 60_000 });
-  const tablesQuery = useQuery({ queryKey: ['tables'], queryFn: fetchTables, staleTime: 15_000 });
+  const menuQuery = useQuery({
+    queryKey: ['menu'],
+    queryFn: fetchMenu,
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+  });
+  const tablesQuery = useQuery({
+    queryKey: ['tables'],
+    queryFn: fetchTables,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
   const categories = menuQuery.data ?? [];
   const tables = tablesQuery.data ?? [];
-  const loading = menuQuery.isLoading || tablesQuery.isLoading;
+  const loading = menuQuery.isLoading && categories.length === 0;
   const error = menuQuery.error instanceof Error
     ? menuQuery.error.message
     : tablesQuery.error instanceof Error
