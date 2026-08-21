@@ -3,6 +3,7 @@ import type { Order, OrderStatus, PaymentStatus } from '@intern/shared';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelOrder, fetchOrdersPage, updateOrderStatus, verifyOrderPayment } from '../services';
+import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
 import { OrdersPageSkeleton } from '../components/ui';
@@ -58,6 +59,10 @@ export function OrdersPage() {
     getNextPageParam: (lastPage) =>
       lastPage.meta?.has_more ? Number(lastPage.meta.next_cursor) : undefined,
     placeholderData: (prev) => prev,
+  });
+
+  useOrdersRealtime(() => {
+    void queryClient.invalidateQueries({ queryKey: ['orders'] });
   });
 
   useEffect(() => {
