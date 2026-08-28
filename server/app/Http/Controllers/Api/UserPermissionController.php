@@ -209,6 +209,25 @@ class UserPermissionController extends Controller
      */
     private function transformUser(User $user): array
     {
+        if ($user->relationLoaded('roles')) {
+            $roles = $user->roles->pluck('name')->sort()->values()->all();
+            $permissions = $user->roles
+                ->flatMap(fn ($role) => $role->relationLoaded('permissions') ? $role->permissions->pluck('name') : [])
+                ->push(Permission::CAN_PLACE_ORDER)
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'roles' => $roles,
+                'permissions' => $permissions,
+            ];
+        }
+
         return [
             'id' => $user->id,
             'name' => $user->name,

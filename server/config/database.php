@@ -103,7 +103,10 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             'options' => filter_var(env('DB_PGBOUNCER', false), FILTER_VALIDATE_BOOL) ? [
                 \PDO::ATTR_EMULATE_PREPARES => true,
-            ] : [],
+                \PDO::ATTR_PERSISTENT => false,
+            ] : [
+                \PDO::ATTR_PERSISTENT => false,
+            ],
         ],
 
         'sqlsrv' => [

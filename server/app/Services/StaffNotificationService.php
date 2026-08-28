@@ -31,18 +31,25 @@ class StaffNotificationService
 
     private function notifyManagers(Order $order, string $type, string $title, string $body): void
     {
-        $recipients = User::query()
+        $recipientIds = User::query()
             ->whereHas('roles', fn ($query) => $query->whereIn('name', [Role::ADMIN, Role::MANAGER]))
-            ->get(['id']);
+            ->pluck('id');
 
-        foreach ($recipients as $recipient) {
-            StaffNotification::query()->create([
-                'user_id' => $recipient->id,
-                'order_id' => $order->id,
-                'type' => $type,
-                'title' => $title,
-                'body' => $body,
-            ]);
+        if ($recipientIds->isEmpty()) {
+            return;
         }
+
+        $now = now();
+        $records = $recipientIds->map(fn ($userId) => [
+            'user_id' => $userId,
+            'order_id' => $order->id,
+            'type' => $type,
+            'title' => $title,
+            'body' => $body,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        StaffNotification::query()->insert($records);
     }
 }

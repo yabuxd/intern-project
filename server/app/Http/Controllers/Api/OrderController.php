@@ -162,6 +162,27 @@ class OrderController extends Controller
                 ]);
             }
 
+            $total = 0;
+            $itemsToInsert = [];
+            $now = now();
+
+            foreach ($validated['items'] as $line) {
+                $menuItem = $menuItems->get($line['menu_item_id']);
+                $unitPrice = (float) $menuItem->price;
+                $lineTotal = round($unitPrice * $line['quantity'], 2);
+
+                $itemsToInsert[] = [
+                    'menu_item_id' => $menuItem->id,
+                    'quantity' => $line['quantity'],
+                    'unit_price' => $unitPrice,
+                    'line_total' => $lineTotal,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+
+                $total += $lineTotal;
+            }
+
             $order = Order::query()->create([
                 'user_id' => $user->id,
                 'table_id' => $fulfillment === Order::FULFILLMENT_DELIVERY
@@ -178,32 +199,19 @@ class OrderController extends Controller
                     ? (isset($validated['delivery_notes']) ? trim((string) $validated['delivery_notes']) ?: null : null)
                     : null,
                 'status' => Order::STATUS_PENDING,
-                'total' => 0,
+                'total' => round($total, 2),
                 'payment_method' => $paymentMethod,
                 'payment_status' => $paymentMethod === Order::PAYMENT_METHOD_CHAPA
                     ? Order::PAYMENT_PENDING
                     : Order::PAYMENT_NOT_REQUIRED,
             ]);
 
-            $total = 0;
-
-            foreach ($validated['items'] as $line) {
-                $menuItem = $menuItems->get($line['menu_item_id']);
-                $unitPrice = (float) $menuItem->price;
-                $lineTotal = round($unitPrice * $line['quantity'], 2);
-
-                OrderItem::query()->create([
-                    'order_id' => $order->id,
-                    'menu_item_id' => $menuItem->id,
-                    'quantity' => $line['quantity'],
-                    'unit_price' => $unitPrice,
-                    'line_total' => $lineTotal,
-                ]);
-
-                $total += $lineTotal;
+            foreach ($itemsToInsert as &$item) {
+                $item['order_id'] = $order->id;
             }
+            unset($item);
 
-            $order->update(['total' => round($total, 2)]);
+            OrderItem::query()->insert($itemsToInsert);
 
             return $order->fresh([
                 'items:id,order_id,menu_item_id,quantity,unit_price,line_total',

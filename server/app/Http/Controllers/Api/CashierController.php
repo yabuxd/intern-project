@@ -14,6 +14,7 @@ class CashierController extends Controller
 {
     public function __construct(
         private readonly ApiCacheService $cache,
+        private readonly OrderController $orderController,
     ) {}
     public function desk(Request $request): JsonResponse
     {
@@ -144,6 +145,6 @@ class CashierController extends Controller
      */
     private function transform(Order $order): array
     {
-        return app(OrderController::class)->toApiArray($order, includeUser: true);
+        return $this->orderController->toApiArray($order, includeUser: true);
     }
 }

@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Restaurant Management System — Core Tasks & Code Functionality Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm 18mm 14mm;
+    @bottom-right {
+      content: counter(page);
+      font-family: 'Figtree', sans-serif;
+      font-size: 8pt;
+      color: #78716c; 
+    }
+    @bottom-left {
+      content: "Restaurant Management System — Core Tasks & Code Functionality Specification";
+      font-family: 'Figtree', sans-serif;
+      font-size: 8pt;
+      color: #a8a29e;
+    }
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 9.3pt;
+    line-height: 1.55;
+    color: #1c1917;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Cover Block */
+  .cover {
+    background: linear-gradient(135deg, #1f1b18 0%, #2a2420 100%);
+    color: #f3ece0;
+    padding: 24px 28px;
+    border-radius: 10px;
+    margin-bottom: 22px;
+    border-left: 6px solid #c8853a;
+    page-break-after: avoid;
+  }
+
+  .cover h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 25pt;
+    font-weight: 400;
+    color: #ffffff;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.5px;
+  }
+
+  .cover .subtitle {
+    font-size: 11pt;
+    color: #d6cfc4;
+    margin: 0 0 14px 0;
+    font-weight: 300;
+  }
+
+  .badge-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .badge {
+    background: rgba(200, 133, 58, 0.22);
+    color: #fce7cf;
+    border: 1px solid rgba(200, 133, 58, 0.45);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .badge-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e7e5e4;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  /* Typography */
+  h2 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 15.5pt;
+    color: #2a2420;
+    border-bottom: 1.5px solid #e7e5e4;
+    padding-bottom: 4px;
+    margin-top: 22px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  h3 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    color: #44403c;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  h4 {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #78350f;
+    margin-top: 10px;
+    margin-bottom: 4px;
+  }
+
+  p {
+    margin: 0 0 8px 0;
+    text-align: justify;
+  }
+
+  ul, ol {
+    margin: 0 0 10px 0;
+    padding-left: 18px;
+  }
+
+  li {
+    margin-bottom: 3px;
+  }
+
+  /* Table of Contents */
+  .toc {
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 22px;
+    page-break-inside: avoid;
+  }
+
+  .toc-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 13pt;
+    font-weight: 600;
+    color: #2a2420;
+    margin-bottom: 8px;
+  }
+
+  .toc-list {
+    column-count: 2;
+    column-gap: 20px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 8.5pt;
+  }
+
+  .toc-list li {
+    margin-bottom: 4px;
+    break-inside: avoid;
+  }
+
+  .toc-list a {
+    color: #78350f;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  th {
+    background: #f5f5f4;
+    color: #292524;
+    font-weight: 700;
+    text-align: left;
+    padding: 6px 8px;
+    border-top: 1px solid #d6d3d1;
+    border-bottom: 2px solid #a8a29e;
+  }
+
+  td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e7e5e4;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #fafaf9;
+  }
+
+  /* Code & Snippets */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8pt;
+    background: #f5f5f4;
+    color: #991b1b;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid #e7e5e4;
+  }
+
+  pre {
+    background: #1c1917;
+    color: #f5f5f4;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    line-height: 1.45;
+    padding: 10px 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0 12px 0;
+    border-left: 4px solid #c8853a;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  pre code {
+    background: transparent;
+    color: #f5f5f4;
+    padding: 0;
+    border: none;
+    font-size: 7.5pt;
+  }
+
+  /* Callouts & Alert Boxes */
+  .callout {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 10px 0 12px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .callout-note {
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+    color: #1e3a8a;
+  }
+
+  .callout-warning {
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    color: #78350f;
+  }
+
+  .callout-important {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+    color: #991b1b;
+  }
+
+  .callout-title {
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+
+  /* Diagram Cards */
+  .diagram-card {
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .diagram-card-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #44403c;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mermaid {
+    display: flex;
+    justify-content: center;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: 4px;
+  }
+
+  .page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .task-box {
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    background: #ffffff;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 2px solid #c8853a;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+  }
+
+  .task-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 14pt;
+    font-weight: 600;
+    color: #1f1b18;
+    margin: 0;
+  }
+
+  .task-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7pt;
+    padding: 2px 6px;
+    background: #f5f5f4;
+    border: 1px solid #d6d3d1;
+    border-radius: 3px;
+    color: #44403c;
+  }
+
+  .code-ref {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    background: #fdfaf6;
+    border: 1px solid #e2d3be;
+    color: #78350f;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin: 2px 0;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    themeVariables: {
+      primaryColor: '#f3ece0',
+      primaryTextColor: '#1f1b18',
+      primaryBorderColor: '#c8853a',
+      lineColor: '#78350f',
+      secondaryColor: '#fafaf9',
+      tertiaryColor: '#ffffff'
+    },
+    flowchart: { curve: 'linear' }
+  });
+</script>
+</head>
+<body>
+
+<!-- Cover Block -->
+<div class="cover">
+  <h1>Management System Tasks & Implementation Guide</h1>
+  <div class="subtitle">Detailed Functional Specification, Architecture Flows & Annotated Source Code Reference</div>
+  <div class="badge-grid">
+    <span class="badge">Restaurant POS & Operations</span>
+    <span class="badge">Backend: Laravel 12/13 API</span>
+    <span class="badge">Frontend: React 19 SPA</span>
+    <span class="badge-secondary">Chapa ETB Gateway</span>
+    <span class="badge-secondary">Supabase Auth & Realtime</span>
+    <span class="badge-secondary">Two-Tier Caching & Keyset Pagination</span>
+  </div>
+</div>
+
+<!-- Table of Contents -->
+<div class="toc">
+  <div class="toc-title">Table of Contents — Core Management Tasks</div>
+  <ul class="toc-list">
+    <li><a href="#task1">Task 1: Order Placement & Multi-Fulfillment</a></li>
+    <li><a href="#task2">Task 2: Kitchen Queue & Expediting Pipeline</a></li>
+    <li><a href="#task3">Task 3: Delivery Dispatch & Driver Assignment</a></li>
+    <li><a href="#task4">Task 4: Cashier Desk & Dual Payment Settlement</a></li>
+    <li><a href="#task5">Task 5: Floor Tables & Conflict-Free Reservations</a></li>
+    <li><a href="#task6">Task 6: Dish Catalog & Staff Change Proposals</a></li>
+    <li><a href="#task7">Task 7: RBAC User Governance & Permissions Matrix</a></li>
+    <li><a href="#task8">Task 8: Executive Analytics & Operational KPI Reporting</a></li>
+  </ul>
+</div>
+
+<!-- TASK 1 -->
+<div class="task-box" id="task1">
+  <div class="task-header">
+    <div class="task-title">Task 1: Order Placement & Multi-Fulfillment (Dine-In vs Delivery)</div>
+    <span class="task-badge">MODULE: ORDERS & POS</span>
+  </div>
+  
+  <p>
+    <strong>Core Functionality:</strong> Allows customers or staff to assemble orders with dynamic line items, select fulfillment mode (<code>dine_in</code> with table association or <code>delivery</code> with recipient coordinates/phone), select payment method (<code>cash</code> or <code>chapa</code>), and atomically calculate totals and item snapshot prices inside a database transaction.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/OrderController.php (store: lines 143-260)</span>
+      <p>
+        Executes within <code>DB::transaction()</code>. Validates that all menu item IDs are currently available (<code>is_available: true</code>). Creates the header <code>Order</code> record, inserts <code>OrderItem</code> rows snapshotting <code>unit_price</code> and <code>line_total</code>, and sets order <code>total</code>. If Chapa online payment is selected, it dispatches an initialize transaction request to <code>ChapaPaymentService</code> and returns the generated <code>checkout_url</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Requests/StoreOrderRequest.php</span>
+      <p>
+        Enforces payload validation: <code>items</code> array (min: 1), <code>items.*.menu_item_id</code> (exists in <code>menu_items</code>), <code>items.*.quantity</code> (integer, min: 1), conditional requirement for <code>delivery_address</code> and <code>delivery_phone</code> when <code>fulfillment_type === 'delivery'</code>, and table assignment validation for <code>dine_in</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Models/Order.php (lines 180-237)</span>
+      <p>
+        Defines status progression and transition guards via <code>allowedNextStatuses()</code> and <code>canUserTransition()</code>.
+      </p>
+    </li>
+  </ul>
+
+  <pre><code>// server/app/Http/Controllers/Api/OrderController.php: store() snippet
+$order = DB::transaction(function () use ($validated, $user, $fulfillment, $paymentMethod) {
+    $menuItemIds = collect($validated['items'])->pluck('menu_item_id')->unique()->all();
+    $menuItems = MenuItem::query()->whereIn('id', $menuItemIds)->where('is_available', true)->get()->keyBy('id');
+    
+    if ($menuItems->count() !== count($menuItemIds)) {
+        throw ValidationException::withMessages(['items' => ['One or more menu items are unavailable.']]);
+    }
+
+    $order = Order::query()->create([
+        'user_id' => $user->id,
+        'table_id' => $fulfillment === Order::FULFILLMENT_DELIVERY ? null : ($validated['table_id'] ?? null),
+        'fulfillment_type' => $fulfillment,
+        'delivery_address' => $fulfillment === Order::FULFILLMENT_DELIVERY ? trim($validated['delivery_address']) : null,
+        'delivery_phone' => $fulfillment === Order::FULFILLMENT_DELIVERY ? trim($validated['delivery_phone']) : null,
+        'status' => Order::STATUS_PENDING,
+        'payment_method' => $paymentMethod,
+        'payment_status' => $paymentMethod === Order::PAYMENT_METHOD_CHAPA ? Order::PAYMENT_PENDING : Order::PAYMENT_NOT_REQUIRED,
+    ]);
+
+    $total = 0;
+    foreach ($validated['items'] as $line) {
+        $item = $menuItems->get($line['menu_item_id']);
+        $lineTotal = round((float) $item->price * $line['quantity'], 2);
+        OrderItem::query()->create([
+            'order_id' => $order->id, 'menu_item_id' => $item->id,
+            'quantity' => $line['quantity'], 'unit_price' => $item->price, 'line_total' => $lineTotal,
+        ]);
+        $total += $lineTotal;
+    }
+    $order->update(['total' => round($total, 2)]);
+    return $order;
+});</code></pre>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/MenuPage.tsx</span> &amp; <span class="code-ref">client/src/pages/HomePage.tsx</span>
+      <p>
+        Maintains client cart state in local memory. Provides an interactive checkout modal allowing toggle between Dine-In (with table selector) and Delivery (with address and phone inputs), and payment radio toggle (Cash vs Chapa). Invokes <code>api.ts:createOrder</code>. If <code>checkout_url</code> is returned, automatically redirects customer to the Chapa secure gateway.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">client/src/pages/OrdersPage.tsx</span>
+      <p>
+        Displays customer's personal order history. Uses <code>useOrdersRealtime</code> to automatically update when kitchen staff advance the order. Provides a receipt viewing button navigating to <code>/orders/:id/receipt</code>.
+      </p>
+    </li>
+  </ul>
+</div>
+
+<!-- TASK 2 -->
+<div class="task-box page-break" id="task2">
+  <div class="task-header">
+    <div class="task-title">Task 2: Kitchen Queue & Live Expediting Pipeline</div>
+    <span class="task-badge">MODULE: KITCHEN OPERATIONS</span>
+  </div>
+
+  <p>
+    <strong>Core Functionality:</strong> Provides kitchen chefs and expediting staff with an active, real-time ticket display. Filters out unapproved online orders, groups active preparation stages (<code>pending</code>, <code>accepted</code>, <code>preparing</code>, <code>ready</code>), and supports one-click status transitions with Supabase Realtime synchronization and 5-second polling fallback.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/OrderController.php (queue: lines 52-89)</span>
+      <p>
+        Requires <code>can_view_all_orders</code> authorization. Applies <code>scopePaymentSettled()</code> to guarantee only confirmed cash orders or cashier-approved Chapa orders reach the kitchen. Uses cursor pagination (<code>KeysetPaginator</code>) ascending by ID for FIFO queue ordering.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Models/Order.php (scopePaymentSettled: lines 307-318)</span>
+      <p>
+        Enforces strict segregation: Cash orders are immediately visible (<code>payment_status: not_required</code>), while Chapa orders require both <code>payment_status: paid</code> AND <code>cashier_approved_at IS NOT NULL</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/OrderController.php (updateStatus: lines 368-400)</span>
+      <p>
+        Validates transition legality via <code>$order->canUserTransition($request->user(), $nextStatus)</code>. Updates order status and invalidates admin dashboard metrics cache.
+      </p>
+    </li>
+  </ul>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/OrderQueuePage.tsx</span>
+      <p>
+        Displays active kitchen tickets organized by status columns with badge indicators, table/delivery tags, customer notes, item quantities, and action buttons ("Start Preparing", "Mark Ready", "Mark Served").
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">client/src/hooks/useOrdersRealtime.ts</span>
+      <p>
+        Subscribes to the Supabase Realtime WebSocket channel on table <code>orders</code>. Triggers React Query cache invalidation (<code>queryClient.invalidateQueries</code>) immediately upon receiving Postgres change events. Falls back to a 5000ms polling interval if WebSocket disconnects or when running against local SQLite.
+      </p>
+    </li>
+  </ul>
+
+  <div class="diagram-card">
+    <div class="diagram-card-title">Figure 1: Kitchen Queue Realtime & Settlement Flow</div>
+    <div class="mermaid">
+sequenceDiagram
+    participant DB as Postgres Database
+    participant Supa as Supabase Realtime
+    participant Hook as useOrdersRealtime Hook
+    participant Page as OrderQueuePage
+    participant API as Laravel OrderController
+
+    API->>DB: Status Updated (preparing -> ready)
+    DB-->>Supa: Postgres CDC Event (orders table)
+    Supa-->>Hook: WebSocket Broadcast
+    Hook->>Page: Trigger Invalidation Callback
+    Page->>API: GET /api/orders/queue
+    API-->>Page: Fresh Keyset Ticket Data
+    Page->>Page: Re-render UI in 0ms delay
+    </div>
+  </div>
+</div>
+
+<!-- TASK 3 -->
+<div class="task-box page-break" id="task3">
+  <div class="task-header">
+    <div class="task-title">Task 3: Delivery Dispatch, Driver Assignment & Courier Dual-Confirmation</div>
+    <span class="task-badge">MODULE: LOGISTICS & DISPATCH</span>
+  </div>
+
+  <p>
+    <strong>Core Functionality:</strong> Dedicated operational hub for delivery orders. Allows dispatchers to accept incoming delivery requests, view available drivers, assign drivers to active orders, track en-route deliveries, and execute dual-confirmation when couriers and customers validate delivery.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/OrderController.php (deliveries: lines 91-117)</span>
+      <p>
+        Requires <code>can_manage_deliveries</code> permission. Filters <code>fulfillment_type === 'delivery'</code> across active stages (<code>pending</code> through <code>delivered</code>, <code>received</code>).
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/OrderController.php (drivers: lines 119-141)</span>
+      <p>
+        Returns cached list of users possessing <code>delivery</code> or <code>driver</code> roles via <code>ApiCacheService::rememberDrivers</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/OrderController.php (assignDriver: lines 401-433)</span>
+      <p>
+        Validates order status is eligible for assignment (<code>accepted</code>, <code>preparing</code>, <code>ready</code>, <code>out_for_delivery</code>). Ensures the selected user possesses the delivery role before binding <code>driver_id</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Models/Order.php (canUserTransition: lines 211-237)</span>
+      <p>
+        Guards that transition to <code>out_for_delivery</code> requires a bound driver. Transition to <code>delivered</code> can only be triggered by the assigned driver or delivery managers. Transition to <code>received</code> can only be triggered by the ordering customer or delivery managers.
+      </p>
+    </li>
+  </ul>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/DeliveriesPage.tsx</span>
+      <p>
+        Provides tabbed delivery views (<code>All</code>, <code>Active</code>, <code>Awaiting Courier</code>, <code>In Kitchen</code>, <code>Completed</code>). Includes driver assignment selector dropdown, search query filtering, customer delivery address/phone cards, and courier dual-validation buttons.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">client/src/services/api.ts (lines 315-334)</span>
+      <p>
+        Exports <code>fetchDeliveries</code>, <code>fetchDeliveryDrivers</code>, and <code>assignOrderDriver</code> connected to TanStack React Query.
+      </p>
+    </li>
+  </ul>
+</div>
+
+<!-- TASK 4 -->
+<div class="task-box page-break" id="task4">
+  <div class="task-header">
+    <div class="task-title">Task 4: Cashier Desk Operations & Dual Payment Settlement Gate</div>
+    <span class="task-badge">MODULE: CASHIERING & BILLING</span>
+  </div>
+
+  <p>
+    <strong>Core Functionality:</strong> Centralized payment administration dashboard. Displays Chapa online payments awaiting manual cashier validation (which unlocks kitchen visibility) and uncollected cash orders. Allows cashiers to confirm physical cash receipts, validate Chapa transactions, and generate thermal-styled printable receipts.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/CashierController.php (desk: lines 18-52)</span>
+      <p>
+        Gated by <code>can_manage_payments</code> permission. Queries two distinct datasets:
+        (1) <code>awaiting_chapa_validation</code>: Orders with <code>payment_method = 'chapa'</code>, <code>payment_status = 'paid'</code>, and <code>cashier_approved_at IS NULL</code>.
+        (2) <code>open_cash</code>: Orders with <code>payment_method = 'cash'</code>, <code>cash_collected_at IS NULL</code>, excluding cancelled orders.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/CashierController.php (approve: lines 54-99)</span>
+      <p>
+        Cashier approves verified Chapa transaction. Sets <code>cashier_approved_at = now()</code> and <code>cashier_approved_by = $cashier->id</code>, immediately releasing the ticket to the kitchen queue.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/CashierController.php (collectCash: lines 101-140)</span>
+      <p>
+        Marks physical currency collected for dine-in or cash-on-delivery orders, stamping <code>cash_collected_at</code> and <code>cash_collected_by</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Services/ChapaPaymentService.php</span>
+      <p>
+        Handles direct API communication with Chapa Gateway. Initializes ETB transactions, parses return URLs, verifies transaction references (<code>/v1/transaction/verify/{tx_ref}</code>), and extracts gateway error messages.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Services/StaffNotificationService.php</span>
+      <p>
+        Dispatches in-app notifications to managers and cashiers upon new cash order placement or Chapa transaction settlement.
+      </p>
+    </li>
+  </ul>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/PaymentsPage.tsx</span>
+      <p>
+        Two-column cashier desk interface with active count badges. Features interactive action buttons ("Validate Chapa & Send to Kitchen", "Mark Cash Collected") wired with confirmation dialogs (<code>ConfirmModal</code>) and audio/visual success indicators.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">client/src/pages/ReceiptPage.tsx</span>
+      <p>
+        Generates clean, printable customer receipts styled with monospace itemized tables, VAT/tax breakdown, ETB totals, order timestamps, and cashier stamp signatures.
+      </p>
+    </li>
+  </ul>
+</div>
+
+<!-- TASK 5 -->
+<div class="task-box page-break" id="task5">
+  <div class="task-header">
+    <div class="task-title">Task 5: Floor Tables & Conflict-Free Table Reservations</div>
+    <span class="task-badge">MODULE: FLOOR & RESERVATIONS</span>
+  </div>
+
+  <p>
+    <strong>Core Functionality:</strong> Comprehensive table inventory and booking system. Manages restaurant floor tables (capacity, name, status: <code>free</code>, <code>reserved</code>, <code>occupied</code>) and guarantees conflict-free table reservations using pessimistic row-level locking and overlapping timeslot assertion algorithms.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/TableController.php</span>
+      <p>
+        Provides public table listing with HTTP ETag caching and <code>304 Not Modified</code> negotiation. Offers staff CRUD operations (<code>store</code>, <code>update</code>, <code>destroy</code>) gated by <code>can_manage_tables</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/ReservationController.php (store: lines 55-84)</span>
+      <p>
+        Executes inside a database transaction. Locks the target table row with <code>RestaurantTable::lockForUpdate()</code> to prevent race conditions during simultaneous booking attempts.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Services/ReservationAvailabilityService.php</span>
+      <p>
+        Asserts party size does not exceed table capacity and executes overlapping window query:
+        <code>starts_at &lt; $endsAt AND ends_at &gt; $startsAt AND status = 'confirmed'</code>. Throws <code>ValidationException</code> if conflict detected.
+      </p>
+    </li>
+  </ul>
+
+  <pre><code>// server/app/Services/ReservationAvailabilityService.php: assertAvailable()
+public function assertAvailable(RestaurantTable $table, int $partySize, CarbonInterface $startsAt, CarbonInterface $endsAt): void
+{
+    if ($table->capacity !== null && $partySize > $table->capacity) {
+        throw ValidationException::withMessages(['party_size' => ["Table only seats {$table->capacity} guests."]]);
+    }
+
+    $conflict = Reservation::query()
+        ->where('table_id', $table->id)
+        ->where('status', Reservation::STATUS_CONFIRMED)
+        ->where('starts_at', '<', $endsAt)
+        ->where('ends_at', '>', $startsAt)
+        ->exists();
+
+    if ($conflict) {
+        throw ValidationException::withMessages(['table_id' => ['Table is already reserved for this time window.']]);
+    }
+}</code></pre>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/TablesPage.tsx</span>
+      <p>
+        Visual table floor grid showing live status cards. Allows staff to toggle status (Free, Reserved, Occupied) in real-time, adjust guest capacities, and open the instant reservation modal.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">client/src/pages/ReservationsPage.tsx</span>
+      <p>
+        Reservation log showing booking timeline, start/end times, guest party size, contact notes, and cancellation triggers.
+      </p>
+    </li>
+  </ul>
+</div>
+
+<!-- TASK 6 -->
+<div class="task-box page-break" id="task6">
+  <div class="task-header">
+    <div class="task-title">Task 6: Dish Catalog & Staff Change Proposals Governance</div>
+    <span class="task-badge">MODULE: MENU MANAGEMENT</span>
+  </div>
+
+  <p>
+    <strong>Core Functionality:</strong> Two-tiered menu management system. Authorized managers (<code>can_manage_menu</code>) can directly create, edit, upload dish images, toggle availability, and delete menu items. Subordinate staff (<code>can_propose_menu_changes</code>) can draft item creation or deletion proposals which managers review, approve, or reject with feedback notes.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/MenuController.php</span>
+      <p>
+        <code>index()</code>: Public menu browse cached with ETags and <code>Cache-Control: stale-while-revalidate</code>.<br>
+        <code>manage()</code>: Staff catalog view returning all available and unavailable items.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/MenuItemController.php</span>
+      <p>
+        Handles direct CRUD operations and image uploads to storage disk via <code>uploadImage()</code>. Automatically purges public and staff menu caches on mutation.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/MenuChangeRequestController.php</span>
+      <p>
+        Endpoints for staff proposal submission (<code>store</code>), list retrieval (<code>index</code>), manager approval (<code>approve</code>), and manager rejection (<code>reject</code>).
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Services/MenuChangeRequestService.php</span>
+      <p>
+        Applies approved proposals: creates new <code>MenuItem</code> from payload or deletes targeted <code>MenuItem</code>, stamps reviewer metadata, and flushes menu and dashboard RAM caches.
+      </p>
+    </li>
+  </ul>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/ManageMenuPage.tsx</span>
+      <p>
+        Multi-tab management console featuring: (1) Direct Edit Tab with category accordions and image uploader, (2) Propose Changes Tab for staff, and (3) Review Queue Tab displaying pending proposal cards with Approve/Reject action triggers.
+      </p>
+    </li>
+  </ul>
+</div>
+
+<!-- TASK 7 -->
+<div class="task-box page-break" id="task7">
+  <div class="task-header">
+    <div class="task-title">Task 7: RBAC User Governance, Role Assignment & Permission Matrix</div>
+    <span class="task-badge">MODULE: SECURITY & ADMIN</span>
+  </div>
+
+  <p>
+    <strong>Core Functionality:</strong> Comprehensive Role-Based Access Control (RBAC) governance. Allows administrators to provision new user accounts (synced with Supabase Auth), assign roles (<code>admin</code>, <code>manager</code>, <code>cashier</code>, <code>kitchen</code>, <code>host</code>, <code>delivery</code>, <code>customer</code>), and customize permissions assigned to each role through a live matrix grid.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/UserPermissionController.php</span>
+      <p>
+        Gated by <code>can_manage_permissions</code>.<br>
+        <code>index()</code>: Keyset-paginated list of users with assigned roles and computed permissions.<br>
+        <code>store()</code>: Provisions user account in Supabase via <code>SupabaseAdminUserService</code>, inserts local <code>users</code> record, and syncs initial roles.<br>
+        <code>updateUserRoles()</code>: Updates user's role assignments and clears their auth cache.<br>
+        <code>updateRolePermissions()</code>: Syncs permission IDs for a specific role and flushes auth caches for all users holding that role.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Models/User.php (authProfile: lines 57-82)</span>
+      <p>
+        Calculates user's effective permissions by flattening all assigned roles' permissions and always adding <code>can_place_order</code>. Result is cached in RAM and Redis/File store via <code>ApiCacheService::rememberUserAuth</code>.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">server/app/Providers/AppServiceProvider.php (boot: lines 57-65)</span>
+      <p>
+        Registers Laravel authorization Gates dynamically for every permission in <code>Permission::catalog()</code>.
+      </p>
+    </li>
+  </ul>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/AdminRolesPage.tsx</span>
+      <p>
+        Two-panel administrative interface: (1) User Account Management (create user modal, role assignment dropdowns, account deletion), and (2) Role-Permission Matrix (interactive checkbox grid to toggle granular permissions for any role in real-time).
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">client/src/store/AuthContext.tsx (hasPermission: lines 153-156)</span>
+      <p>
+        Provides client-side permission evaluation (<code>hasPermission(PERMISSIONS.CAN_MANAGE_PAYMENTS)</code>) to conditionally render UI action buttons and protect client routes.
+      </p>
+    </li>
+  </ul>
+</div>
+
+<!-- TASK 8 -->
+<div class="task-box page-break" id="task8">
+  <div class="task-header">
+    <div class="task-title">Task 8: Executive Analytics, Revenue Auditing & Operational KPIs</div>
+    <span class="task-badge">MODULE: ANALYTICS & AUDIT</span>
+  </div>
+
+  <p>
+    <strong>Core Functionality:</strong> Executive business intelligence dashboard aggregating restaurant metrics across customizable date ranges. Computes total sales, paid revenue in ETB, average order value (AOV), top 8 best-selling dishes with revenue attribution, delivery dispatch health, floor table occupancy rates, and pending cashier queue totals.
+  </p>
+
+  <h4>1. Backend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">server/app/Http/Controllers/Api/AdminDashboardController.php</span>
+      <p>
+        Accepts <code>from</code> and <code>to</code> ISO timestamp query parameters (defaults to trailing 7 days). Gated by <code>can_manage_permissions</code>. Caches aggregated results in <code>ApiCacheService::rememberAdminDashboard</code> using SHA256 hashed date-range keys.
+      </p>
+    </li>
+    <li>
+      <span class="code-ref">Calculated Analytics Aggregations:</span>
+      <ul>
+        <li><strong>Orders & Revenue:</strong> Total volume, status distribution, paid order count, paid revenue sum, average order value (AOV).</li>
+        <li><strong>Top Selling Dishes:</strong> Joins <code>order_items</code> with <code>orders</code>, aggregates <code>quantity_sold</code> and <code>revenue</code>, filters out cancelled orders, and retrieves top 8 items.</li>
+        <li><strong>Payment & Cashier Health:</strong> Number of Chapa orders awaiting cashier validation, uncollected cash order count.</li>
+        <li><strong>Logistics:</strong> Active deliveries, unassigned delivery orders, completed deliveries.</li>
+        <li><strong>Reservations:</strong> Confirmed, cancelled, and upcoming bookings count.</li>
+        <li><strong>Floor Occupancy:</strong> Instant breakdown of tables by status (<code>free</code>, <code>reserved</code>, <code>occupied</code>).</li>
+      </ul>
+    </li>
+  </ul>
+
+  <h4>2. Frontend Code Implementation & Functionality</h4>
+  <ul>
+    <li>
+      <span class="code-ref">client/src/pages/AdminDashboardPage.tsx</span>
+      <p>
+        Comprehensive executive dashboard with custom date-range picker presets (Today, 7 Days, 30 Days, Custom). Displays KPI summary cards, interactive revenue graphs, dish ranking tables, and operational alert counters with automatic prefetching via <code>api.ts:prefetchAdminDashboard</code>.
+      </p>
+    </li>
+  </ul>
+</div>
+
+</body>
+</html>

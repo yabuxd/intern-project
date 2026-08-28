@@ -47,7 +47,10 @@ class AdminDashboardController extends Controller
                     count(*) as total_orders,
                     count(case when status = 'cancelled' then 1 end) as cancelled,
                     count(case when payment_status = 'paid' then 1 end) as paid_count,
-                    coalesce(sum(case when payment_status = 'paid' then total else 0 end), 0) as revenue_paid
+                    coalesce(sum(case when payment_status = 'paid' then total else 0 end), 0) as revenue_paid,
+                    count(case when fulfillment_type = 'delivery' and status in ('pending', 'accepted', 'preparing', 'ready', 'out_for_delivery') then 1 end) as delivery_active,
+                    count(case when fulfillment_type = 'delivery' and driver_id is null and status not in ('cancelled', 'received', 'delivered') then 1 end) as delivery_unassigned,
+                    count(case when fulfillment_type = 'delivery' and status in ('delivered', 'received') then 1 end) as delivery_completed
                 ")
                 ->first();
 
@@ -56,6 +59,9 @@ class AdminDashboardController extends Controller
             $paidCount = (int) ($orderStats?->paid_count ?? 0);
             $revenuePaid = (float) ($orderStats?->revenue_paid ?? 0);
             $aov = $paidCount > 0 ? round($revenuePaid / $paidCount, 2) : 0.0;
+            $deliveryActive = (int) ($orderStats?->delivery_active ?? 0);
+            $deliveryUnassigned = (int) ($orderStats?->delivery_unassigned ?? 0);
+            $deliveryCompleted = (int) ($orderStats?->delivery_completed ?? 0);
 
             $byStatus = Order::query()
                 ->whereBetween('created_at', [$from, $to])
@@ -96,16 +102,6 @@ class AdminDashboardController extends Controller
                 ")
                 ->first();
 
-            $deliveryStats = DB::table('orders')
-                ->where('fulfillment_type', 'delivery')
-                ->whereBetween('created_at', [$from, $to])
-                ->selectRaw("
-                    count(case when status in ('pending', 'accepted', 'preparing', 'ready', 'out_for_delivery') then 1 end) as active,
-                    count(case when driver_id is null and status not in ('cancelled', 'received', 'delivered') then 1 end) as unassigned,
-                    count(case when status in ('delivered', 'received') then 1 end) as completed
-                ")
-                ->first();
-
             $reservationStats = DB::table('reservations')
                 ->selectRaw("
                     count(case when status = 'confirmed' and starts_at between ? and ? then 1 end) as confirmed,
@@ -122,16 +118,15 @@ class AdminDashboardController extends Controller
                 ->first();
 
             $topItems = OrderItem::query()
+                ->join('orders', 'orders.id', '=', 'order_items.order_id')
+                ->whereBetween('orders.created_at', [$from, $to])
+                ->where('orders.status', '!=', Order::STATUS_CANCELLED)
                 ->select(
-                    'menu_item_id',
-                    DB::raw('sum(quantity) as quantity_sold'),
-                    DB::raw('sum(line_total) as revenue'),
+                    'order_items.menu_item_id',
+                    DB::raw('sum(order_items.quantity) as quantity_sold'),
+                    DB::raw('sum(order_items.line_total) as revenue'),
                 )
-                ->whereHas('order', function ($query) use ($from, $to) {
-                    $query->whereBetween('created_at', [$from, $to])
-                        ->where('status', '!=', Order::STATUS_CANCELLED);
-                })
-                ->groupBy('menu_item_id')
+                ->groupBy('order_items.menu_item_id')
                 ->orderByDesc('quantity_sold')
                 ->limit(8)
                 ->get();
@@ -188,9 +183,9 @@ class AdminDashboardController extends Controller
                     'open_cash' => (int) ($paymentDeskStats?->open_cash ?? 0),
                 ],
                 'deliveries' => [
-                    'active' => (int) ($deliveryStats?->active ?? 0),
-                    'unassigned' => (int) ($deliveryStats?->unassigned ?? 0),
-                    'completed' => (int) ($deliveryStats?->completed ?? 0),
+                    'active' => $deliveryActive,
+                    'unassigned' => $deliveryUnassigned,
+                    'completed' => $deliveryCompleted,
                 ],
                 'reservations' => [
                     'confirmed' => (int) ($reservationStats?->confirmed ?? 0),

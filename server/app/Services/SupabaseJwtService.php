@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
+use Firebase\JWT\Key;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -108,14 +109,30 @@ class SupabaseJwtService
     }
 
     /**
+     * @var array<string, \Firebase\JWT\Key>|null
+     */
+    private ?array $parsedKeys = null;
+
+    /**
      * @return array<string, mixed>
      */
     private function verifyViaJwks(string $token): array
     {
-        $jwks = $this->loadJwks();
+        if ($this->parsedKeys === null) {
+            $jwks = $this->loadJwks();
+            $this->parsedKeys = JWK::parseKeySet($jwks);
+        }
 
         JWT::$leeway = 60;
-        $decoded = JWT::decode($token, JWK::parseKeySet($jwks));
+
+        try {
+            $decoded = JWT::decode($token, $this->parsedKeys);
+        } catch (UnexpectedValueException|InvalidArgumentException $decodeException) {
+            // If verification failed, refresh JWKS once in case of key rotation
+            Cache::forget(self::JWKS_CACHE_KEY);
+            $this->parsedKeys = JWK::parseKeySet($this->loadJwks());
+            $decoded = JWT::decode($token, $this->parsedKeys);
+        }
 
         return $this->claimsFromObject($decoded);
     }
