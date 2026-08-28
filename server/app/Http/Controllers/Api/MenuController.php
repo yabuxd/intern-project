@@ -18,16 +18,27 @@ class MenuController extends Controller
     /**
      * Public menu browse: categories with available items only.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $data = $this->cache->rememberMenuPublic(
             fn () => $this->menuPayload(availableOnly: true),
         );
 
+        $etag = '"'.md5(json_encode($data) ?: '').'"';
+
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304, [
+                'ETag' => $etag,
+                'Cache-Control' => 'public, max-age=60, stale-while-revalidate=120',
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $data,
-        ])->header('Cache-Control', 'public, max-age=60');
+        ])
+            ->setEtag($etag)
+            ->header('Cache-Control', 'public, max-age=60, stale-while-revalidate=120');
     }
 
     /**

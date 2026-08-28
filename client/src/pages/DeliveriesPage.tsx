@@ -100,11 +100,7 @@ export function DeliveriesPage() {
     void queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
   }, DELIVERY_ORDERS_FILTER);
 
-  if (!canManage) {
-    return <Navigate to="/" replace />;
-  }
-
-  const allOrders = deliveriesQuery.data ?? [];
+  const allOrders = useMemo(() => deliveriesQuery.data ?? [], [deliveriesQuery.data]);
   const couriers = driversQuery.data ?? [];
   const loading = deliveriesQuery.isLoading && allOrders.length === 0;
   const loadError =
@@ -151,6 +147,10 @@ export function DeliveriesPage() {
     }),
     [allOrders],
   );
+
+  if (!canManage) {
+    return <Navigate to="/" replace />;
+  }
 
   async function setStatus(order: Order, status: OrderStatus) {
     if (!token) return;

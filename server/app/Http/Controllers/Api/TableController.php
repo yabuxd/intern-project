@@ -17,7 +17,7 @@ class TableController extends Controller
         private readonly ApiCacheService $cache,
     ) {}
 
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         $tables = $this->cache->rememberTables(function () {
             return RestaurantTable::query()
@@ -28,10 +28,21 @@ class TableController extends Controller
                 ->all();
         });
 
+        $etag = '"'.md5(json_encode($tables) ?: '').'"';
+
+        if ($request->header('If-None-Match') === $etag) {
+            return response()->json(null, 304, [
+                'ETag' => $etag,
+                'Cache-Control' => 'public, max-age=15, stale-while-revalidate=30',
+            ]);
+        }
+
         return response()->json([
             'success' => true,
             'data' => $tables,
-        ])->header('Cache-Control', 'public, max-age=15');
+        ])
+            ->setEtag($etag)
+            ->header('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
     }
 
     public function store(StoreTableRequest $request): JsonResponse

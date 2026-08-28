@@ -6,10 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReservationRequest;
 use App\Models\Permission;
 use App\Models\Reservation;
+use App\Models\RestaurantTable;
 use App\Services\ApiCacheService;
+use App\Services\ReservationAvailabilityService;
 use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReservationController extends Controller
 {
@@ -51,10 +54,24 @@ class ReservationController extends Controller
 
     public function store(StoreReservationRequest $request): JsonResponse
     {
-        $reservation = Reservation::query()->create([
-            ...$request->reservationAttributes(),
-            'user_id' => $request->user()->id,
-        ]);
+        $attributes = $request->reservationAttributes();
+        $user = $request->user();
+
+        $reservation = DB::transaction(function () use ($attributes, $user) {
+            $table = RestaurantTable::query()->lockForUpdate()->findOrFail($attributes['table_id']);
+
+            app(ReservationAvailabilityService::class)->assertAvailable(
+                $table,
+                $attributes['party_size'],
+                $attributes['starts_at'],
+                $attributes['ends_at'],
+            );
+
+            return Reservation::query()->create([
+                ...$attributes,
+                'user_id' => $user->id,
+            ]);
+        });
 
         $this->cache->forgetAdminDashboard();
         $reservation->load(['table:id,name,capacity', 'user:id,name,email']);

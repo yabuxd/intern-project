@@ -185,6 +185,7 @@ export function MenuPage() {
                             alt={item.name}
                             className="h-24 w-full object-cover sm:h-40 md:h-44"
                             loading="lazy"
+                            decoding="async"
                           />
                         ) : (
                           <div className="flex h-24 items-center justify-center bg-stone-100 text-xs text-stone-500 sm:h-40 sm:text-sm md:h-44">

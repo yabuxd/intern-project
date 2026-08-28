@@ -45,7 +45,13 @@ class ChapaPaymentController extends Controller
         $signature = $request->header('x-chapa-signature')
             ?? $request->header('Chapa-Signature');
 
-        if (is_string($signature) && $signature !== '' && $secret !== '') {
+        if ($secret !== '') {
+            if (! is_string($signature) || $signature === '') {
+                Log::warning('Chapa webhook missing signature header.');
+
+                return response()->json(['success' => false, 'message' => 'Missing signature header.'], 401);
+            }
+
             $expected = hash_hmac('sha256', $request->getContent(), $secret);
             if (! hash_equals($expected, $signature)) {
                 Log::warning('Chapa webhook signature mismatch.');

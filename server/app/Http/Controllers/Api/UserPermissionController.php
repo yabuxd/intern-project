@@ -186,7 +186,7 @@ class UserPermissionController extends Controller
 
     public function updateRolePermissions(UpdateRolePermissionsRequest $request, Role $role): JsonResponse
     {
-        $this->authorize('viewAny', User::class);
+        abort_unless($request->user()?->can(Permission::CAN_MANAGE_PERMISSIONS), 403);
 
         $permissionIds = Permission::query()
             ->whereIn('name', $request->validated('permissions'))

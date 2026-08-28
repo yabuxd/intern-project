@@ -64,6 +64,8 @@ export function ManageMenuPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const flatItems = useMemo(
     () => categories.flatMap((category) => category.items.map((item) => ({ ...item, categoryName: category.name }))),
@@ -199,9 +201,6 @@ export function ManageMenuPage() {
       setForm((prev) => ({ ...prev, image_url: '' }));
     }
   }
-
-  const [itemToDelete, setItemToDelete] = useState<MenuItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
   function requestDeleteItem(item: MenuItem) {
     if (!token) return;

@@ -173,6 +173,7 @@ export function HomePage() {
           src="/images/menu/doro-wat.jpg"
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
+          decoding="async"
         />
         <div
           aria-hidden
@@ -260,12 +261,14 @@ export function HomePage() {
               alt="Kitfo"
               className="h-36 w-full object-cover sm:h-44"
               loading="lazy"
+              decoding="async"
             />
             <img
               src="/images/menu/tibs.jpg"
               alt="Tibs"
               className="mt-6 h-36 w-full object-cover sm:h-44"
               loading="lazy"
+              decoding="async"
             />
           </div>
         </div>
@@ -326,6 +329,7 @@ export function HomePage() {
                   alt={dish.name}
                   className="h-32 w-full object-cover transition duration-500 group-hover:scale-105 sm:h-44"
                   loading="lazy"
+                  decoding="async"
                 />
                 <span className="absolute bottom-2 left-2 bg-[var(--color-wine)] px-2 py-0.5 text-[10px] font-medium tracking-wide text-[var(--color-cream)] sm:bottom-3 sm:left-3 sm:px-2.5 sm:text-xs">
                   {dish.tag}
