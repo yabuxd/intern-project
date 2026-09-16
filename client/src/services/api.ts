@@ -30,6 +30,15 @@ import { queryClient } from '../queryClient';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
 const inflightGets = new Map<string, Promise<unknown>>();
 
+export async function fetchAuthDriver(): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/health`, {
+    headers: { Accept: 'application/json' },
+    signal: AbortSignal.timeout(5_000),
+  });
+  const body = (await response.json().catch(() => null)) as { auth_driver?: string } | null;
+  return body?.auth_driver === 'local' ? 'local' : 'supabase';
+}
+
 export class ApiError extends Error {
   readonly status: number;
 
@@ -124,6 +133,39 @@ export async function apiFetchPage<T>(
 
 export function fetchMe(token: string): Promise<AuthUser> {
   return apiFetch<AuthUser>('/me', { token });
+}
+
+export interface LocalAuthResult {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+  user: {
+    id: string;
+    email: string;
+    name: string | null;
+  };
+}
+
+export function localLogin(email: string, password: string): Promise<LocalAuthResult> {
+  return apiFetch<LocalAuthResult>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function localRegister(
+  email: string,
+  password: string,
+  fullName?: string,
+): Promise<LocalAuthResult> {
+  return apiFetch<LocalAuthResult>('/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({
+      email,
+      password,
+      full_name: fullName || undefined,
+    }),
+  });
 }
 
 export function fetchMenu(): Promise<MenuCategory[]> {

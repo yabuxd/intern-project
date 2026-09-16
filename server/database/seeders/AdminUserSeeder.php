@@ -25,6 +25,28 @@ class AdminUserSeeder extends Seeder
 
         $this->call([PermissionSeeder::class, RoleSeeder::class]);
 
+        if ((string) config('services.auth.driver') === 'local') {
+            $user = User::query()->firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'password' => $password !== '' ? $password : null,
+                    'email_verified_at' => now(),
+                ],
+            );
+
+            if ($password !== '') {
+                $user->password = $password;
+                $user->save();
+            }
+
+            $adminRole = Role::query()->where('name', Role::ADMIN)->firstOrFail();
+            $user->roles()->syncWithoutDetaching([$adminRole->id]);
+            $this->command?->info("Local admin user ready: {$email}");
+
+            return;
+        }
+
         $supabaseUser = $knownId !== ''
             ? ['id' => $knownId, 'email' => $email]
             : $this->ensureSupabaseUser($email, $password, $name);
