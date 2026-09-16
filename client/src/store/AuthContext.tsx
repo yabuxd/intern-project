@@ -88,14 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
       setSession(data.session);
-      setLoading(false);
       await syncProfile(data.session);
+      if (mounted) {
+        setLoading(false);
+      }
     })();
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       setError(null);
-      setLoading(false);
       void syncProfile(nextSession);
     });
 
