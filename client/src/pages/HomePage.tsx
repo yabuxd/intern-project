@@ -162,7 +162,7 @@ function useQuickLinks(
 }
 
 export function HomePage() {
-  const { user, session, error, hasPermission } = useAuth();
+  const { user, session, loading, error, hasPermission } = useAuth();
   const quickLinks = useQuickLinks(session, hasPermission);
   const displayName = user?.name ?? user?.email?.split('@')[0] ?? 'Guest';
 
@@ -491,16 +491,20 @@ export function HomePage() {
               Account
             </p>
             <ul className="mt-4 space-y-2 text-sm text-[var(--color-cream-muted)]">
-              <li>
-                <Link to="/login" className="hover:text-[var(--color-brass)]">
-                  Sign in
-                </Link>
-              </li>
-              <li>
-                <Link to="/signup" className="hover:text-[var(--color-brass)]">
-                  Sign up
-                </Link>
-              </li>
+              {!loading && !session ? (
+                <>
+                  <li>
+                    <Link to="/login" className="hover:text-[var(--color-brass)]">
+                      Sign in
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/signup" className="hover:text-[var(--color-brass)]">
+                      Sign up
+                    </Link>
+                  </li>
+                </>
+              ) : null}
               <li>
                 <Link to="/orders" className="hover:text-[var(--color-brass)]">
                   Orders
