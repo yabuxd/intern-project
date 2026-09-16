@@ -55,3 +55,4 @@ export {
   cancelPrefetch,
 } from './api';
 export { supabase } from './supabase';
+export { isLocalAuth, detectAuthMode } from './localAuth';
