@@ -51,11 +51,6 @@ export function LoginPage() {
               Welcome back
             </h2>
             <p className="text-sm text-[var(--color-cream-muted)]">Enter your account details to continue.</p>
-            {import.meta.env.VITE_AUTH_MODE === 'local' ? (
-              <p className="text-xs text-[var(--color-brass)]">
-                Local login: admin@bunahouse.test or diner@bunahouse.test / password
-              </p>
-            ) : null}
           </div>
 
           <label className="block space-y-2 text-left text-sm">

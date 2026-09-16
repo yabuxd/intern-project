@@ -13,6 +13,26 @@ export async function detectAuthMode(): Promise<boolean> {
     return true;
   }
 
+  if (import.meta.env.VITE_AUTH_MODE === 'supabase') {
+    localAuth = false;
+    return false;
+  }
+
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+  if (supabaseUrl) {
+    try {
+      const response = await fetch(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/health`, {
+        signal: AbortSignal.timeout(2500),
+      });
+      if (response.ok) {
+        localAuth = false;
+        return false;
+      }
+    } catch {
+      // Cloud Auth is unreachable; fall through to Laravel if enabled.
+    }
+  }
+
   try {
     localAuth = (await fetchAuthDriver()) === 'local';
   } catch {

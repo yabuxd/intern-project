@@ -153,10 +153,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(signInError.message);
-      throw signInError;
+    if (!signInError) {
+      return;
     }
+
+    if (/failed to fetch|networkerror|load failed/i.test(signInError.message)) {
+      try {
+        const nextSession = await signInLocal(email, password);
+        loadedUserIdRef.current = null;
+        setSession(nextSession);
+        const me = await loadProfile(nextSession.access_token);
+        loadedUserIdRef.current = nextSession.user.id;
+        setUser(me);
+        return;
+      } catch {
+        // keep the original cloud error below
+      }
+    }
+
+    setError(signInError.message);
+    throw signInError;
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
