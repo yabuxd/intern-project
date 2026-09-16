@@ -11,6 +11,14 @@ import {
 import type { AuthUser, PermissionName } from '@intern/shared';
 import type { Session } from '@supabase/supabase-js';
 import { fetchMe, supabase } from '../services';
+import {
+  detectAuthMode,
+  isLocalAuth,
+  readLocalSession,
+  signInLocal,
+  signOutLocal,
+  signUpLocal,
+} from '../services/localAuth';
 
 interface AuthContextValue {
   session: Session | null;
@@ -85,37 +93,106 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     void (async () => {
+      await detectAuthMode();
+      if (!mounted) return;
+
+      if (isLocalAuth()) {
+        const localSession = readLocalSession();
+        setSession(localSession);
+        await syncProfile(localSession);
+        if (mounted) {
+          setLoading(false);
+        }
+        return;
+      }
+
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
       setSession(data.session);
-      setLoading(false);
       await syncProfile(data.session);
+      if (mounted) {
+        setLoading(false);
+      }
     })();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setError(null);
-      setLoading(false);
-      void syncProfile(nextSession);
+    let unsubscribe: (() => void) | undefined;
+    void detectAuthMode().then(() => {
+      if (!mounted || isLocalAuth()) {
+        return;
+      }
+      const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+        setSession(nextSession);
+        setError(null);
+        void syncProfile(nextSession);
+      });
+      unsubscribe = () => authListener.subscription.unsubscribe();
     });
 
     return () => {
       mounted = false;
-      authListener.subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError(signInError.message);
-      throw signInError;
+    if (isLocalAuth()) {
+      try {
+        const nextSession = await signInLocal(email, password);
+        loadedUserIdRef.current = null;
+        setSession(nextSession);
+        const me = await loadProfile(nextSession.access_token);
+        loadedUserIdRef.current = nextSession.user.id;
+        setUser(me);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Sign in failed';
+        setError(message);
+        throw err;
+      }
+      return;
     }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (!signInError) {
+      return;
+    }
+
+    if (/failed to fetch|networkerror|load failed/i.test(signInError.message)) {
+      try {
+        const nextSession = await signInLocal(email, password);
+        loadedUserIdRef.current = null;
+        setSession(nextSession);
+        const me = await loadProfile(nextSession.access_token);
+        loadedUserIdRef.current = nextSession.user.id;
+        setUser(me);
+        return;
+      } catch {
+        // keep the original cloud error below
+      }
+    }
+
+    setError(signInError.message);
+    throw signInError;
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName?: string) => {
     setError(null);
+    if (isLocalAuth()) {
+      try {
+        const nextSession = await signUpLocal(email, password, fullName);
+        loadedUserIdRef.current = null;
+        setSession(nextSession);
+        const me = await loadProfile(nextSession.access_token);
+        loadedUserIdRef.current = nextSession.user.id;
+        setUser(me);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Sign up failed';
+        setError(message);
+        throw err;
+      }
+      return;
+    }
+
     const { error: signUpError } = await supabase.auth.signUp({
       email,
       password,
@@ -131,6 +208,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     setError(null);
+    if (isLocalAuth()) {
+      signOutLocal();
+      loadedUserIdRef.current = null;
+      inFlightUserIdRef.current = null;
+      setSession(null);
+      setUser(null);
+      return;
+    }
+
     const { error: signOutError } = await supabase.auth.signOut();
     if (signOutError) {
       setError(signOutError.message);
@@ -142,7 +228,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshMe = useCallback(async () => {
-    const nextSession = (await supabase.auth.getSession()).data.session;
+    const nextSession = isLocalAuth()
+      ? readLocalSession()
+      : (await supabase.auth.getSession()).data.session;
     const token = nextSession?.access_token;
     const userId = nextSession?.user?.id ?? null;
     const me = await loadProfile(token);

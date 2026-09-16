@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'auth' => [
+        // "local" issues HS256 JWTs from Laravel (no Supabase). Anything else keeps cloud Auth.
+        'driver' => env('AUTH_DRIVER', 'supabase'),
+    ],
+
     'supabase' => [
         'url' => env('SUPABASE_URL'),
         'anon_key' => env('SUPABASE_ANON_KEY'),

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminDashboardController;
 use App\Http\Controllers\Api\CashierController;
 use App\Http\Controllers\Api\ChapaPaymentController;
+use App\Http\Controllers\Api\LocalAuthController;
 use App\Http\Controllers\Api\MeController;
 use App\Http\Controllers\Api\MenuChangeRequestController;
 use App\Http\Controllers\Api\MenuController;
@@ -19,12 +20,15 @@ Route::get('/health', function () {
     return response()->json([
         'status' => 'ok',
         'service' => 'intern-project-api',
+        'auth_driver' => (string) config('services.auth.driver', 'supabase'),
     ]);
 });
 
 Route::middleware('throttle:api')->group(function () {
     Route::get('/menu', [MenuController::class, 'index']);
     Route::get('/tables', [TableController::class, 'index']);
+    Route::post('/auth/login', [LocalAuthController::class, 'login']);
+    Route::post('/auth/register', [LocalAuthController::class, 'register']);
 
     Route::middleware('throttle:payments')->group(function () {
         Route::get('/payments/chapa/callback', [ChapaPaymentController::class, 'callback']);
