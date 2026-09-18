@@ -38,9 +38,13 @@ return [
             'database' => env('DB_DATABASE', database_path('database.sqlite')),
             'prefix' => '',
             'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
-            'busy_timeout' => null,
-            'journal_mode' => null,
-            'synchronous' => null,
+            'busy_timeout' => env('DB_BUSY_TIMEOUT', 5000),
+            'journal_mode' => env('DB_DATABASE') === ':memory:'
+                ? null
+                : env('DB_JOURNAL_MODE', 'wal'),
+            'synchronous' => env('DB_DATABASE') === ':memory:'
+                ? null
+                : env('DB_SYNCHRONOUS', 'NORMAL'),
             'transaction_mode' => 'DEFERRED',
         ],
 
@@ -97,6 +101,12 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'options' => filter_var(env('DB_PGBOUNCER', false), FILTER_VALIDATE_BOOL) ? [
+                \PDO::ATTR_EMULATE_PREPARES => true,
+                \PDO::ATTR_PERSISTENT => false,
+            ] : [
+                \PDO::ATTR_PERSISTENT => false,
+            ],
         ],
 
         'sqlsrv' => [

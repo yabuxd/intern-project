@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'auth' => [
+        // "local" issues HS256 JWTs from Laravel (no Supabase). Anything else keeps cloud Auth.
+        'driver' => env('AUTH_DRIVER', 'supabase'),
+    ],
+
     'supabase' => [
         'url' => env('SUPABASE_URL'),
         'anon_key' => env('SUPABASE_ANON_KEY'),
@@ -49,8 +54,15 @@ return [
         'email' => env('ADMIN_EMAIL'),
         'password' => env('ADMIN_PASSWORD'),
         'name' => env('ADMIN_NAME', 'Restaurant Admin'),
-        // Optional: skip Auth create and only sync local permissions for this UUID
+        // Optional: skip Auth create and only attach the admin role for this UUID
         'user_id' => env('ADMIN_USER_ID'),
+    ],
+
+    'chapa' => [
+        'public_key' => env('CHAPA_PUBLIC_KEY'),
+        'secret_key' => env('CHAPA_SECRET_KEY'),
+        'encryption_key' => env('CHAPA_ENCRYPTION_KEY'),
+        'base_url' => rtrim((string) env('CHAPA_BASE_URL', 'https://api.chapa.co'), '/'),
     ],
 
 ];

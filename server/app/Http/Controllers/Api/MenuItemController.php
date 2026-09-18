@@ -5,15 +5,40 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreMenuItemRequest;
 use App\Http\Requests\UpdateMenuItemRequest;
+use App\Http\Requests\UploadMenuImageRequest;
 use App\Models\MenuItem;
+use App\Services\ApiCacheService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class MenuItemController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
+
+    public function uploadImage(UploadMenuImageRequest $request): JsonResponse
+    {
+        $file = $request->file('image');
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg');
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $path = $file->storeAs('menu', $filename, 'public');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'image_url' => Storage::disk('public')->url($path),
+            ],
+            'message' => 'Image uploaded.',
+        ], 201);
+    }
+
     public function store(StoreMenuItemRequest $request): JsonResponse
     {
         $item = MenuItem::query()->create($request->validated());
-        $item->load('category');
+        $item->load('category:id,name,slug');
+        $this->cache->forgetMenu();
 
         return response()->json([
             'success' => true,
@@ -25,7 +50,7 @@ class MenuItemController extends Controller
     public function show(MenuItem $menuItem): JsonResponse
     {
         $this->authorize('view', $menuItem);
-        $menuItem->load('category');
+        $menuItem->load('category:id,name,slug');
 
         return response()->json([
             'success' => true,
@@ -36,7 +61,8 @@ class MenuItemController extends Controller
     public function update(UpdateMenuItemRequest $request, MenuItem $menuItem): JsonResponse
     {
         $menuItem->update($request->validated());
-        $menuItem->load('category');
+        $menuItem->load('category:id,name,slug');
+        $this->cache->forgetMenu();
 
         return response()->json([
             'success' => true,
@@ -49,6 +75,7 @@ class MenuItemController extends Controller
     {
         $this->authorize('delete', $menuItem);
         $menuItem->delete();
+        $this->cache->forgetMenu();
 
         return response()->json([
             'success' => true,

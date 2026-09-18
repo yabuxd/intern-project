@@ -1,10 +1,5 @@
 export {
-  SkeletonBlock,
-  PageHeaderSkeleton,
-  CardListSkeleton,
-  GridSkeleton,
   MenuSkeleton,
-  FormSkeleton,
   HeroSkeleton,
   OrdersPageSkeleton,
   TablesPageSkeleton,
@@ -12,3 +7,5 @@ export {
   QueuePageSkeleton,
   AdminPageSkeleton,
 } from './Skeleton';
+export { ConfirmModal, type ConfirmModalProps, type ConfirmModalDetail } from './ConfirmModal';
+

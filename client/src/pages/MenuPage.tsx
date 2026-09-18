@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { MenuCategory, MenuItem, RestaurantTable } from '@intern/shared';
+import { useMemo, useState } from 'react';
+import type { FulfillmentType, MenuItem, PaymentMethod } from '@intern/shared';
 import { Link, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { createOrder, fetchMenu, fetchTables } from '../services';
 import { useAuth } from '../store';
 import { PERMISSIONS } from '@intern/shared';
 import { formatEtb } from '../utils/format';
+import { resolveMenuImageSrc } from '../utils/menuImage';
+import { adminOpsPaths } from '../utils/adminPaths';
 import { MenuSkeleton } from '../components/ui';
 
 interface CartLine {
@@ -15,36 +18,42 @@ interface CartLine {
 export function MenuPage() {
   const navigate = useNavigate();
   const { session, hasPermission } = useAuth();
-  const [categories, setCategories] = useState<MenuCategory[]>([]);
-  const [tables, setTables] = useState<RestaurantTable[]>([]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [tableId, setTableId] = useState<number | ''>('');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [fulfillment, setFulfillment] = useState<FulfillmentType>('dine_in');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('chapa');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [deliveryPhone, setDeliveryPhone] = useState('');
+  const [deliveryNotes, setDeliveryNotes] = useState('');
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [placing, setPlacing] = useState(false);
-  const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
-  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
-
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const [menuData, tablesData] = await Promise.all([fetchMenu(), fetchTables()]);
-        if (mounted) {
-          setCategories(menuData);
-          setTables(tablesData);
-        }
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load menu');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const canManage =
+    hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
+    hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
+  const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
+  const manageMenuPath = canManagePermissions
+    ? adminOpsPaths().menuManage
+    : '/menu/manage';
+  const menuQuery = useQuery({
+    queryKey: ['menu'],
+    queryFn: fetchMenu,
+    staleTime: 60_000,
+    placeholderData: (prev) => prev,
+  });
+  const tablesQuery = useQuery({
+    queryKey: ['tables'],
+    queryFn: fetchTables,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+  const categories = menuQuery.data ?? [];
+  const tables = tablesQuery.data ?? [];
+  const loading = menuQuery.isLoading && categories.length === 0;
+  const error = menuQuery.error instanceof Error
+    ? menuQuery.error.message
+    : tablesQuery.error instanceof Error
+      ? tablesQuery.error.message
+      : null;
 
   const cartTotal = useMemo(
     () =>
@@ -79,18 +88,36 @@ export function MenuPage() {
 
   async function checkout() {
     if (!session?.access_token || cart.length === 0) return;
+    if (fulfillment === 'delivery') {
+      if (!deliveryAddress.trim() || !deliveryPhone.trim()) {
+        setCheckoutError('Delivery needs an address and phone number.');
+        return;
+      }
+    }
     setPlacing(true);
     setCheckoutError(null);
     try {
-      await createOrder(session.access_token, {
+      const result = await createOrder(session.access_token, {
         items: cart.map((line) => ({
           menu_item_id: line.item.id,
           quantity: line.quantity,
         })),
-        table_id: tableId === '' ? null : tableId,
+        fulfillment_type: fulfillment,
+        table_id: fulfillment === 'dine_in' && tableId !== '' ? tableId : null,
+        delivery_address: fulfillment === 'delivery' ? deliveryAddress.trim() : null,
+        delivery_phone: fulfillment === 'delivery' ? deliveryPhone.trim() : null,
+        delivery_notes: fulfillment === 'delivery' ? deliveryNotes.trim() || null : null,
+        payment_method: paymentMethod,
       });
       setCart([]);
       setTableId('');
+      setDeliveryAddress('');
+      setDeliveryPhone('');
+      setDeliveryNotes('');
+      if (result.checkout_url) {
+        window.location.assign(result.checkout_url);
+        return;
+      }
       navigate('/orders');
     } catch (err) {
       setCheckoutError(err instanceof Error ? err.message : 'Failed to place order');
@@ -111,13 +138,19 @@ export function MenuPage() {
     <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-8 text-left sm:space-y-10 sm:px-6 sm:py-10 md:px-10">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Ethiopian kitchen</p>
-          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-stone-900 sm:text-4xl">Menu</h1>
-          <p className="mt-2 text-sm text-stone-600 sm:text-base">Traditional dishes, from sambusa to doro wat.</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--color-brass)]">
+            Ethiopian kitchen
+          </p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-3xl text-[var(--color-cream)] sm:text-4xl">
+            Menu
+          </h1>
+          <p className="mt-2 text-sm text-[var(--color-cream-muted)] sm:text-base">
+            Traditional dishes, from sambusa to doro wat.
+          </p>
         </div>
         {canManage && (
           <Link
-            to="/menu/manage"
+            to={manageMenuPath}
             className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-semibold text-white"
           >
             Manage menu
@@ -128,28 +161,31 @@ export function MenuPage() {
       <div className="grid gap-8 lg:grid-cols-[1fr_320px]">
         <div className="space-y-10">
           {categories.every((c) => c.items.length === 0) ? (
-            <p className="rounded-xl border border-dashed border-stone-300 bg-white p-8 text-center text-stone-600">
+            <p className="rounded-xl border border-dashed border-[var(--color-brass)]/30 bg-[var(--color-umber)]/40 p-8 text-center text-[var(--color-cream-muted)]">
               No available items yet.
             </p>
           ) : (
             categories.map((category) =>
               category.items.length === 0 ? null : (
                 <section key={category.id} className="space-y-4">
-                  <h2 className="font-[family-name:var(--font-display)] text-2xl text-stone-900">
+                  <h2 className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
                     {category.name}
                   </h2>
                   <ul className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
-                    {category.items.map((item) => (
+                    {category.items.map((item) => {
+                      const imageSrc = resolveMenuImageSrc(item.image_url);
+                      return (
                       <li
                         key={item.id}
                         className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm sm:rounded-2xl"
                       >
-                        {item.image_url ? (
+                        {imageSrc ? (
                           <img
-                            src={item.image_url}
+                            src={imageSrc}
                             alt={item.name}
                             className="h-24 w-full object-cover sm:h-40 md:h-44"
                             loading="lazy"
+                            decoding="async"
                           />
                         ) : (
                           <div className="flex h-24 items-center justify-center bg-stone-100 text-xs text-stone-500 sm:h-40 sm:text-sm md:h-44">
@@ -172,7 +208,7 @@ export function MenuPage() {
                               {formatEtb(item.price)}
                             </p>
                           </div>
-                          {canPlaceOrder && session && (
+                          {session && (
                             <button
                               type="button"
                               onClick={() => addToCart(item)}
@@ -183,7 +219,8 @@ export function MenuPage() {
                           )}
                         </div>
                       </li>
-                    ))}
+                      );
+                    })}
                   </ul>
                 </section>
               ),
@@ -191,7 +228,7 @@ export function MenuPage() {
           )}
         </div>
 
-        <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
+        <aside className="h-fit max-h-[min(100vh-3rem,52rem)] overflow-y-auto overscroll-contain rounded-2xl border border-stone-200 bg-white p-5 shadow-sm lg:sticky lg:top-6">
           <h2 className="font-[family-name:var(--font-display)] text-xl text-stone-900">Cart</h2>
           {!session ? (
             <p className="mt-3 text-sm text-stone-600">
@@ -200,8 +237,6 @@ export function MenuPage() {
               </Link>{' '}
               to place an order.
             </p>
-          ) : !canPlaceOrder ? (
-            <p className="mt-3 text-sm text-stone-600">You do not have permission to place orders.</p>
           ) : cart.length === 0 ? (
             <p className="mt-3 text-sm text-stone-600">Your cart is empty.</p>
           ) : (
@@ -231,31 +266,132 @@ export function MenuPage() {
                 ))}
               </ul>
               <p className="mt-4 font-semibold text-stone-900">{formatEtb(cartTotal)}</p>
-              <label className="mt-4 block text-sm text-stone-600">
-                Table (optional)
-                <select
-                  value={tableId}
-                  onChange={(e) =>
-                    setTableId(e.target.value === '' ? '' : Number(e.target.value))
-                  }
-                  className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+              <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => setFulfillment('dine_in')}
+                  className={`rounded-lg border py-2 font-medium ${
+                    fulfillment === 'dine_in'
+                      ? 'border-stone-900 bg-stone-900 text-white'
+                      : 'border-stone-300 text-stone-800'
+                  }`}
                 >
-                  <option value="">No table</option>
-                  {tables.map((table) => (
-                    <option key={table.id} value={table.id}>
-                      {table.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  Dine-in
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFulfillment('delivery')}
+                  className={`rounded-lg border py-2 font-medium ${
+                    fulfillment === 'delivery'
+                      ? 'border-stone-900 bg-stone-900 text-white'
+                      : 'border-stone-300 text-stone-800'
+                  }`}
+                >
+                  Delivery
+                </button>
+              </div>
+              {fulfillment === 'dine_in' ? (
+                <label className="mt-4 block text-sm text-stone-600">
+                  Table (optional)
+                  <select
+                    value={tableId}
+                    onChange={(e) =>
+                      setTableId(e.target.value === '' ? '' : Number(e.target.value))
+                    }
+                    className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                  >
+                    <option value="">No table</option>
+                    {tables.map((table) => (
+                      <option key={table.id} value={table.id}>
+                        {table.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  <label className="block text-sm text-stone-600">
+                    Address
+                    <input
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                      placeholder="Street, neighborhood, Addis Ababa"
+                      autoComplete="street-address"
+                    />
+                  </label>
+                  <label className="block text-sm text-stone-600">
+                    Phone
+                    <input
+                      value={deliveryPhone}
+                      onChange={(e) => setDeliveryPhone(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                      placeholder="+251…"
+                      autoComplete="tel"
+                      inputMode="tel"
+                    />
+                  </label>
+                  <label className="block text-sm text-stone-600">
+                    Notes (optional)
+                    <input
+                      value={deliveryNotes}
+                      onChange={(e) => setDeliveryNotes(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-stone-300 px-3 py-2 text-stone-900"
+                      placeholder="Gate code, landmark…"
+                    />
+                  </label>
+                </div>
+              )}
               {checkoutError && <p className="mt-2 text-sm text-red-600">{checkoutError}</p>}
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-stone-700">Payment</p>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('chapa')}
+                    className={`rounded-lg border py-2 font-medium ${
+                      paymentMethod === 'chapa'
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-300 text-stone-800'
+                    }`}
+                  >
+                    Pay online
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`rounded-lg border py-2 font-medium ${
+                      paymentMethod === 'cash'
+                        ? 'border-stone-900 bg-stone-900 text-white'
+                        : 'border-stone-300 text-stone-800'
+                    }`}
+                  >
+                    Cash / later
+                  </button>
+                </div>
+                <p className="text-xs text-stone-500">
+                  {paymentMethod === 'chapa'
+                    ? 'You will complete payment with Chapa before the kitchen sees the order.'
+                    : 'Pay at the restaurant or on delivery. The kitchen gets the order right away.'}
+                </p>
+              </div>
               <button
                 type="button"
-                disabled={placing}
+                disabled={
+                  placing ||
+                  (fulfillment === 'delivery' &&
+                    (!deliveryAddress.trim() || !deliveryPhone.trim()))
+                }
                 onClick={() => void checkout()}
                 className="mt-4 w-full rounded-xl bg-stone-900 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
               >
-                {placing ? 'Placing…' : 'Place order'}
+                {placing
+                  ? paymentMethod === 'chapa'
+                    ? 'Starting payment…'
+                    : 'Placing…'
+                  : paymentMethod === 'chapa'
+                    ? 'Pay & place order'
+                    : 'Place order'}
               </button>
             </>
           )}

@@ -255,21 +255,3 @@ export function AdminPageSkeleton() {
     </div>
   );
 }
-
-/** @deprecated Prefer TablesPageSkeleton — kept for any leftover imports */
-export function GridSkeleton({ count = 8 }: { count?: number }) {
-  return (
-    <ul
-      className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-4"
-      aria-busy="true"
-      aria-label="Loading"
-    >
-      {Array.from({ length: count }, (_, i) => (
-        <li key={i} className="flex flex-col gap-3">
-          <SkeletonBlock className="aspect-[5/4] w-full" />
-          <SkeletonBlock className="mx-auto h-3 w-24" />
-        </li>
-      ))}
-    </ul>
-  );
-}

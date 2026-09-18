@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import type { RestaurantTable, TableStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
-import { fetchTables, updateTableStatus } from '../services';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  createTable,
+  deleteTable,
+  fetchTables,
+  updateTable,
+  updateTableStatus,
+} from '../services';
 import { useAuth } from '../store';
-import { TablesPageSkeleton } from '../components/ui';
+import { ConfirmModal, TablesPageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<TableStatus, string> = {
   free: 'Free',
@@ -43,46 +50,37 @@ function tableImage(capacity: number | null): string {
 
 export function TablesPage() {
   const { session, hasPermission } = useAuth();
-  const [tables, setTables] = useState<RestaurantTable[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [filter, setFilter] = useState<TableStatus | 'all'>('all');
-  const canManage = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
+  const [editing, setEditing] = useState<RestaurantTable | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [formName, setFormName] = useState('');
+  const [formCapacity, setFormCapacity] = useState('');
+  const [formStatus, setFormStatus] = useState<TableStatus>('free');
+  const [saving, setSaving] = useState(false);
 
-  const reload = useCallback(async () => {
-    try {
-      const data = await fetchTables();
-      setTables(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load tables');
-    }
-  }, []);
+  const canManage =
+    hasPermission(PERMISSIONS.CAN_MANAGE_TABLES) ||
+    hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
 
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const data = await fetchTables();
-        if (mounted) setTables(data);
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load tables');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+  const tablesQuery = useQuery({
+    queryKey: ['tables'],
+    queryFn: fetchTables,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+  const tables = useMemo(() => tablesQuery.data ?? [], [tablesQuery.data]);
+  const loading = tablesQuery.isLoading && tables.length === 0;
+  const queryError = tablesQuery.error instanceof Error ? tablesQuery.error.message : error;
 
   async function setStatus(table: RestaurantTable, status: TableStatus) {
     if (!session?.access_token || !canManage) return;
     setUpdatingId(table.id);
     try {
-      const updated = await updateTableStatus(session.access_token, table.id, status);
-      setTables((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
+      await updateTableStatus(session.access_token, table.id, status);
+      await queryClient.invalidateQueries({ queryKey: ['tables'] });
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update table');
@@ -92,12 +90,88 @@ export function TablesPage() {
   }
 
   async function cycleStatus(table: RestaurantTable) {
+    if (editing?.id === table.id) return;
     await setStatus(table, NEXT_STATUS[table.status]);
   }
 
   async function releaseTable(table: RestaurantTable) {
     if (table.status === 'free') return;
     await setStatus(table, 'free');
+  }
+
+  function startEdit(table: RestaurantTable) {
+    setShowCreate(false);
+    setEditing(table);
+    setFormName(table.name);
+    setFormCapacity(table.capacity != null ? String(table.capacity) : '');
+    setFormStatus(table.status);
+  }
+
+  function startCreate() {
+    setEditing(null);
+    setShowCreate(true);
+    setFormName('');
+    setFormCapacity('4');
+    setFormStatus('free');
+  }
+
+  function cancelForm() {
+    setEditing(null);
+    setShowCreate(false);
+  }
+
+  async function onSubmitForm(event: FormEvent) {
+    event.preventDefault();
+    if (!session?.access_token || !canManage) return;
+    setSaving(true);
+    setError(null);
+    try {
+      const capacity = formCapacity.trim() === '' ? null : Number(formCapacity);
+      if (editing) {
+        await updateTable(session.access_token, editing.id, {
+          name: formName.trim(),
+          capacity,
+          status: formStatus,
+        });
+      } else {
+        await createTable(session.access_token, {
+          name: formName.trim(),
+          capacity,
+          status: formStatus,
+        });
+      }
+      cancelForm();
+      await queryClient.invalidateQueries({ queryKey: ['tables'] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save table');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const [tableToDelete, setTableToDelete] = useState<RestaurantTable | null>(null);
+
+  function requestDeleteTable(table: RestaurantTable) {
+    if (!session?.access_token || !canManage) return;
+    setError(null);
+    setTableToDelete(table);
+  }
+
+  async function handleConfirmDeleteTable() {
+    if (!session?.access_token || !canManage || !tableToDelete) return;
+    const table = tableToDelete;
+    setUpdatingId(table.id);
+    setError(null);
+    try {
+      await deleteTable(session.access_token, table.id);
+      if (editing?.id === table.id) cancelForm();
+      setTableToDelete(null);
+      await queryClient.invalidateQueries({ queryKey: ['tables'] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete table');
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   const counts = useMemo(
@@ -116,8 +190,8 @@ export function TablesPage() {
     return <TablesPageSkeleton />;
   }
 
-  if (error && tables.length === 0) {
-    return <p className="px-4 py-16 text-center text-[#e8a0a0] sm:px-6">{error}</p>;
+  if (queryError && tables.length === 0) {
+    return <p className="px-4 py-16 text-center text-[#e8a0a0] sm:px-6">{queryError}</p>;
   }
 
   return (
@@ -132,18 +206,94 @@ export function TablesPage() {
           </h1>
           <p className="mt-3 max-w-lg text-sm text-[var(--color-cream-muted)] sm:text-base">
             {canManage
-              ? 'Tap a table to cycle Free → Reserved → Occupied, or clear it for the next guest.'
+              ? 'Edit name and seats, cycle status, or add a new table for the floor.'
               : `${counts.free} free of ${counts.all} for tonight’s service.`}
           </p>
         </header>
-        <button
-          type="button"
-          onClick={() => void reload()}
-          className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {canManage && (
+            <button
+              type="button"
+              onClick={startCreate}
+              className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)]"
+            >
+              Add table
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void tablesQuery.refetch()}
+            className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
+
+      {canManage && (showCreate || editing) && (
+        <form
+          onSubmit={onSubmitForm}
+          className="space-y-4 rounded-xl border border-[var(--color-brass)]/25 bg-[var(--color-umber)]/50 p-5"
+        >
+          <h2 className="text-lg font-semibold text-[var(--color-cream)]">
+            {editing ? `Edit ${editing.name}` : 'New table'}
+          </h2>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <label className="block space-y-1 text-sm">
+              <span className="text-[var(--color-cream-muted)]">Name</span>
+              <input
+                required
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                className="w-full rounded-md border border-[var(--color-brass)]/30 bg-[var(--color-espresso)] px-3 py-2 text-[var(--color-cream)]"
+                placeholder="Table 12"
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="text-[var(--color-cream-muted)]">Capacity</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={formCapacity}
+                onChange={(e) => setFormCapacity(e.target.value)}
+                className="w-full rounded-md border border-[var(--color-brass)]/30 bg-[var(--color-espresso)] px-3 py-2 text-[var(--color-cream)]"
+                placeholder="4"
+              />
+            </label>
+            <label className="block space-y-1 text-sm">
+              <span className="text-[var(--color-cream-muted)]">Status</span>
+              <select
+                value={formStatus}
+                onChange={(e) => setFormStatus(e.target.value as TableStatus)}
+                className="w-full rounded-md border border-[var(--color-brass)]/30 bg-[var(--color-espresso)] px-3 py-2 text-[var(--color-cream)]"
+              >
+                {(Object.keys(STATUS_LABELS) as TableStatus[]).map((status) => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] disabled:opacity-60"
+            >
+              {saving ? 'Saving…' : editing ? 'Save changes' : 'Create table'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelForm}
+              className="rounded-md border border-[var(--color-brass)]/30 px-4 py-2 text-sm text-[var(--color-cream)]"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
         {(
@@ -235,19 +385,42 @@ export function TablesPage() {
                     )}
                   </button>
 
+                  <p className="text-center text-sm font-medium text-[var(--color-cream)]">
+                    {table.name}
+                  </p>
                   <p className="text-center text-sm text-[var(--color-cream-muted)]">
                     {STATUS_HINT[table.status]}
                   </p>
 
-                  {canManage && table.status !== 'free' && (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => void releaseTable(table)}
-                      className="w-full rounded-md border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/50 px-3 py-2 text-sm font-medium text-[var(--color-cream)] transition hover:border-[var(--color-brass)]/50 disabled:opacity-60"
-                    >
-                      {table.status === 'reserved' ? 'Cancel reservation' : 'Set free'}
-                    </button>
+                  {canManage && (
+                    <div className="flex w-full flex-col gap-2">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => startEdit(table)}
+                        className="w-full rounded-md border border-[var(--color-brass)]/40 px-3 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)] disabled:opacity-60"
+                      >
+                        Edit
+                      </button>
+                      {table.status !== 'free' && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void releaseTable(table)}
+                          className="w-full rounded-md border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/50 px-3 py-2 text-sm font-medium text-[var(--color-cream)] transition hover:border-[var(--color-brass)]/50 disabled:opacity-60"
+                        >
+                          {table.status === 'reserved' ? 'Cancel reservation' : 'Set free'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => requestDeleteTable(table)}
+                        className="w-full rounded-md border border-[var(--color-wine)]/40 px-3 py-2 text-sm font-medium text-[#e8a0a0] transition hover:bg-[var(--color-wine)]/15 disabled:opacity-60"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   )}
                 </li>
               );
@@ -258,9 +431,34 @@ export function TablesPage() {
 
       {canManage && (
         <p className="text-center text-xs text-[var(--color-cream-muted)]">
-          Host tip: tap the table image to cycle Free → Reserved → Occupied.
+          Host tip: tap the table image to cycle Free → Reserved → Occupied, or use Edit for name and seats.
         </p>
       )}
+
+      {/* Attractive Table Deletion Confirmation Modal */}
+      <ConfirmModal
+        isOpen={Boolean(tableToDelete)}
+        onClose={() => setTableToDelete(null)}
+        onConfirm={handleConfirmDeleteTable}
+        title="Delete Dining Table"
+        description="Are you sure you want to remove this table from the dining floor? This table will no longer be available for dine-in seating or customer bookings."
+        confirmText="Delete Table"
+        cancelText="Keep Table"
+        variant="danger"
+        isLoading={Boolean(updatingId && tableToDelete?.id === updatingId)}
+        details={[
+          { label: 'Table Name', value: tableToDelete?.name || '—' },
+          { label: 'Seating Capacity', value: tableToDelete?.capacity ? `${tableToDelete.capacity} seats` : 'Open' },
+          {
+            label: 'Current Status',
+            value: (
+              <span className="capitalize font-semibold text-[var(--color-brass)]">
+                {tableToDelete?.status || 'free'}
+              </span>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

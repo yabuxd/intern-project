@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Http;
@@ -23,7 +23,29 @@ class AdminUserSeeder extends Seeder
             return;
         }
 
-        $this->call(PermissionSeeder::class);
+        $this->call([PermissionSeeder::class, RoleSeeder::class]);
+
+        if ((string) config('services.auth.driver') === 'local') {
+            $user = User::query()->firstOrCreate(
+                ['email' => $email],
+                [
+                    'name' => $name,
+                    'password' => $password !== '' ? $password : null,
+                    'email_verified_at' => now(),
+                ],
+            );
+
+            if ($password !== '') {
+                $user->password = $password;
+                $user->save();
+            }
+
+            $adminRole = Role::query()->where('name', Role::ADMIN)->firstOrFail();
+            $user->roles()->syncWithoutDetaching([$adminRole->id]);
+            $this->command?->info("Local admin user ready: {$email}");
+
+            return;
+        }
 
         $supabaseUser = $knownId !== ''
             ? ['id' => $knownId, 'email' => $email]
@@ -38,10 +60,10 @@ class AdminUserSeeder extends Seeder
             ],
         );
 
-        $permissionIds = Permission::query()->pluck('id');
-        $user->permissions()->syncWithoutDetaching($permissionIds);
+        $adminRole = Role::query()->where('name', Role::ADMIN)->firstOrFail();
+        $user->roles()->syncWithoutDetaching([$adminRole->id]);
 
-        $this->command?->info("Admin user ready: {$email} (all permissions granted).");
+        $this->command?->info("Admin user ready: {$email} (admin role granted).");
     }
 
     /**

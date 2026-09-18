@@ -32,6 +32,7 @@ class ReservationAvailabilityService
         }
 
         $overlapQuery = Reservation::query()
+            ->select('id')
             ->where('table_id', $table->id)
             ->whereIn('status', Reservation::activeStatuses())
             ->where('starts_at', '<', $endsAt)

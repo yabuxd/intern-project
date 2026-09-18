@@ -6,40 +6,75 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreReservationRequest;
 use App\Models\Permission;
 use App\Models\Reservation;
+use App\Models\RestaurantTable;
+use App\Services\ApiCacheService;
+use App\Services\ReservationAvailabilityService;
+use App\Support\KeysetPaginator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ReservationController extends Controller
 {
+    public function __construct(
+        private readonly ApiCacheService $cache,
+    ) {}
+
     public function index(Request $request): JsonResponse
     {
         $this->authorize('viewAny', Reservation::class);
 
         $user = $request->user();
         $query = Reservation::query()
-            ->with(['table', 'user'])
-            ->orderByDesc('starts_at');
+            ->select([
+                'id',
+                'user_id',
+                'table_id',
+                'party_size',
+                'starts_at',
+                'ends_at',
+                'status',
+                'notes',
+                'created_at',
+            ])
+            ->with(['table:id,name,capacity', 'user:id,name,email']);
 
         if (! $user->can(Permission::CAN_MANAGE_TABLES)) {
             $query->where('user_id', $user->id);
         }
 
-        $reservations = $query->get()->map(fn (Reservation $reservation) => $this->transform($reservation));
+        [$reservations, $meta] = KeysetPaginator::paginate($query, $request, 'id', 'desc');
 
         return response()->json([
             'success' => true,
-            'data' => $reservations,
+            'data' => $reservations->map(fn (Reservation $reservation) => $this->transform($reservation))->values(),
+            'meta' => $meta,
         ]);
     }
 
     public function store(StoreReservationRequest $request): JsonResponse
     {
-        $reservation = Reservation::query()->create([
-            ...$request->reservationAttributes(),
-            'user_id' => $request->user()->id,
-        ]);
+        $attributes = $request->reservationAttributes();
+        $user = $request->user();
 
-        $reservation->load(['table', 'user']);
+        $reservation = DB::transaction(function () use ($attributes, $user) {
+            $table = RestaurantTable::query()->lockForUpdate()->findOrFail($attributes['table_id']);
+
+            app(ReservationAvailabilityService::class)->assertAvailable(
+                $table,
+                $attributes['party_size'],
+                $attributes['starts_at'],
+                $attributes['ends_at'],
+            );
+
+            return Reservation::query()->create([
+                ...$attributes,
+                'user_id' => $user->id,
+            ]);
+        });
+
+        $this->cache->forgetAdminDashboard();
+        $reservation->load(['table:id,name,capacity', 'user:id,name,email']);
 
         return response()->json([
             'success' => true,
@@ -53,10 +88,11 @@ class ReservationController extends Controller
         $this->authorize('delete', $reservation);
 
         $reservation->update(['status' => Reservation::STATUS_CANCELLED]);
+        $this->cache->forgetAdminDashboard();
 
         return response()->json([
             'success' => true,
-            'data' => $this->transform($reservation->fresh(['table', 'user'])),
+            'data' => $this->transform($reservation->fresh(['table:id,name,capacity', 'user:id,name,email'])),
             'message' => 'Reservation cancelled.',
         ]);
     }

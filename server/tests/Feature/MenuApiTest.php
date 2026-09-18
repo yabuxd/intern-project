@@ -6,9 +6,11 @@ use App\Models\MenuCategory;
 use App\Models\MenuItem;
 use App\Models\Permission;
 use App\Models\User;
+use App\Services\ApiCacheService;
 use Database\Seeders\MenuCategorySeeder;
 use Database\Seeders\PermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
 
 class MenuApiTest extends TestCase
@@ -54,6 +56,36 @@ class MenuApiTest extends TestCase
         $this->assertFalse($items->contains('name', 'Hidden Stew'));
     }
 
+    public function test_menu_cache_is_invalidated_after_create(): void
+    {
+        $category = MenuCategory::query()->firstOrFail();
+        $user = $this->userWithPermission(Permission::CAN_MANAGE_MENU);
+        $token = $this->makeToken([
+            'sub' => $user->id,
+            'email' => $user->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->getJson('/api/menu')->assertOk();
+        $this->assertTrue(Cache::has('api.menu.public.v2'));
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/menu-items', [
+                'menu_category_id' => $category->id,
+                'name' => 'Fresh Pasta',
+                'price' => 14.50,
+                'is_available' => true,
+            ])
+            ->assertCreated();
+
+        $this->assertFalse(Cache::has('api.menu.public.v2'));
+
+        $items = collect($this->getJson('/api/menu')->assertOk()->json('data'))
+            ->flatMap(fn ($c) => $c['items']);
+
+        $this->assertTrue($items->contains('name', 'Fresh Pasta'));
+    }
+
     public function test_manager_can_create_menu_item(): void
     {
         $user = $this->userWithPermission(Permission::CAN_MANAGE_MENU);
@@ -95,32 +127,5 @@ class MenuApiTest extends TestCase
                 'price' => 12.99,
             ])
             ->assertForbidden();
-    }
-
-    private function userWithPermission(string $permissionName): User
-    {
-        $user = User::factory()->create();
-        $permission = Permission::query()->where('name', $permissionName)->firstOrFail();
-        $user->permissions()->attach($permission);
-
-        return $user->fresh(['permissions']);
-    }
-
-    /**
-     * @param  array<string, mixed>  $claims
-     */
-    private function makeToken(array $claims): string
-    {
-        $secret = (string) config('services.supabase.jwt_secret');
-        $header = $this->b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT'], JSON_THROW_ON_ERROR));
-        $payload = $this->b64(json_encode($claims, JSON_THROW_ON_ERROR));
-        $signature = $this->b64(hash_hmac('sha256', $header.'.'.$payload, $secret, true));
-
-        return $header.'.'.$payload.'.'.$signature;
-    }
-
-    private function b64(string $value): string
-    {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
     }
 }

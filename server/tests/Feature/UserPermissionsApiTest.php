@@ -3,9 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Permission;
+use App\Models\Role;
 use App\Models\User;
 use Database\Seeders\PermissionSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class UserPermissionsApiTest extends TestCase
@@ -17,20 +20,20 @@ class UserPermissionsApiTest extends TestCase
         parent::setUp();
 
         config([
+            'services.auth.driver' => 'supabase',
             'services.supabase.jwt_secret' => 'test-supabase-jwt-secret-for-feature-tests',
             'services.supabase.url' => 'https://example.supabase.co',
             'services.supabase.anon_key' => 'test-anon-key',
         ]);
 
-        $this->seed(PermissionSeeder::class);
+        $this->seed([PermissionSeeder::class, RoleSeeder::class]);
     }
 
-    public function test_admin_can_list_users_with_permissions(): void
+    public function test_admin_can_list_users_with_roles(): void
     {
-        $admin = $this->userWithPermission(Permission::CAN_MANAGE_PERMISSIONS);
-        $customer = User::factory()->create(['email' => 'customer@example.com']);
-        $placeOrder = Permission::query()->where('name', Permission::CAN_PLACE_ORDER)->firstOrFail();
-        $customer->permissions()->attach($placeOrder);
+        $admin = $this->userWithRole(Role::ADMIN);
+        $customer = $this->userWithRole(Role::CUSTOMER);
+        $customer->forceFill(['email' => 'customer@example.com'])->save();
 
         $token = $this->makeToken([
             'sub' => $admin->id,
@@ -45,11 +48,15 @@ class UserPermissionsApiTest extends TestCase
         $emails = collect($response->json('data'))->pluck('email')->all();
         $this->assertContains($admin->email, $emails);
         $this->assertContains('customer@example.com', $emails);
+
+        $customerRow = collect($response->json('data'))->firstWhere('email', 'customer@example.com');
+        $this->assertContains(Role::CUSTOMER, $customerRow['roles']);
+        $this->assertContains(Permission::CAN_PLACE_ORDER, $customerRow['permissions']);
     }
 
-    public function test_admin_can_list_permission_catalog(): void
+    public function test_admin_can_list_roles_and_permission_catalog(): void
     {
-        $admin = $this->userWithPermission(Permission::CAN_MANAGE_PERMISSIONS);
+        $admin = $this->userWithRole(Role::ADMIN);
         $token = $this->makeToken([
             'sub' => $admin->id,
             'email' => $admin->email,
@@ -60,11 +67,17 @@ class UserPermissionsApiTest extends TestCase
             ->getJson('/api/admin/permissions')
             ->assertOk()
             ->assertJsonFragment(['name' => Permission::CAN_MANAGE_PERMISSIONS]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/admin/roles')
+            ->assertOk()
+            ->assertJsonFragment(['name' => Role::ADMIN])
+            ->assertJsonFragment(['name' => Role::CUSTOMER]);
     }
 
-    public function test_admin_can_update_user_permissions(): void
+    public function test_admin_can_update_user_roles(): void
     {
-        $admin = $this->userWithPermission(Permission::CAN_MANAGE_PERMISSIONS);
+        $admin = $this->userWithRole(Role::ADMIN);
         $target = User::factory()->create();
         $token = $this->makeToken([
             'sub' => $admin->id,
@@ -73,30 +86,28 @@ class UserPermissionsApiTest extends TestCase
         ]);
 
         $response = $this->withHeader('Authorization', 'Bearer '.$token)
-            ->putJson("/api/admin/users/{$target->id}/permissions", [
-                'permissions' => [
-                    Permission::CAN_PLACE_ORDER,
-                    Permission::CAN_CREATE_RESERVATION,
-                ],
+            ->putJson("/api/admin/users/{$target->id}/roles", [
+                'roles' => [Role::CUSTOMER, Role::KITCHEN],
             ])
             ->assertOk();
 
-        $names = $response->json('data.permissions');
-        sort($names);
-        $this->assertEquals([
-            Permission::CAN_CREATE_RESERVATION,
-            Permission::CAN_PLACE_ORDER,
-        ], $names);
+        $roles = $response->json('data.roles');
+        sort($roles);
+        $this->assertEquals([Role::CUSTOMER, Role::KITCHEN], $roles);
 
-        $target->load('permissions');
+        $permissions = $response->json('data.permissions');
+        $this->assertContains(Permission::CAN_PLACE_ORDER, $permissions);
+        $this->assertContains(Permission::CAN_VIEW_ALL_ORDERS, $permissions);
+
+        $target->load('roles.permissions');
         $this->assertTrue($target->hasPermission(Permission::CAN_PLACE_ORDER));
-        $this->assertTrue($target->hasPermission(Permission::CAN_CREATE_RESERVATION));
+        $this->assertTrue($target->hasPermission(Permission::CAN_UPDATE_ORDER_STATUS));
     }
 
-    public function test_admin_can_revoke_permissions(): void
+    public function test_admin_can_revoke_user_roles(): void
     {
-        $admin = $this->userWithPermission(Permission::CAN_MANAGE_PERMISSIONS);
-        $target = $this->userWithPermission(Permission::CAN_PLACE_ORDER);
+        $admin = $this->userWithRole(Role::ADMIN);
+        $target = $this->userWithRole(Role::CUSTOMER);
         $token = $this->makeToken([
             'sub' => $admin->id,
             'email' => $admin->email,
@@ -104,16 +115,44 @@ class UserPermissionsApiTest extends TestCase
         ]);
 
         $this->withHeader('Authorization', 'Bearer '.$token)
-            ->putJson("/api/admin/users/{$target->id}/permissions", [
-                'permissions' => [],
+            ->putJson("/api/admin/users/{$target->id}/roles", [
+                'roles' => [],
             ])
             ->assertOk()
-            ->assertJsonPath('data.permissions', []);
+            ->assertJsonPath('data.roles', [])
+            ->assertJsonPath('data.permissions', [Permission::CAN_PLACE_ORDER]);
 
-        $this->assertFalse($target->fresh(['permissions'])->hasPermission(Permission::CAN_PLACE_ORDER));
+        $this->assertTrue($target->fresh(['roles.permissions'])->hasPermission(Permission::CAN_PLACE_ORDER));
     }
 
-    public function test_user_without_permission_cannot_manage_permissions(): void
+    public function test_admin_can_update_role_permissions(): void
+    {
+        $admin = $this->userWithRole(Role::ADMIN);
+        $role = Role::query()->where('name', Role::HOST)->firstOrFail();
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $response = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->putJson("/api/admin/roles/{$role->id}/permissions", [
+                'permissions' => [
+                    Permission::CAN_MANAGE_TABLES,
+                    Permission::CAN_VIEW_ALL_ORDERS,
+                ],
+            ])
+            ->assertOk();
+
+        $names = $response->json('data.permissions');
+        sort($names);
+        $this->assertEquals([
+            Permission::CAN_MANAGE_TABLES,
+            Permission::CAN_VIEW_ALL_ORDERS,
+        ], $names);
+    }
+
+    public function test_user_without_permission_cannot_manage_roles(): void
     {
         $user = User::factory()->create();
         $target = User::factory()->create();
@@ -128,36 +167,129 @@ class UserPermissionsApiTest extends TestCase
             ->assertForbidden();
 
         $this->withHeader('Authorization', 'Bearer '.$token)
-            ->putJson("/api/admin/users/{$target->id}/permissions", [
-                'permissions' => [Permission::CAN_PLACE_ORDER],
+            ->putJson("/api/admin/users/{$target->id}/roles", [
+                'roles' => [Role::CUSTOMER],
             ])
             ->assertForbidden();
     }
 
-    private function userWithPermission(string $permissionName): User
+    public function test_admin_can_create_a_user_with_a_role(): void
     {
-        $user = User::factory()->create();
-        $permission = Permission::query()->where('name', $permissionName)->firstOrFail();
-        $user->permissions()->attach($permission);
+        config(['services.supabase.service_role_key' => 'test-service-role']);
+        Http::fake([
+            'https://example.supabase.co/auth/v1/admin/users' => Http::response([
+                'id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+                'email' => 'chef@example.com',
+            ], 200),
+        ]);
 
-        return $user->fresh(['permissions']);
+        $admin = $this->userWithRole(Role::ADMIN);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/admin/users', [
+                'name' => 'Kitchen Chef',
+                'email' => 'chef@example.com',
+                'password' => 'password123',
+                'roles' => [Role::KITCHEN],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.email', 'chef@example.com')
+            ->assertJsonPath('data.roles', [Role::KITCHEN]);
+
+        $this->assertDatabaseHas('users', [
+            'id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+            'email' => 'chef@example.com',
+        ]);
     }
 
-    /**
-     * @param  array<string, mixed>  $claims
-     */
-    private function makeToken(array $claims): string
+    public function test_local_auth_admin_can_create_user_without_supabase(): void
     {
-        $secret = (string) config('services.supabase.jwt_secret');
-        $header = $this->b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT'], JSON_THROW_ON_ERROR));
-        $payload = $this->b64(json_encode($claims, JSON_THROW_ON_ERROR));
-        $signature = $this->b64(hash_hmac('sha256', $header.'.'.$payload, $secret, true));
+        config(['services.auth.driver' => 'local']);
+        Http::fake();
 
-        return $header.'.'.$payload.'.'.$signature;
+        $admin = $this->userWithRole(Role::ADMIN);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/admin/users', [
+                'name' => 'Local Host',
+                'email' => 'host@example.com',
+                'password' => 'password123',
+                'roles' => [Role::HOST],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.email', 'host@example.com')
+            ->assertJsonPath('data.roles', [Role::HOST]);
+
+        $this->assertDatabaseHas('users', ['email' => 'host@example.com']);
+        Http::assertNothingSent();
     }
 
-    private function b64(string $value): string
+    public function test_admin_can_delete_a_user(): void
     {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
+        config(['services.supabase.service_role_key' => 'test-service-role']);
+        Http::fake([
+            'https://example.supabase.co/auth/v1/admin/users/*' => Http::response(null, 200),
+        ]);
+
+        $admin = $this->userWithRole(Role::ADMIN);
+        $target = $this->userWithRole(Role::CUSTOMER);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/admin/users/{$target->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'User deleted.');
+
+        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+    }
+
+    public function test_local_auth_admin_can_delete_user_without_supabase(): void
+    {
+        config(['services.auth.driver' => 'local']);
+        Http::fake();
+
+        $admin = $this->userWithRole(Role::ADMIN);
+        $target = $this->userWithRole(Role::CUSTOMER);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/admin/users/{$target->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'User deleted.');
+
+        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+        Http::assertNothingSent();
+    }
+
+    public function test_admin_cannot_delete_self(): void
+    {
+        $admin = $this->userWithRole(Role::ADMIN);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/admin/users/{$admin->id}")
+            ->assertForbidden();
     }
 }
