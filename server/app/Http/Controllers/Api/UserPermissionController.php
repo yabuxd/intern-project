@@ -61,20 +61,29 @@ class UserPermissionController extends Controller
             ]);
         }
 
-        try {
-            $auth = $this->authUsers->createUser($email, $request->validated('password'), $name);
-        } catch (RuntimeException $e) {
-            throw ValidationException::withMessages([
-                'email' => [$e->getMessage()],
+        if ($this->usesLocalAuth()) {
+            $user = User::query()->create([
+                'email' => $email,
+                'name' => $name,
+                'password' => $request->validated('password'),
+                'email_verified_at' => now(),
+            ]);
+        } else {
+            try {
+                $auth = $this->authUsers->createUser($email, $request->validated('password'), $name);
+            } catch (RuntimeException $e) {
+                throw ValidationException::withMessages([
+                    'email' => [$e->getMessage()],
+                ]);
+            }
+
+            $user = User::query()->create([
+                'id' => $auth['id'],
+                'email' => $auth['email'],
+                'name' => $name,
+                'email_verified_at' => now(),
             ]);
         }
-
-        $user = User::query()->create([
-            'id' => $auth['id'],
-            'email' => $auth['email'],
-            'name' => $name,
-            'email_verified_at' => now(),
-        ]);
 
         $roleNames = $request->validated('roles') ?? [Role::CUSTOMER];
         $roleIds = Role::query()->whereIn('name', $roleNames)->pluck('id');
@@ -100,12 +109,14 @@ class UserPermissionController extends Controller
             ]);
         }
 
-        try {
-            $this->authUsers->deleteUser($user->id);
-        } catch (RuntimeException $e) {
-            throw ValidationException::withMessages([
-                'user' => [$e->getMessage()],
-            ]);
+        if (! $this->usesLocalAuth()) {
+            try {
+                $this->authUsers->deleteUser($user->id);
+            } catch (RuntimeException $e) {
+                throw ValidationException::withMessages([
+                    'user' => [$e->getMessage()],
+                ]);
+            }
         }
 
         $userId = $user->id;
@@ -202,6 +213,11 @@ class UserPermissionController extends Controller
             'data' => $this->transformRole($role),
             'message' => 'Role permissions updated.',
         ]);
+    }
+
+    private function usesLocalAuth(): bool
+    {
+        return (string) config('services.auth.driver', 'supabase') === 'local';
     }
 
     /**

@@ -20,6 +20,7 @@ class UserPermissionsApiTest extends TestCase
         parent::setUp();
 
         config([
+            'services.auth.driver' => 'supabase',
             'services.supabase.jwt_secret' => 'test-supabase-jwt-secret-for-feature-tests',
             'services.supabase.url' => 'https://example.supabase.co',
             'services.supabase.anon_key' => 'test-anon-key',
@@ -206,6 +207,33 @@ class UserPermissionsApiTest extends TestCase
         ]);
     }
 
+    public function test_local_auth_admin_can_create_user_without_supabase(): void
+    {
+        config(['services.auth.driver' => 'local']);
+        Http::fake();
+
+        $admin = $this->userWithRole(Role::ADMIN);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->postJson('/api/admin/users', [
+                'name' => 'Local Host',
+                'email' => 'host@example.com',
+                'password' => 'password123',
+                'roles' => [Role::HOST],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data.email', 'host@example.com')
+            ->assertJsonPath('data.roles', [Role::HOST]);
+
+        $this->assertDatabaseHas('users', ['email' => 'host@example.com']);
+        Http::assertNothingSent();
+    }
+
     public function test_admin_can_delete_a_user(): void
     {
         config(['services.supabase.service_role_key' => 'test-service-role']);
@@ -227,6 +255,28 @@ class UserPermissionsApiTest extends TestCase
             ->assertJsonPath('message', 'User deleted.');
 
         $this->assertDatabaseMissing('users', ['id' => $target->id]);
+    }
+
+    public function test_local_auth_admin_can_delete_user_without_supabase(): void
+    {
+        config(['services.auth.driver' => 'local']);
+        Http::fake();
+
+        $admin = $this->userWithRole(Role::ADMIN);
+        $target = $this->userWithRole(Role::CUSTOMER);
+        $token = $this->makeToken([
+            'sub' => $admin->id,
+            'email' => $admin->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$token)
+            ->deleteJson("/api/admin/users/{$target->id}")
+            ->assertOk()
+            ->assertJsonPath('message', 'User deleted.');
+
+        $this->assertDatabaseMissing('users', ['id' => $target->id]);
+        Http::assertNothingSent();
     }
 
     public function test_admin_cannot_delete_self(): void
