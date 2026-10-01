@@ -87,6 +87,55 @@ class VerifySupabaseJwt
             ], 401);
         }
 
+        $isLocalAuth = (string) config('services.auth.driver', 'supabase') === 'local';
+
+        if ($isLocalAuth) {
+            $cachedAttrs = $this->cache->rememberUserEntity($userId, function () use ($userId) {
+                $user = User::query()->find($userId);
+
+                return $user?->getAttributes();
+            });
+
+            if (! is_array($cachedAttrs) || $cachedAttrs === []) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found for this token.',
+                ], 401);
+            }
+
+            $needsUpdate = ($cachedAttrs['email'] ?? null) !== $email
+                || ($cachedAttrs['name'] ?? null) !== $name
+                || ($emailVerified && empty($cachedAttrs['email_verified_at']))
+                || (! $emailVerified && ! empty($cachedAttrs['email_verified_at']));
+
+            if ($needsUpdate) {
+                $user = User::query()->find($userId);
+                if (! $user) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'User not found for this token.',
+                    ], 401);
+                }
+                $user->fill([
+                    'email' => $email,
+                    'name' => $name,
+                    'email_verified_at' => $emailVerifiedAt,
+                ]);
+                $user->save();
+                $this->cache->forgetUserEntity($userId);
+                $this->cache->rememberUserEntity($userId, fn () => $user->getAttributes());
+            } else {
+                $user = new User;
+                $user->setRawAttributes($cachedAttrs, true);
+                $user->exists = true;
+            }
+
+            Auth::setUser($user);
+            $request->setUserResolver(static fn () => $user);
+
+            return $next($request);
+        }
+
         $cachedAttrs = $this->cache->rememberUserEntity($userId, function () use ($userId, $email, $name, $emailVerifiedAt) {
             $user = User::query()->firstOrCreate(
                 ['id' => $userId],

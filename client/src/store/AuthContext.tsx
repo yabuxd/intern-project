@@ -10,7 +10,8 @@ import {
 } from 'react';
 import type { AuthUser, PermissionName } from '@intern/shared';
 import type { Session } from '@supabase/supabase-js';
-import { fetchMe, supabase } from '../services';
+import { fetchMe, setUnauthorizedHandler, supabase } from '../services';
+import { queryClient } from '../queryClient';
 import {
   detectAuthMode,
   isLocalAuth,
@@ -48,6 +49,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const loadedUserIdRef = useRef<string | null>(null);
   const inFlightUserIdRef = useRef<string | null>(null);
+
+  const clearAuthState = useCallback(() => {
+    loadedUserIdRef.current = null;
+    inFlightUserIdRef.current = null;
+    setSession(null);
+    setUser(null);
+    queryClient.clear();
+  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -92,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    void (async () => {
+    const hydrateSession = async () => {
       await detectAuthMode();
       if (!mounted) return;
 
@@ -113,7 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (mounted) {
         setLoading(false);
       }
-    })();
+    };
+
+    void hydrateSession();
 
     let unsubscribe: (() => void) | undefined;
     void detectAuthMode().then(() => {
@@ -128,11 +139,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe = () => authListener.subscription.unsubscribe();
     });
 
+    // Re-validate after bfcache restore so back/forward cannot revive a signed-out session.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      if (isLocalAuth()) {
+        const localSession = readLocalSession();
+        setSession(localSession);
+        if (!localSession) {
+          clearAuthState();
+        } else {
+          void syncProfile(localSession);
+        }
+        return;
+      }
+      void supabase.auth.getSession().then(({ data }) => {
+        setSession(data.session);
+        if (!data.session) {
+          clearAuthState();
+        } else {
+          void syncProfile(data.session);
+        }
+      });
+    };
+    window.addEventListener('pageshow', onPageShow);
+
+    setUnauthorizedHandler(() => {
+      if (isLocalAuth()) {
+        signOutLocal();
+      } else {
+        void supabase.auth.signOut();
+      }
+      clearAuthState();
+    });
+
     return () => {
       mounted = false;
       unsubscribe?.();
+      window.removeEventListener('pageshow', onPageShow);
+      setUnauthorizedHandler(null);
     };
-  }, []);
+  }, [clearAuthState]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
@@ -210,10 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     if (isLocalAuth()) {
       signOutLocal();
-      loadedUserIdRef.current = null;
-      inFlightUserIdRef.current = null;
-      setSession(null);
-      setUser(null);
+      clearAuthState();
       return;
     }
 
@@ -222,10 +265,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(signOutError.message);
       throw signOutError;
     }
-    loadedUserIdRef.current = null;
-    inFlightUserIdRef.current = null;
-    setUser(null);
-  }, []);
+    clearAuthState();
+  }, [clearAuthState]);
 
   const refreshMe = useCallback(async () => {
     const nextSession = isLocalAuth()

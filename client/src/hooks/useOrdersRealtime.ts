@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { isLocalAuth } from '../services/localAuth';
 import { supabase } from '../services/supabase';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const POLL_INTERVAL_MS = 5000;
+const LOCAL_POLL_INTERVAL_MS = 12_000;
 /** Wait for Realtime before falling back to polling (avoids double-fetch when subscribed). */
 const POLL_FALLBACK_DELAY_MS = 2500;
 
@@ -11,7 +13,7 @@ export const DELIVERY_ORDERS_FILTER = 'fulfillment_type=eq.delivery';
 
 /**
  * Subscribes to a filtered slice of `orders` via Supabase Realtime.
- * Falls back to polling only if Realtime is missing or fails (e.g. local SQLite).
+ * Falls back to polling when Realtime is unavailable (local auth / SQLite / network).
  */
 export function useOrdersRealtime(onChange: () => void, filter?: string) {
   const onChangeRef = useRef(onChange);
@@ -29,9 +31,9 @@ export function useOrdersRealtime(onChange: () => void, filter?: string) {
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let subscribed = false;
 
-    const startPolling = () => {
+    const startPolling = (intervalMs = POLL_INTERVAL_MS) => {
       if (pollId || subscribed) return;
-      pollId = setInterval(trigger, POLL_INTERVAL_MS);
+      pollId = setInterval(trigger, intervalMs);
     };
 
     const stopPolling = () => {
@@ -45,8 +47,14 @@ export function useOrdersRealtime(onChange: () => void, filter?: string) {
       }
     };
 
-    if (!supabaseUrl || supabaseUrl === 'https://placeholder.supabase.co') {
-      startPolling();
+    // Local Laravel/SQLite does not publish to Supabase Realtime — poll the API instead.
+    if (
+      isLocalAuth() ||
+      import.meta.env.VITE_AUTH_MODE === 'local' ||
+      !supabaseUrl ||
+      supabaseUrl === 'https://placeholder.supabase.co'
+    ) {
+      startPolling(LOCAL_POLL_INTERVAL_MS);
       return () => stopPolling();
     }
 
@@ -74,7 +82,7 @@ export function useOrdersRealtime(onChange: () => void, filter?: string) {
         }
       });
 
-    fallbackTimer = setTimeout(startPolling, POLL_FALLBACK_DELAY_MS);
+    fallbackTimer = setTimeout(() => startPolling(), POLL_FALLBACK_DELAY_MS);
 
     return () => {
       stopPolling();

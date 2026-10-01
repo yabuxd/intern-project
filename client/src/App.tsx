@@ -51,6 +51,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   return children;
 }
 
+/** Guest-only routes (/login, /signup). Signed-in users are bounced home and cannot reopen auth via back. */
 function GuestRoute({ children }: { children: ReactNode }) {
   const { session, loading } = useAuth();
 

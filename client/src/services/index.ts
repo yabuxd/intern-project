@@ -53,6 +53,7 @@ export {
   prefetchReservationsData,
   debouncePrefetch,
   cancelPrefetch,
+  setUnauthorizedHandler,
 } from './api';
 export { supabase } from './supabase';
 export { isLocalAuth, detectAuthMode } from './localAuth';

@@ -23,11 +23,11 @@ export function SignupPage() {
     try {
       await signUp(email, password, fullName || undefined);
       if (import.meta.env.VITE_AUTH_MODE === 'local') {
-        navigate('/');
+        navigate('/', { replace: true });
         return;
       }
       setInfo('Account created. If email confirmation is enabled, check your inbox, then sign in.');
-      navigate('/login');
+      navigate('/login', { replace: true });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Sign up failed');
     } finally {

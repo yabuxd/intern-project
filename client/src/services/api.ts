@@ -30,6 +30,14 @@ import { queryClient } from '../queryClient';
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000/api';
 const inflightGets = new Map<string, Promise<unknown>>();
 
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/** Register a callback for HTTP 401 responses (clears session / redirects). */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
+
 export async function fetchAuthDriver(): Promise<string> {
   const response = await fetch(`${apiBaseUrl}/health`, {
     headers: { Accept: 'application/json' },
@@ -93,6 +101,9 @@ async function requestJson<T>(
       | null;
 
     if (!response.ok) {
+      if (response.status === 401) {
+        unauthorizedHandler?.();
+      }
       const fieldErrors = body?.errors
         ? Object.values(body.errors)
             .flatMap((value) => (Array.isArray(value) ? value : [value]))
@@ -209,6 +220,9 @@ export async function uploadMenuImage(
     | null;
 
   if (!response.ok) {
+    if (response.status === 401) {
+      unauthorizedHandler?.();
+    }
     const fieldErrors = payload?.errors
       ? Object.values(payload.errors)
           .flatMap((value) => (Array.isArray(value) ? value : [value]))

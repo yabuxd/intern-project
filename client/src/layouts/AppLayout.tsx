@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PERMISSIONS, ROLES } from '@intern/shared';
 import {
@@ -32,6 +32,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { session, user, signOut, loading, hasPermission } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
@@ -75,6 +76,11 @@ export function AppLayout({ children }: AppLayoutProps) {
       document.body.style.overflow = '';
     };
   }, [menuOpen]);
+
+  async function handleSignOut() {
+    await signOut();
+    navigate('/login', { replace: true });
+  }
 
   function closeMenu() {
     setMenuOpen(false);
@@ -311,7 +317,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                 </span>
                 <button
                   type="button"
-                  onClick={() => void signOut()}
+                  onClick={() => void handleSignOut()}
                   className="rounded-md border border-[var(--color-brass)]/30 px-3 py-2 font-medium text-[var(--color-cream)] transition hover:border-[var(--color-brass)] hover:bg-[var(--color-umber)] sm:px-3.5"
                 >
                   Sign out
