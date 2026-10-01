@@ -14,20 +14,10 @@ return new class extends Migration
             $table->string('description')->nullable();
             $table->timestamps();
         });
-
-        Schema::create('user_permissions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignUuid('user_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('permission_id')->constrained('permissions')->cascadeOnDelete();
-            $table->timestamps();
-
-            $table->unique(['user_id', 'permission_id']);
-        });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('user_permissions');
         Schema::dropIfExists('permissions');
     }
 };

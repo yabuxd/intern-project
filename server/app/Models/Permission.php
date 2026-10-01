@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 #[Fillable(['name', 'description'])]
 class Permission extends Model
@@ -23,6 +22,14 @@ class Permission extends Model
 
     public const CAN_MANAGE_PERMISSIONS = 'can_manage_permissions';
 
+    public const CAN_MANAGE_DELIVERIES = 'can_manage_deliveries';
+
+    public const CAN_ACCEPT_DELIVERY_ORDERS = 'can_accept_delivery_orders';
+
+    public const CAN_PROPOSE_MENU_CHANGES = 'can_propose_menu_changes';
+
+    public const CAN_MANAGE_PAYMENTS = 'can_manage_payments';
+
     /**
      * @return list<string>
      */
@@ -36,15 +43,10 @@ class Permission extends Model
             self::CAN_PLACE_ORDER,
             self::CAN_CREATE_RESERVATION,
             self::CAN_MANAGE_PERMISSIONS,
+            self::CAN_MANAGE_DELIVERIES,
+            self::CAN_ACCEPT_DELIVERY_ORDERS,
+            self::CAN_PROPOSE_MENU_CHANGES,
+            self::CAN_MANAGE_PAYMENTS,
         ];
-    }
-
-    /**
-     * @return BelongsToMany<User, $this>
-     */
-    public function users(): BelongsToMany
-    {
-        return $this->belongsToMany(User::class, 'user_permissions')
-            ->withTimestamps();
     }
 }

@@ -100,6 +100,40 @@ class OrdersApiTest extends TestCase
         $this->assertEquals($ownOrder->id, $response->json('data.0.id'));
     }
 
+    public function test_orders_use_keyset_pagination(): void
+    {
+        $customer = $this->userWithPermission(Permission::CAN_PLACE_ORDER);
+        foreach ([1, 2, 3] as $total) {
+            Order::query()->create([
+                'user_id' => $customer->id,
+                'status' => Order::STATUS_PENDING,
+                'total' => $total,
+            ]);
+        }
+
+        $token = $this->makeToken([
+            'sub' => $customer->id,
+            'email' => $customer->email,
+            'exp' => time() + 3600,
+        ]);
+
+        $first = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders?limit=2')
+            ->assertOk()
+            ->assertJsonPath('meta.has_more', true);
+
+        $this->assertCount(2, $first->json('data'));
+        $cursor = $first->json('meta.next_cursor');
+
+        $second = $this->withHeader('Authorization', 'Bearer '.$token)
+            ->getJson('/api/orders?limit=2&after_id='.$cursor)
+            ->assertOk()
+            ->assertJsonPath('meta.has_more', false);
+
+        $this->assertCount(1, $second->json('data'));
+        $this->assertNotEquals($first->json('data.0.id'), $second->json('data.0.id'));
+    }
+
     public function test_staff_can_view_queue(): void
     {
         $staff = $this->userWithPermission(Permission::CAN_VIEW_ALL_ORDERS);
@@ -280,7 +314,7 @@ class OrdersApiTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_user_without_permission_cannot_place_order(): void
+    public function test_signed_in_user_without_roles_can_place_order(): void
     {
         $user = User::factory()->create();
         $menuItem = $this->createMenuItem();
@@ -296,7 +330,19 @@ class OrdersApiTest extends TestCase
                     ['menu_item_id' => $menuItem->id, 'quantity' => 1],
                 ],
             ])
-            ->assertForbidden();
+            ->assertCreated()
+            ->assertJsonPath('data.status', 'pending');
+    }
+
+    public function test_guest_cannot_place_order(): void
+    {
+        $menuItem = $this->createMenuItem();
+
+        $this->postJson('/api/orders', [
+            'items' => [
+                ['menu_item_id' => $menuItem->id, 'quantity' => 1],
+            ],
+        ])->assertUnauthorized();
     }
 
     private function createMenuItem(): MenuItem
@@ -309,32 +355,5 @@ class OrdersApiTest extends TestCase
             'price' => 12.99,
             'is_available' => true,
         ]);
-    }
-
-    private function userWithPermission(string $permissionName): User
-    {
-        $user = User::factory()->create();
-        $permission = Permission::query()->where('name', $permissionName)->firstOrFail();
-        $user->permissions()->attach($permission);
-
-        return $user->fresh(['permissions']);
-    }
-
-    /**
-     * @param  array<string, mixed>  $claims
-     */
-    private function makeToken(array $claims): string
-    {
-        $secret = (string) config('services.supabase.jwt_secret');
-        $header = $this->b64(json_encode(['alg' => 'HS256', 'typ' => 'JWT'], JSON_THROW_ON_ERROR));
-        $payload = $this->b64(json_encode($claims, JSON_THROW_ON_ERROR));
-        $signature = $this->b64(hash_hmac('sha256', $header.'.'.$payload, $secret, true));
-
-        return $header.'.'.$payload.'.'.$signature;
-    }
-
-    private function b64(string $value): string
-    {
-        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
     }
 }

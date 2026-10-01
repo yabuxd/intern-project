@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Codebase Walkthrough - Restaurant Order & Table Management Monorepo</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,300..900;1,300..900&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm 18mm 14mm;
+    @bottom-right {
+      content: counter(page);
+      font-family: 'Figtree', sans-serif;
+      font-size: 8pt; 
+      color: #78716c;
+    }
+    @bottom-left {
+      content: "Restaurant Order & Table Management Monorepo — Architectural Walkthrough";
+      font-family: 'Figtree', sans-serif;
+      font-size: 8pt;
+      color: #a8a29e;
+    }
+  }
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Figtree', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.55;
+    color: #1c1917;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Cover / Title Block */
+  .cover {
+    background: linear-gradient(135deg, #1f1b18 0%, #2a2420 100%);
+    color: #f3ece0;
+    padding: 24px 28px;
+    border-radius: 10px;
+    margin-bottom: 24px;
+    border-left: 6px solid #c8853a;
+    page-break-after: avoid;
+  }
+
+  .cover h1 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 26pt;
+    font-weight: 400;
+    color: #ffffff;
+    margin: 0 0 6px 0;
+    letter-spacing: -0.5px;
+  }
+
+  .cover .subtitle {
+    font-size: 11pt;
+    color: #d6cfc4;
+    margin: 0 0 14px 0;
+    font-weight: 300;
+  }
+
+  .badge-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .badge {
+    background: rgba(200, 133, 58, 0.22);
+    color: #fce7cf;
+    border: 1px solid rgba(200, 133, 58, 0.45);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+
+  .badge-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e7e5e4;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  /* Typography & Structure */
+  h2 {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 16pt;
+    color: #2a2420;
+    border-bottom: 1.5px solid #e7e5e4;
+    padding-bottom: 4px;
+    margin-top: 22px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  h3 {
+    font-size: 11pt;
+    font-weight: 700;
+    color: #44403c;
+    margin-top: 14px;
+    margin-bottom: 6px;
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
+  h4 {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #78350f;
+    margin-top: 10px;
+    margin-bottom: 4px;
+  }
+
+  p {
+    margin: 0 0 8px 0;
+    text-align: justify;
+  }
+
+  ul, ol {
+    margin: 0 0 10px 0;
+    padding-left: 18px;
+  }
+
+  li {
+    margin-bottom: 3px;
+  }
+
+  /* Table of Contents */
+  .toc {
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 22px;
+    page-break-inside: avoid;
+  }
+
+  .toc-title {
+    font-family: 'Instrument Serif', Georgia, serif;
+    font-size: 13pt;
+    font-weight: 600;
+    color: #2a2420;
+    margin-bottom: 8px;
+  }
+
+  .toc-list {
+    column-count: 2;
+    column-gap: 20px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: 8.5pt;
+  }
+
+  .toc-list li {
+    margin-bottom: 4px;
+    break-inside: avoid;
+  }
+
+  .toc-list a {
+    color: #78350f;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0 14px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  th {
+    background: #f5f5f4;
+    color: #292524;
+    font-weight: 700;
+    text-align: left;
+    padding: 6px 8px;
+    border-top: 1px solid #d6d3d1;
+    border-bottom: 2px solid #a8a29e;
+  }
+
+  td {
+    padding: 5px 8px;
+    border-bottom: 1px solid #e7e5e4;
+    vertical-align: top;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #fafaf9;
+  }
+
+  /* Code & Snippets */
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8pt;
+    background: #f5f5f4;
+    color: #991b1b;
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid #e7e5e4;
+  }
+
+  pre {
+    background: #1c1917;
+    color: #f5f5f4;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5pt;
+    line-height: 1.45;
+    padding: 10px 12px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 8px 0 12px 0;
+    border-left: 4px solid #c8853a;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  pre code {
+    background: transparent;
+    color: #f5f5f4;
+    padding: 0;
+    border: none;
+    font-size: 7.5pt;
+  }
+
+  /* Callouts & Alert Boxes */
+  .callout {
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin: 10px 0 12px 0;
+    font-size: 8.5pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .callout-note {
+    background: #eff6ff;
+    border-left: 4px solid #3b82f6;
+    color: #1e3a8a;
+  }
+
+  .callout-warning {
+    background: #fffbeb;
+    border-left: 4px solid #f59e0b;
+    color: #78350f;
+  }
+
+  .callout-important {
+    background: #fef2f2;
+    border-left: 4px solid #ef4444;
+    color: #991b1b;
+  }
+
+  .callout-title {
+    font-weight: 700;
+    margin-bottom: 3px;
+  }
+
+  /* Diagram Cards */
+  .diagram-card {
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 12px 0;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .diagram-card-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5pt;
+    font-weight: 700;
+    color: #44403c;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mermaid {
+    display: flex;
+    justify-content: center;
+    background: #ffffff;
+    padding: 8px;
+    border-radius: 4px;
+  }
+
+  .page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .section-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .card {
+    background: #fafaf9;
+    border: 1px solid #e7e5e4;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'default',
+    themeVariables: {
+      primaryColor: '#f3ece0',
+      primaryTextColor: '#1f1b18',
+      primaryBorderColor: '#c8853a',
+      lineColor: '#78350f',
+      secondaryColor: '#fafaf9',
+      tertiaryColor: '#ffffff'
+    },
+    flowchart: { curve: 'linear' }
+  });
+</script>
+</head>
+<body>
+
+<!-- Cover / Header -->
+<div class="cover">
+  <h1>System Architectural Walkthrough</h1>
+  <div class="subtitle">Restaurant Order, Table Reservation, Kitchen Queue, Deliveries & Cashier POS Monorepo</div>
+  <div class="badge-grid">
+    <span class="badge">React 19 SPA</span>
+    <span class="badge">Laravel 12/13 API</span>
+    <span class="badge">Supabase Auth (ES256)</span>
+    <span class="badge">Supabase Realtime</span>
+    <span class="badge">Chapa ETB Gateway</span>
+    <span class="badge">PostgreSQL / SQLite</span>
+    <span class="badge-secondary">TypeScript Monorepo (@intern/shared)</span>
+    <span class="badge-secondary">Tailwind CSS v4</span>
+  </div>
+</div>
+
+<!-- Table of Contents -->
+<div class="toc">
+  <div class="toc-title">Table of Contents</div>
+  <ul class="toc-list">
+    <li><a href="#s1">1. Executive Overview & Tech Stack</a></li>
+    <li><a href="#s2">2. Monorepo & Directory Structure</a></li>
+    <li><a href="#s3">3. System Entry Points & Bootstrapping</a></li>
+    <li><a href="#s4">4. Core Architecture & Interaction Diagram</a></li>
+    <li><a href="#s5">5. Data Layer, ERD & Eloquent Models</a></li>
+    <li><a href="#s6">6. Deep-Dive Business Logic & Workflows</a></li>
+    <li><a href="#s7">7. External API Surface & Route Catalog</a></li>
+    <li><a href="#s8">8. Cross-Cutting Concerns & Security</a></li>
+    <li><a href="#s9">9. Ecosystem Dependencies</a></li>
+    <li><a href="#s10">10. Build, Run & Testing Manual</a></li>
+    <li><a href="#s11">11. Architectural Observations & Gotchas</a></li>
+  </ul>
+</div>
+
+<!-- Section 1: Overview -->
+<h2 id="s1">1. Executive Overview & Tech Stack Matrix</h2>
+<p>
+  This codebase implements a full-stack, enterprise-grade restaurant management and point-of-sale system. It integrates public customer ordering (dine-in with table selection and home delivery with live dispatch), staff table reservations with automated timeslot conflict checking, expediter and kitchen queues, driver assignment, cashier payment verification (Cash and Chapa ETB online gateway), staff menu modification proposals, and administrative role-based access control (RBAC).
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 22%;">Layer</th>
+      <th style="width: 38%;">Technology / Framework</th>
+      <th style="width: 40%;">Architectural Purpose</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Frontend SPA</strong></td>
+      <td>React 19, TypeScript, Vite 8, Tailwind CSS v4, TanStack Query v5</td>
+      <td>Client-side rendered application with late-night bistro aesthetic, micro-animations, and responsive layouts.</td>
+    </tr>
+    <tr>
+      <td><strong>Backend REST API</strong></td>
+      <td>Laravel 12/13, PHP 8.3+, Eloquent ORM, Firebase JWT</td>
+      <td>RESTful API enforcing business rules, authorization Gates, transaction boundaries, and rate limits.</td>
+    </tr>
+    <tr>
+      <td><strong>Identity & Auth</strong></td>
+      <td>Supabase Auth (ES256 JWKS asymmetric keys)</td>
+      <td>Decoupled auth provider issuing cryptographically signed JWTs validated locally on Laravel.</td>
+    </tr>
+    <tr>
+      <td><strong>Live Synchronization</strong></td>
+      <td>Supabase Realtime (WebSocket) + 5s Polling Fallback</td>
+      <td>Live order updates for kitchen queues and dispatchers with automated degradation resilience.</td>
+    </tr>
+    <tr>
+      <td><strong>Database Layer</strong></td>
+      <td>Supabase PostgreSQL (Production) / SQLite (Dev & Tests)</td>
+      <td>Relational schema with composite indexes, foreign key constraints, and RLS security policies.</td>
+    </tr>
+    <tr>
+      <td><strong>Payment Gateway</strong></td>
+      <td>Chapa API (Ethiopian Birr / ETB) + Cash Desk</td>
+      <td>Dual payment handling: instant online checkout verification + cashier desk approval gate.</td>
+    </tr>
+    <tr>
+      <td><strong>Shared Contracts</strong></td>
+      <td><code>@intern/shared</code> (TypeScript npm workspace)</td>
+      <td>Shared type definitions, DTO envelopes, enums, roles, and permission constants.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Section 2: Directory Structure -->
+<h2 id="s2">2. Monorepo & Directory Structure</h2>
+<p>
+  The monorepo uses npm workspaces uniting the frontend client and shared contracts, maintaining strict domain boundary isolation from the Laravel API server.
+</p>
+
+<pre><code>intern-project/
+├── client/                     # React 19 Frontend SPA (Vite + Tailwind CSS v4)
+│   ├── src/
+│   │   ├── components/         # Reusable UI components (ConfirmModal, Skeletons, Inputs)
+│   │   ├── hooks/              # Custom hooks (useOrdersRealtime, useDebouncedValue)
+│   │   ├── layouts/            # AppLayout (public/staff), AdminLayout, AuthLayout
+│   │   ├── pages/              # 14 Feature Pages (OrdersPage, DeliveriesPage, PaymentsPage, etc.)
+│   │   ├── services/           # HTTP API client (api.ts) & Supabase client (supabase.ts)
+│   │   ├── store/              # React Context (AuthContext & RBAC permission helpers)
+│   │   ├── styles/             # Global CSS, bistro theme tokens, keyframe animations
+│   │   ├── utils/              # ETB currency formatters, admin routing paths
+│   │   ├── App.tsx             # React Router v7 routes & ProtectedRoute guards
+│   │   ├── main.tsx            # DOM root mounting & TanStack QueryClientProvider wrapper
+│   │   └── queryClient.ts      # Global React Query instance with tuned stale times
+├── server/                     # Laravel 12/13 REST API Application
+│   ├── app/
+│   │   ├── Http/Controllers/   # API Controllers (OrderController, CashierController, MenuController)
+│   │   ├── Http/Middleware/    # VerifySupabaseJwt, SecurityHeaders
+│   │   ├── Http/Requests/      # FormRequest classes with strict field validation rules
+│   │   ├── Models/             # Eloquent Models (Order, User, MenuItem, RestaurantTable, Role)
+│   │   ├── Policies/           # Granular authorization policies bound to RBAC permissions
+│   │   ├── Providers/          # AppServiceProvider (Rate limiting, Gate definition, DI singletons)
+│   │   ├── Services/           # SupabaseJwtService, ChapaPaymentService, ApiCacheService
+│   │   └── Support/            # KeysetPaginator cursor pagination helper (zero OFFSET cost)
+│   ├── database/migrations/    # 21 schema migrations with composite performance indexes
+│   ├── database/seeders/       # Seeders (Admin users, Roles, Permissions, Ethiopian menu dishes)
+│   ├── routes/api.php          # REST API endpoint map under throttle:api
+│   └── tests/                  # PHPUnit Feature and Unit test suites
+├── shared/                     # Shared TypeScript package (@intern/shared)
+│   └── types/index.ts          # Strongly typed interfaces, DTOs, API envelopes, role constants
+├── docs/                       # Architecture and environment setup documentation
+└── package.json                # Root package workspace definition & unified scripts</code></pre>
+
+<!-- Section 3: Entry Points -->
+<h2 id="s3">3. System Entry Points & Lifecycle Bootstrapping</h2>
+
+<div class="section-grid">
+  <div class="card">
+    <h3>Client Bootstrap (React 19)</h3>
+    <ol>
+      <li><code>client/index.html</code> mounts font stylesheets and <code>#root</code> DOM container.</li>
+      <li><code>main.tsx</code> initializes React in <code>StrictMode</code> and provides the global <code>QueryClientProvider</code>.</li>
+      <li><code>App.tsx</code> encapsulates navigation with <code>BrowserRouter</code> and mounts <code>AuthProvider</code>.</li>
+      <li><code>AuthContext.tsx</code> triggers <code>supabase.auth.getSession()</code>, listens to <code>onAuthStateChange</code>, and queries <code>GET /api/me</code> to populate user permissions.</li>
+      <li>Protected routes are gated via <code>ProtectedRoute</code> checking session and permission tokens.</li>
+    </ol>
+  </div>
+  <div class="card">
+    <h3>Server Bootstrap (Laravel 12/13)</h3>
+    <ol>
+      <li><code>server/public/index.php</code> receives HTTP requests and invokes the Laravel kernel.</li>
+      <li><code>bootstrap/app.php</code> registers routing, configures global <code>SecurityHeaders</code> middleware, and sets JSON exception formatting for <code>api/*</code>.</li>
+      <li><code>AppServiceProvider.php</code> registers singletons (<code>ApiCacheService</code>, <code>SupabaseJwtService</code>), defines rate limits, and dynamically registers Gates from <code>Permission::catalog()</code>.</li>
+      <li><code>routes/api.php</code> processes endpoints through <code>throttle:api</code> and <code>VerifySupabaseJwt</code>.</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Section 4: Architecture Diagram -->
+<h2 id="s4" class="page-break">4. Core Architecture & Component Interaction</h2>
+<p>
+  The system decouples identity management and real-time pub/sub onto Supabase infrastructure while maintaining complete business logic, transaction boundaries, cashier settlement gates, and data persistence inside Laravel and PostgreSQL.
+</p>
+
+<div class="diagram-card">
+  <div class="diagram-card-title">Figure 1: High-Level System Architecture & Data Flow</div>
+  <div class="mermaid">
+flowchart TB
+    subgraph Client ["Client Tier (React 19 SPA :5173)"]
+        UI[React Pages & Components]
+        AuthCtx[AuthContext / useAuth]
+        Query[TanStack React Query]
+        APIClient[services/api.ts]
+        RealtimeHook[useOrdersRealtime Hook]
+    end
+
+    subgraph Supabase ["Supabase Cloud Services"]
+        SupaAuth[Supabase Auth Engine]
+        SupaRealtime[Supabase Realtime Channel]
+        SupaJWKS["/.well-known/jwks.json"]
+    end
+
+    subgraph Laravel ["Backend Tier (Laravel 12 REST API :8000)"]
+        Router[routes/api.php]
+        RateLimit[RateLimiters: api, orders, payments]
+        JWTMiddleware[VerifySupabaseJwt Middleware]
+        Controllers[API Controllers]
+        Policies[Laravel Gate & Policies]
+        CacheService[ApiCacheService (RAM + Store)]
+        ChapaService[ChapaPaymentService]
+    end
+
+    subgraph Storage ["Database Persistence"]
+        DB[(PostgreSQL / SQLite)]
+    end
+
+    subgraph External ["External Payment Gateway"]
+        ChapaAPI[Chapa Checkout & Verification API]
+    end
+
+    UI --> AuthCtx
+    UI --> Query
+    Query --> APIClient
+    AuthCtx --> SupaAuth
+    RealtimeHook --> SupaRealtime
+    APIClient -- "Bearer JWT (ES256/HS256)" --> Router
+    Router --> RateLimit --> JWTMiddleware
+    JWTMiddleware -- "Verify via Cached JWKS" --> SupaJWKS
+    JWTMiddleware -- "JIT Upsert / Load User" --> DB
+    JWTMiddleware --> Controllers
+    Controllers --> Policies
+    Controllers --> CacheService
+    Controllers --> DB
+    Controllers -- "Init / Verify TX" --> ChapaService --> ChapaAPI
+    DB -. "Postgres Event" .-> SupaRealtime
+  </div>
+</div>
+
+<!-- Section 5: Data Layer -->
+<h2 id="s5">5. Data Layer, ERD & Eloquent Models</h2>
+
+<div class="diagram-card">
+  <div class="diagram-card-title">Figure 2: Entity Relationship Diagram</div>
+  <div class="mermaid">
+erDiagram
+    USERS ||--o{ USER_ROLES : "assigned"
+    ROLES ||--o{ USER_ROLES : "belongs"
+    ROLES ||--o{ ROLE_PERMISSIONS : "contains"
+    PERMISSIONS ||--o{ ROLE_PERMISSIONS : "belongs"
+
+    USERS ||--o{ ORDERS : "places (user_id)"
+    USERS ||--o{ ORDERS : "delivers (driver_id)"
+    RESTAURANT_TABLES ||--o{ ORDERS : "hosts (table_id)"
+    ORDERS ||--|{ ORDER_ITEMS : "contains"
+    MENU_ITEMS ||--o{ ORDER_ITEMS : "ordered as"
+    MENU_CATEGORIES ||--|{ MENU_ITEMS : "groups"
+
+    USERS ||--o{ RESERVATIONS : "books"
+    RESTAURANT_TABLES ||--o{ RESERVATIONS : "reserved for"
+
+    USERS ||--o{ MENU_CHANGE_REQUESTS : "requests"
+    USERS ||--o{ MENU_CHANGE_REQUESTS : "reviews"
+    MENU_ITEMS ||--o{ MENU_CHANGE_REQUESTS : "targets"
+  </div>
+</div>
+
+<h3>Key Database Entities</h3>
+<ul>
+  <li><code>User</code>: Uses UUID primary keys mapped directly to Supabase Auth <code>sub</code>. Maintains a many-to-many relationship with <code>Role</code>. Auth profiles and effective permissions are cached in-memory and in cache store via <code>ApiCacheService</code>.</li>
+  <li><code>Order</code>: Holds fulfillment type (<code>dine_in</code>, <code>delivery</code>), table reference, delivery coordinates/phone/notes, assigned driver, payment method (<code>cash</code>, <code>chapa</code>), payment status, and dual cashier validation timestamps.</li>
+  <li><code>OrderItem</code>: Normalized line items capturing immutable snapshots of unit prices and computed line totals.</li>
+  <li><code>RestaurantTable</code>: Physical restaurant table records containing seat capacities and operational statuses (<code>free</code>, <code>reserved</code>, <code>occupied</code>).</li>
+  <li><code>Reservation</code>: Table bookings capturing <code>party_size</code>, start/end timestamps, and reservation status (<code>confirmed</code>, <code>cancelled</code>).</li>
+  <li><code>MenuCategory</code> & <code>MenuItem</code>: Menu taxonomy with sort ordering, prices in ETB, availability flags, and image storage paths.</li>
+  <li><code>MenuChangeRequest</code>: Moderation queue for staff proposals (creation or deletion of menu items) awaiting manager approval.</li>
+  <li><code>StaffNotification</code>: In-app operational notification queue alerting cashiers and managers to pending actions.</li>
+</ul>
+
+<!-- Section 6: Business Workflows -->
+<h2 id="s6" class="page-break">6. Deep-Dive Business Logic & Workflows</h2>
+
+<h3>Workflow 1: Dual-Fulfillment Order State Machine</h3>
+<p>
+  Orders follow strict state progression modeled in <code>Order.php</code> and enforced in <code>OrderController::updateStatus</code>. Dine-in and Delivery paths branch dynamically with distinct permission gates.
+</p>
+
+<div class="diagram-card">
+  <div class="diagram-card-title">Figure 3: Order State Machine Transitions</div>
+  <div class="mermaid">
+stateDiagram-v2
+    [*] --> pending: Customer creates order
+
+    state DineIn_Flow {
+        pending --> preparing: Kitchen accepts (settled)
+        preparing --> ready: Kitchen marks ready
+        ready --> served: Staff serves to table
+    }
+
+    state Delivery_Flow {
+        pending --> accepted: Dispatcher accepts
+        accepted --> preparing: Kitchen prepares
+        preparing --> ready: Food ready at expediter
+        ready --> out_for_delivery: Driver assigned & picked up
+        out_for_delivery --> delivered: Driver marks delivered
+        delivered --> received: Customer / Manager dual-confirms
+    }
+
+    pending --> cancelled: Customer / Staff cancels
+    accepted --> cancelled: Staff cancels
+    preparing --> cancelled: Staff cancels
+    ready --> cancelled: Staff cancels
+    out_for_delivery --> cancelled: Staff cancels
+
+    served --> [*]
+    received --> [*]
+    cancelled --> [*]
+  </div>
+</div>
+
+<div class="callout callout-warning">
+  <div class="callout-title">Critical Dispatch Invariant</div>
+  An order cannot transition to <code>out_for_delivery</code> unless a valid <code>driver_id</code> is assigned. Only the assigned driver or users with <code>can_manage_deliveries</code> can mark an order delivered.
+</div>
+
+<h3>Workflow 2: Hybrid Payment Settlement & Cashier Approval Gate</h3>
+<p>
+  To prevent unpaid orders from consuming kitchen resources while supporting immediate cash seating, the kitchen queue enforces the <code>scopePaymentSettled</code> database scope:
+</p>
+
+<pre><code>// App\Models\Order::scopePaymentSettled
+public function scopePaymentSettled($query)
+{
+    return $query->where(function ($builder) {
+        $builder
+            ->where('payment_status', self::PAYMENT_NOT_REQUIRED) // Cash orders
+            ->orWhere(function ($chapa) {
+                $chapa
+                    ->where('payment_status', self::PAYMENT_PAID)    // Online Chapa paid
+                    ->whereNotNull('cashier_approved_at');            // AND approved by cashier!
+            });
+    });
+}</code></pre>
+
+<div class="diagram-card">
+  <div class="diagram-card-title">Figure 4: Payment Verification & Cashier Approval Sequence</div>
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    actor Customer
+    participant Client as React Client
+    participant API as Laravel OrderController
+    participant Chapa as Chapa Gateway
+    participant Cashier as Cashier Desk
+    participant Kitchen as Kitchen Queue
+
+    alt Cash Payment
+        Customer->>Client: Place Order (payment_method: "cash")
+        Client->>API: POST /api/orders
+        API->>API: Set payment_status: "not_required"
+        API-->>Kitchen: Immediately Visible in Kitchen Queue
+        API-->>Cashier: Notification Created (Open Cash List)
+        Cashier->>API: POST /api/orders/{id}/cashier/collect-cash
+        API->>API: Set cash_collected_at & cash_collected_by
+    else Chapa Online Payment (ETB)
+        Customer->>Client: Place Order (payment_method: "chapa")
+        Client->>API: POST /api/orders
+        API->>Chapa: Initialize TX (amount, return_url, tx_ref)
+        Chapa-->>API: checkout_url
+        API-->>Client: 201 Created + checkout_url
+        Client->>Customer: Redirect to Chapa Checkout
+        Customer->>Chapa: Complete Payment
+        Chapa->>Client: Redirect to /orders?trx_ref=...
+        Client->>API: GET /api/orders/{id}/payment/verify?trx_ref=...
+        API->>Chapa: Verify Transaction status
+        Chapa-->>API: status: "success"
+        API->>API: markPaid() (payment_status: "paid")
+        Note over Kitchen: Hidden from Kitchen until Cashier approval
+        API-->>Cashier: Appears in Cashier Desk (awaiting_chapa_validation)
+        Cashier->>API: POST /api/orders/{id}/cashier/approve
+        API->>API: Set cashier_approved_at & cashier_approved_by
+        API-->>Kitchen: Order NOW Released to Kitchen Queue
+    end
+  </div>
+</div>
+
+<h3>Workflow 3: Supabase JWT Verification & JIT User Synchronization</h3>
+<ol>
+  <li><strong>Authorization Header Extraction</strong>: Extracts bearer token from <code>Authorization: Bearer &lt;token&gt;</code>.</li>
+  <li><strong>Algorithm Header Inspection</strong>: Determines algorithm (<code>ES256</code> vs legacy/test <code>HS256</code>).</li>
+  <li><strong>JWKS Verification</strong>: For <code>ES256</code>, fetches and caches Supabase JWKS from <code>/.well-known/jwks.json</code> for 24 hours. Validates cryptographic signature using <code>firebase/php-jwt</code>. Falls back to <code>/auth/v1/user</code> API on connection issues.</li>
+  <li><strong>Claims Cache</strong>: Caches valid JWT claims for 90 seconds (<code>auth.jwt.&lt;hash&gt;</code>) to avoid redundant cryptographic decoding.</li>
+  <li><strong>JIT Local Synchronization</strong>: Upserts the user record into the local <code>users</code> table matching <code>id = claims.sub</code>. New sign-ups are automatically granted the <code>customer</code> role.</li>
+  <li><strong>User Context Injection</strong>: Attaches resolved <code>User</code> instance to <code>Auth::setUser($user)</code> and <code>$request->setUserResolver()</code>.</li>
+</ol>
+
+<h3>Workflow 4: Table Reservation & Conflict Prevention Engine</h3>
+<p>
+  Managed by <code>ReservationController</code> and <code>ReservationAvailabilityService</code> using row-level locking:
+</p>
+<ol>
+  <li>Executes inside a database transaction with <code>RestaurantTable::lockForUpdate()</code>.</li>
+  <li>Validates that <code>party_size &lt;= table.capacity</code>.</li>
+  <li>Asserts that no conflicting reservation exists within the requested window:
+    <code>starts_at &lt; $endsAt AND ends_at &gt; $startsAt AND status = 'confirmed'</code>.</li>
+  <li>Creates the confirmed reservation and flushes the admin dashboard analytics cache.</li>
+</ol>
+
+<!-- Section 7: API Surface -->
+<h2 id="s7" class="page-break">7. External API Surface & Route Catalog</h2>
+<p>
+  All responses return the standardized <code>ApiResponse&lt;T&gt;</code> envelope (<code>{ success, data, message?, meta? }</code>).
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 10%;">Method</th>
+      <th style="width: 32%;">Endpoint</th>
+      <th style="width: 28%;">Authorization / Policy</th>
+      <th style="width: 30%;">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/health</code></td>
+      <td>Public</td>
+      <td>Service heartbeat probe.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/menu</code></td>
+      <td>Public (ETag Cached)</td>
+      <td>Active menu categories and available items.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/tables</code></td>
+      <td>Public (ETag Cached)</td>
+      <td>Physical table list and status.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/payments/chapa/callback</code></td>
+      <td>Throttle: <code>payments</code></td>
+      <td>Browser return callback from Chapa.</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/payments/chapa/webhook</code></td>
+      <td>Throttle: <code>payments</code></td>
+      <td>Asynchronous IPN webhook from Chapa.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/me</code></td>
+      <td>Authenticated User</td>
+      <td>User profile, assigned roles, and permissions.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/orders</code></td>
+      <td>Authenticated User</td>
+      <td>Cursor-paginated personal orders (Keyset).</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/orders</code></td>
+      <td><code>can_place_order</code></td>
+      <td>Place Dine-In or Delivery order.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/orders/queue</code></td>
+      <td><code>can_view_all_orders</code></td>
+      <td>Kitchen prep queue (settled orders only).</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/orders/{id}/receipt</code></td>
+      <td>Owner / <code>can_view_all_orders</code></td>
+      <td>Order receipt payload.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/orders/{id}/payment/verify</code></td>
+      <td>Order Owner</td>
+      <td>Verify Chapa transaction status.</td>
+    </tr>
+    <tr>
+      <td><code>PATCH</code></td>
+      <td><code>/api/orders/{id}/status</code></td>
+      <td>Dynamic FSM Gate</td>
+      <td>Transition order status along lifecycle.</td>
+    </tr>
+    <tr>
+      <td><code>PATCH</code></td>
+      <td><code>/api/orders/{id}/driver</code></td>
+      <td><code>can_manage_deliveries</code></td>
+      <td>Assign delivery courier to order.</td>
+    </tr>
+    <tr>
+      <td><code>DELETE</code></td>
+      <td><code>/api/orders/{id}</code></td>
+      <td>Owner (if pending) / Admin</td>
+      <td>Cancel active order.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/deliveries</code></td>
+      <td><code>can_manage_deliveries</code></td>
+      <td>Active deliveries dispatch list.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/deliveries/drivers</code></td>
+      <td><code>can_manage_deliveries</code></td>
+      <td>Available couriers list.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/payments/desk</code></td>
+      <td><code>can_manage_payments</code></td>
+      <td>Cashier desk (awaiting Chapa / open cash).</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/orders/{id}/cashier/approve</code></td>
+      <td><code>can_manage_payments</code></td>
+      <td>Cashier approves Chapa payment.</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/orders/{id}/cashier/collect-cash</code></td>
+      <td><code>can_manage_payments</code></td>
+      <td>Mark cash collected for order.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/menu/manage</code></td>
+      <td><code>can_manage_menu</code> / <code>can_propose</code></td>
+      <td>Full menu catalog (including unavailable items).</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/menu-change-requests</code></td>
+      <td><code>can_propose_menu_changes</code></td>
+      <td>Submit proposal to create/delete menu item.</td>
+    </tr>
+    <tr>
+      <td><code>PATCH</code></td>
+      <td><code>/api/menu-change-requests/{id}/approve</code></td>
+      <td><code>can_manage_menu</code></td>
+      <td>Approve and apply menu change.</td>
+    </tr>
+    <tr>
+      <td><code>POST</code></td>
+      <td><code>/api/reservations</code></td>
+      <td><code>can_create_reservation</code></td>
+      <td>Book table reservation with conflict lock.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/admin/dashboard</code></td>
+      <td><code>can_manage_permissions</code></td>
+      <td>Revenue, sales, and operations KPI metrics.</td>
+    </tr>
+    <tr>
+      <td><code>GET</code></td>
+      <td><code>/api/admin/roles</code></td>
+      <td><code>can_manage_permissions</code></td>
+      <td>Role catalog with assigned permissions.</td>
+    </tr>
+    <tr>
+      <td><code>PUT</code></td>
+      <td><code>/api/admin/users/{user}/roles</code></td>
+      <td><code>can_manage_permissions</code></td>
+      <td>Assign roles to user account.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- Section 8: Cross-Cutting Concerns -->
+<h2 id="s8">8. Cross-Cutting Concerns & Security Architecture</h2>
+
+<h3>Two-Tier Caching Architecture (<code>ApiCacheService.php</code>)</h3>
+<ul>
+  <li><strong>Tier 1: Request-Lifecycle Static RAM Cache (0ms)</strong>: Process-level memory array <code>private static array $memoryCache</code> caching entities and permission resolutions within the same request lifecycle.</li>
+  <li><strong>Tier 2: Persistent Cache Store</strong>: Caches menu payloads (<code>api.menu.public.v2</code>), tables catalog, roles catalog, driver lists, and computed admin dashboards with sha256 date-range keys.</li>
+  <li><strong>HTTP ETag Negotiation</strong>: <code>/api/menu</code> and <code>/api/tables</code> compute md5 payload hashes and return <code>304 Not Modified</code> when matched against <code>If-None-Match</code> headers.</li>
+</ul>
+
+<h3>Keyset (Cursor) Pagination (<code>KeysetPaginator.php</code>)</h3>
+<p>
+  Replaces standard SQL <code>OFFSET / LIMIT</code> with <code>WHERE id &gt; :after_id LIMIT n + 1</code>. This prevents full-table scan degradation on high-volume order and reservation tables.
+</p>
+
+<h3>Rate Limiting & Security Headers</h3>
+<ul>
+  <li><strong>Rate Limiters</strong>: <code>api</code> (120/min per user/IP), <code>orders</code> (30/min), <code>uploads</code> (15/min), <code>payments</code> (60/min per IP).</li>
+  <li><strong>Security Headers</strong>: Injected on all responses: <code>X-Content-Type-Options: nosniff</code>, <code>X-Frame-Options: SAMEORIGIN</code>, <code>X-XSS-Protection: 1; mode=block</code>, <code>Referrer-Policy: strict-origin-when-cross-origin</code>.</li>
+</ul>
+
+<!-- Section 9: Dependencies -->
+<h2 id="s9" class="page-break">9. Key Ecosystem Dependencies</h2>
+
+<div class="section-grid">
+  <div class="card">
+    <h3>Frontend Dependencies</h3>
+    <ul>
+      <li><strong><code>react</code> & <code>react-dom</code> (19.2.x)</strong>: Core UI rendering with React 19 concurrent features.</li>
+      <li><strong><code>react-router-dom</code> (7.18.x)</strong>: SPA client routing and nested layout trees.</li>
+      <li><strong><code>@tanstack/react-query</code> (5.101.x)</strong>: Server state cache, debounced prefetching, and query invalidation.</li>
+      <li><strong><code>@supabase/supabase-js</code> (2.110.x)</strong>: Client auth session and Realtime WebSocket subscriptions.</li>
+      <li><strong><code>@tailwindcss/vite</code> & <code>tailwindcss</code> (4.3.x)</strong>: Zero-config CSS utility engine with custom bistro color tokens.</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h3>Backend Dependencies</h3>
+    <ul>
+      <li><strong><code>laravel/framework</code> (13.x/12.x)</strong>: Core backend framework providing routing, Eloquent ORM, and Gates.</li>
+      <li><strong><code>firebase/php-jwt</code> (7.1.x)</strong>: Asymmetric JWKS and ES256 Elliptic Curve JWT signature verification.</li>
+      <li><strong><code>phpunit/phpunit</code> (12.5.x)</strong>: Automated test execution suite for feature and unit tests.</li>
+      <li><strong><code>mockery/mockery</code> (1.6.x)</strong>: Mocking framework for HTTP and external gateway isolation.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Section 10: Build & Test Manual -->
+<h2 id="s10">10. Local Installation, Build & Testing Manual</h2>
+
+<h3>Prerequisites</h3>
+<ul>
+  <li>Node.js 20+ and npm 10+</li>
+  <li>PHP 8.3+ with extensions: <code>openssl</code>, <code>curl</code>, <code>mbstring</code>, <code>pdo_sqlite</code>, <code>pdo_pgsql</code>, <code>fileinfo</code></li>
+  <li>Composer 2+</li>
+</ul>
+
+<h3>Step-by-Step Execution</h3>
+<pre><code># 1. Install dependencies across all monorepo packages
+npm install
+cd server && composer install && cd ..
+
+# 2. Configure environment variables
+cp .env.example .env
+cp client/.env.example client/.env
+cp server/.env.example server/.env
+
+# 3. Migrate and seed the database
+cd server
+php artisan migrate --seed
+cd ..
+
+# 4. Start the development servers in two terminals:
+# Terminal 1: Laravel API Backend (:8000)
+cd server && php artisan serve
+
+# Terminal 2: React SPA Frontend (:5173)
+npm run dev
+
+# 5. Run tests & build validation
+cd server && php artisan test       # Backend test suite
+npm run build                       # Build TypeScript shared contracts and client SPA
+npm run lint                        # Lint shared and client packages</code></pre>
+
+<!-- Section 11: Risks & Observations -->
+<h2 id="s11">11. Architectural Observations, Risks & Mitigations</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th style="width: 22%;">Area</th>
+      <th style="width: 38%;">Architectural Observation / Gotcha</th>
+      <th style="width: 40%;">Implemented Mitigation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>JWKS Network Overhead</strong></td>
+      <td>Validating ES256 tokens against remote Supabase JWKS could introduce network latency if fetched per request.</td>
+      <td><code>SupabaseJwtService</code> caches JWKS for 24 hours (<code>86400s</code>) and caches decoded JWT claims in Redis/File cache for 90 seconds.</td>
+    </tr>
+    <tr>
+      <td><strong>Windows PHP SSL Certificates</strong></td>
+      <td>PHP on Windows environments may fail HTTPS requests to Supabase or Chapa if <code>curl.cainfo</code> is omitted.</td>
+      <td><code>SupabaseJwtService::resolveCaBundle</code> automatically checks <code>services.supabase.ssl_cert_file</code>, <code>curl.cainfo</code>, and <code>openssl.cafile</code> paths.</td>
+    </tr>
+    <tr>
+      <td><strong>Chapa Webhook in Local Dev</strong></td>
+      <td>Chapa requires a public HTTPS URL for asynchronous webhook notifications.</td>
+      <td><code>ChapaPaymentService</code> detects localhost origins, avoids dispatching local webhook URLs, and relies on client return verification (<code>/orders/{id}/payment/verify</code>).</td>
+    </tr>
+    <tr>
+      <td><strong>PostgreSQL vs SQLite DDL</strong></td>
+      <td>PostgreSQL-specific RLS policies (<code>ALTER TABLE ... ENABLE ROW LEVEL SECURITY</code>) fail on SQLite in local tests.</td>
+      <td>Migration <code>2026_08_14_180100_add_supabase_rls_policies.php</code> checks <code>DB::getDriverName() === 'pgsql'</code> prior to executing PostgreSQL DDL.</td>
+    </tr>
+    <tr>
+      <td><strong>Realtime Channel Fallback</strong></td>
+      <td>Local SQLite does not publish PostgreSQL replication change feeds to Supabase Realtime.</td>
+      <td><code>useOrdersRealtime.ts</code> detects unestablished Realtime connections within 2.5s and automatically switches to 5-second polling.</td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

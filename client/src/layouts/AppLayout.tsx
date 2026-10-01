@@ -1,6 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink } from 'react-router-dom';
-import { PERMISSIONS } from '@intern/shared';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { PERMISSIONS, ROLES } from '@intern/shared';
+import {
+  cancelPrefetch,
+  debouncePrefetch,
+  fetchStaffNotifications,
+  markStaffNotificationRead,
+  prefetchAdminDashboard,
+  prefetchDeliveriesData,
+  prefetchManageMenuData,
+  prefetchMenu,
+  prefetchOrderQueue,
+  prefetchPaymentDeskData,
+  prefetchReservationsData,
+  prefetchTables,
+} from '../services';
 import { useAuth } from '../store';
 
 interface AppLayoutProps {
@@ -17,12 +32,34 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppLayout({ children }: AppLayoutProps) {
   const { session, user, signOut, loading, hasPermission } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
   const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
-  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
+  const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const canManagePayments = hasPermission(PERMISSIONS.CAN_MANAGE_PAYMENTS);
+  const canManageMenu =
+    hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
+    hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
+  const canSeeNotifications =
+    Boolean(user?.roles?.includes(ROLES.ADMIN) || user?.roles?.includes(ROLES.MANAGER)) ||
+    canManagePermissions;
+
+  const notificationsQuery = useQuery({
+    queryKey: ['notifications', session?.access_token],
+    enabled: Boolean(session?.access_token) && canSeeNotifications,
+    queryFn: () => fetchStaffNotifications(session!.access_token),
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  const notifications = notificationsQuery.data ?? [];
+  const unreadCount = notifications.filter((n) => !n.read_at).length;
+  const token = session?.access_token;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -40,37 +77,127 @@ export function AppLayout({ children }: AppLayoutProps) {
     };
   }, [menuOpen]);
 
+  async function handleSignOut() {
+    await signOut();
+    navigate('/login', { replace: true });
+  }
+
   function closeMenu() {
     setMenuOpen(false);
   }
 
+  async function markRead(id: number) {
+    if (!session?.access_token) return;
+    try {
+      await markStaffNotificationRead(session.access_token, id);
+      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    } catch {
+      // ignore
+    }
+  }
+
   const navLinks = (
     <>
-      <NavLink to="/menu" className={navLinkClass} onClick={closeMenu}>
+      <NavLink
+        to="/menu"
+        className={navLinkClass}
+        onClick={closeMenu}
+        onMouseEnter={() => debouncePrefetch(() => prefetchMenu())}
+        onMouseLeave={cancelPrefetch}
+        onFocus={() => prefetchMenu()}
+      >
         Menu
       </NavLink>
-      <NavLink to="/tables" className={navLinkClass} onClick={closeMenu}>
+      <NavLink
+        to={canManagePermissions ? '/admin/tables' : '/tables'}
+        className={navLinkClass}
+        onClick={closeMenu}
+        onMouseEnter={() => debouncePrefetch(() => prefetchTables())}
+        onMouseLeave={cancelPrefetch}
+        onFocus={() => prefetchTables()}
+      >
         Tables
       </NavLink>
-      {session && (canReserve || canManageTables) && (
-        <NavLink to="/reservations" className={navLinkClass} onClick={closeMenu}>
-          Reservations
-        </NavLink>
-      )}
-      {session && canPlaceOrder && (
+      {session && (
         <NavLink to="/orders" className={navLinkClass} end onClick={closeMenu}>
           Orders
         </NavLink>
       )}
-      {session && canViewQueue && (
-        <NavLink to="/orders/queue" className={navLinkClass} end onClick={closeMenu}>
-          Queue
+      {canManagePermissions ? (
+        <NavLink
+          to="/admin"
+          className={navLinkClass}
+          onClick={closeMenu}
+          onMouseEnter={() => debouncePrefetch(() => prefetchAdminDashboard(token))}
+          onMouseLeave={cancelPrefetch}
+          onFocus={() => prefetchAdminDashboard(token)}
+        >
+          Admin
         </NavLink>
-      )}
-      {canManagePermissions && (
-        <NavLink to="/admin/permissions" className={navLinkClass} onClick={closeMenu}>
-          Permissions
-        </NavLink>
+      ) : (
+        <>
+          {session && (canReserve || canManageTables) && (
+            <NavLink
+              to="/reservations"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchReservationsData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchReservationsData(token)}
+            >
+              Reservations
+            </NavLink>
+          )}
+          {session && canViewQueue && (
+            <NavLink
+              to="/orders/queue"
+              className={navLinkClass}
+              end
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchOrderQueue(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchOrderQueue(token)}
+            >
+              Queue
+            </NavLink>
+          )}
+          {session && canManageDeliveries && (
+            <NavLink
+              to="/orders/deliveries"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchDeliveriesData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchDeliveriesData(token)}
+            >
+              Deliveries
+            </NavLink>
+          )}
+          {session && canManagePayments && (
+            <NavLink
+              to="/payments"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchPaymentDeskData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchPaymentDeskData(token)}
+            >
+              Payments
+            </NavLink>
+          )}
+          {session && canManageMenu && (
+            <NavLink
+              to="/menu/manage"
+              className={navLinkClass}
+              onClick={closeMenu}
+              onMouseEnter={() => debouncePrefetch(() => prefetchManageMenuData(token))}
+              onMouseLeave={cancelPrefetch}
+              onFocus={() => prefetchManageMenuData(token)}
+            >
+              Manage menu
+            </NavLink>
+          )}
+        </>
       )}
     </>
   );
@@ -130,12 +257,67 @@ export function AppLayout({ children }: AppLayoutProps) {
             )}
             {!loading && session && (
               <>
+                {canSeeNotifications && (
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setNotesOpen((open) => !open)}
+                      className="relative rounded-md border border-[var(--color-brass)]/30 px-3 py-2 font-medium text-[var(--color-cream)]"
+                      aria-label="Payment notifications"
+                    >
+                      Alerts
+                      {unreadCount > 0 && (
+                        <span className="absolute -right-1 -top-1 rounded-full bg-[var(--color-brass)] px-1.5 text-[10px] font-bold text-[var(--color-espresso)]">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </button>
+                    {notesOpen && (
+                      <div className="absolute right-0 z-50 mt-2 w-80 max-w-[90vw] border border-[var(--color-brass)]/25 bg-[var(--color-espresso)] p-2 shadow-lg">
+                        {notifications.length === 0 ? (
+                          <p className="px-2 py-3 text-sm text-[var(--color-cream-muted)]">
+                            No payment alerts yet.
+                          </p>
+                        ) : (
+                          <ul className="max-h-80 space-y-1 overflow-y-auto">
+                            {notifications.map((note) => (
+                              <li key={note.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void markRead(note.id);
+                                    setNotesOpen(false);
+                                  }}
+                                  className={`w-full rounded-md px-2 py-2 text-left text-sm ${
+                                    note.read_at
+                                      ? 'text-[var(--color-cream-muted)]'
+                                      : 'bg-[var(--color-umber)] text-[var(--color-cream)]'
+                                  }`}
+                                >
+                                  <p className="font-medium">{note.title}</p>
+                                  <p className="mt-0.5 text-xs opacity-80">{note.body}</p>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        <Link
+                          to={canManagePermissions ? '/admin/payments' : '/payments'}
+                          onClick={() => setNotesOpen(false)}
+                          className="mt-2 block border-t border-[var(--color-brass)]/20 px-2 pt-2 text-xs text-[var(--color-brass)]"
+                        >
+                          Open payments desk →
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <span className="hidden max-w-[140px] truncate text-[var(--color-cream-muted)] lg:inline">
                   {user?.name ?? user?.email ?? 'Signed in'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => void signOut()}
+                  onClick={() => void handleSignOut()}
                   className="rounded-md border border-[var(--color-brass)]/30 px-3 py-2 font-medium text-[var(--color-cream)] transition hover:border-[var(--color-brass)] hover:bg-[var(--color-umber)] sm:px-3.5"
                 >
                   Sign out

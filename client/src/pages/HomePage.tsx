@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { PERMISSIONS } from '@intern/shared';
 import { useAuth } from '../store';
-import { HeroSkeleton } from '../components/ui';
 
 const FEATURED_DISHES = [
   { name: 'Doro Wat', image: '/images/menu/doro-wat.jpg', tag: 'Signature stew' },
@@ -49,12 +48,73 @@ function useQuickLinks(
 ): QuickLink[] {
   const canManageTables = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
   const canViewQueue = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
-  const canPlaceOrder = hasPermission(PERMISSIONS.CAN_PLACE_ORDER);
   const canReserve = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
   const canManagePermissions = hasPermission(PERMISSIONS.CAN_MANAGE_PERMISSIONS);
-  const canManageMenu = hasPermission(PERMISSIONS.CAN_MANAGE_MENU);
+  const canManageMenu =
+    hasPermission(PERMISSIONS.CAN_MANAGE_MENU) ||
+    hasPermission(PERMISSIONS.CAN_PROPOSE_MENU_CHANGES);
+  const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const canManagePayments = hasPermission(PERMISSIONS.CAN_MANAGE_PAYMENTS);
 
   if (!session) return [];
+
+  if (canManagePermissions) {
+    const links: QuickLink[] = [
+      {
+        to: '/admin',
+        title: 'Admin dashboard',
+        description: 'Overall orders, payments, and floor analysis',
+      },
+      { to: '/menu', title: 'Browse menu', description: 'Traditional dishes from our kitchen' },
+      { to: '/orders', title: 'Your orders', description: 'Track and place orders' },
+      {
+        to: '/admin/tables',
+        title: 'Tables',
+        description: 'Floor status and seating',
+      },
+    ];
+    if (canReserve || canManageTables) {
+      links.push({
+        to: '/admin/reservations',
+        title: 'Reservations',
+        description: 'Book a table or manage bookings',
+      });
+    }
+    if (canViewQueue) {
+      links.push({
+        to: '/admin/queue',
+        title: 'Kitchen queue',
+        description: 'Orders waiting to be served',
+      });
+    }
+    if (canManageDeliveries) {
+      links.push({
+        to: '/admin/deliveries',
+        title: 'Deliveries',
+        description: 'Assign delivery couriers and track orders',
+      });
+    }
+    if (canManagePayments) {
+      links.push({
+        to: '/admin/payments',
+        title: 'Payments desk',
+        description: 'Validate Chapa payments and collect cash',
+      });
+    }
+    if (canManageMenu) {
+      links.push({
+        to: '/admin/menu',
+        title: 'Manage menu',
+        description: 'Update dishes and approve kitchen requests',
+      });
+    }
+    links.push({
+      to: '/admin/roles',
+      title: 'Roles',
+      description: 'Assign roles and edit role permissions',
+    });
+    return links;
+  }
 
   const links: QuickLink[] = [
     { to: '/menu', title: 'Browse menu', description: 'Traditional dishes from our kitchen' },
@@ -68,20 +128,33 @@ function useQuickLinks(
       description: 'Book a table or manage bookings',
     });
   }
-  if (canPlaceOrder) {
+  if (session) {
     links.push({ to: '/orders', title: 'Your orders', description: 'Track and place orders' });
   }
   if (canViewQueue) {
     links.push({ to: '/orders/queue', title: 'Kitchen queue', description: 'Orders waiting to be served' });
   }
-  if (canManageMenu) {
-    links.push({ to: '/menu/manage', title: 'Manage menu', description: 'Update dishes and pricing' });
-  }
-  if (canManagePermissions) {
+  if (canManageDeliveries) {
     links.push({
-      to: '/admin/permissions',
-      title: 'Permissions',
-      description: 'Manage staff access',
+      to: '/orders/deliveries',
+      title: 'Deliveries',
+      description: 'Assign delivery couriers and track orders',
+    });
+  }
+  if (canManagePayments) {
+    links.push({
+      to: '/payments',
+      title: 'Payments desk',
+      description: 'Validate Chapa payments and collect cash',
+    });
+  }
+  if (canManageMenu) {
+    links.push({
+      to: '/menu/manage',
+      title: 'Manage menu',
+      description: hasPermission(PERMISSIONS.CAN_MANAGE_MENU)
+        ? 'Update dishes and approve kitchen requests'
+        : 'Request add or remove — manager or admin must approve',
     });
   }
 
@@ -89,13 +162,9 @@ function useQuickLinks(
 }
 
 export function HomePage() {
-  const { user, loading, session, error, hasPermission } = useAuth();
+  const { user, session, loading, error, hasPermission } = useAuth();
   const quickLinks = useQuickLinks(session, hasPermission);
   const displayName = user?.name ?? user?.email?.split('@')[0] ?? 'Guest';
-
-  if (loading) {
-    return <HeroSkeleton />;
-  }
 
   return (
     <div className="w-full text-left">
@@ -104,6 +173,7 @@ export function HomePage() {
           src="/images/menu/doro-wat.jpg"
           alt=""
           className="absolute inset-0 h-full w-full object-cover"
+          decoding="async"
         />
         <div
           aria-hidden
@@ -191,12 +261,14 @@ export function HomePage() {
               alt="Kitfo"
               className="h-36 w-full object-cover sm:h-44"
               loading="lazy"
+              decoding="async"
             />
             <img
               src="/images/menu/tibs.jpg"
               alt="Tibs"
               className="mt-6 h-36 w-full object-cover sm:h-44"
               loading="lazy"
+              decoding="async"
             />
           </div>
         </div>
@@ -257,6 +329,7 @@ export function HomePage() {
                   alt={dish.name}
                   className="h-32 w-full object-cover transition duration-500 group-hover:scale-105 sm:h-44"
                   loading="lazy"
+                  decoding="async"
                 />
                 <span className="absolute bottom-2 left-2 bg-[var(--color-wine)] px-2 py-0.5 text-[10px] font-medium tracking-wide text-[var(--color-cream)] sm:bottom-3 sm:left-3 sm:px-2.5 sm:text-xs">
                   {dish.tag}
@@ -418,16 +491,20 @@ export function HomePage() {
               Account
             </p>
             <ul className="mt-4 space-y-2 text-sm text-[var(--color-cream-muted)]">
-              <li>
-                <Link to="/login" className="hover:text-[var(--color-brass)]">
-                  Sign in
-                </Link>
-              </li>
-              <li>
-                <Link to="/signup" className="hover:text-[var(--color-brass)]">
-                  Sign up
-                </Link>
-              </li>
+              {!loading && !session ? (
+                <>
+                  <li>
+                    <Link to="/login" className="hover:text-[var(--color-brass)]">
+                      Sign in
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/signup" className="hover:text-[var(--color-brass)]">
+                      Sign up
+                    </Link>
+                  </li>
+                </>
+              ) : null}
               <li>
                 <Link to="/orders" className="hover:text-[var(--color-brass)]">
                   Orders
