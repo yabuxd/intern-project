@@ -19,7 +19,7 @@ export function LoginPage() {
     setLocalError(null);
     try {
       await signIn(email, password);
-      navigate('/');
+      navigate('/', { replace: true });
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Sign in failed');
     } finally {

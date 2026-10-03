@@ -1,95 +1,86 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import type { Order, OrderStatus } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
 import { Link, Navigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelOrder, fetchOrderQueue, updateOrderStatus } from '../services';
-import { useOrdersRealtime } from '../hooks/useOrdersRealtime';
+import { useOrdersRealtime, QUEUE_ORDERS_FILTER } from '../hooks/useOrdersRealtime';
 import { useAuth } from '../store';
 import { formatEtb } from '../utils/format';
+import { useOpsPaths } from '../utils/adminPaths';
 import { QueuePageSkeleton } from '../components/ui';
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: 'Pending',
+  accepted: 'Accepted',
   preparing: 'Preparing',
   ready: 'Ready',
   served: 'Served',
+  out_for_delivery: 'Out for delivery',
+  delivered: 'Delivered',
+  received: 'Received',
   cancelled: 'Cancelled',
 };
 
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
   pending: 'preparing',
+  accepted: 'preparing',
   preparing: 'ready',
   ready: 'served',
 };
 
-const CANCELLABLE: OrderStatus[] = ['pending', 'preparing', 'ready'];
+const CANCELLABLE: OrderStatus[] = ['pending', 'accepted', 'preparing', 'ready'];
 
 const STATUS_STYLES: Record<string, string> = {
   pending: 'border-[var(--color-brass)]/40 bg-[var(--color-brass)]/10',
+  accepted: 'border-[var(--color-brass)]/40 bg-[var(--color-brass)]/10',
   preparing: 'border-[var(--color-cream)]/25 bg-[var(--color-umber)]',
   ready: 'border-emerald-500/40 bg-emerald-500/10',
 };
 
 export function OrderQueuePage() {
   const { session, hasPermission } = useAuth();
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const ops = useOpsPaths();
+  const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const canView = hasPermission(PERMISSIONS.CAN_VIEW_ALL_ORDERS);
   const canUpdate = hasPermission(PERMISSIONS.CAN_UPDATE_ORDER_STATUS);
-
-  const reload = useCallback(async () => {
-    if (!session?.access_token) return;
-    try {
-      const data = await fetchOrderQueue(session.access_token);
-      setOrders(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load queue');
-    }
-  }, [session?.access_token]);
-
-  useOrdersRealtime(() => {
-    void reload();
+  const canManageDeliveries = hasPermission(PERMISSIONS.CAN_MANAGE_DELIVERIES);
+  const token = session?.access_token;
+  const queueQuery = useQuery({
+    queryKey: ['orders', 'queue', token],
+    enabled: Boolean(token) && canView,
+    queryFn: () => fetchOrderQueue(token!),
+    staleTime: 10_000,
+    placeholderData: (prev) => prev,
   });
 
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      if (!session?.access_token) return;
-      try {
-        const data = await fetchOrderQueue(session.access_token);
-        if (mounted) setOrders(data);
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load queue');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [session?.access_token]);
+  useOrdersRealtime(() => {
+    void queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
+  }, QUEUE_ORDERS_FILTER);
 
   if (!canView) {
     return <Navigate to="/" replace />;
   }
 
+  const orders = queueQuery.data ?? [];
+  const loading = queueQuery.isLoading && orders.length === 0;
+  const loadError =
+    queueQuery.error instanceof Error ? queueQuery.error.message : error;
+
   async function advanceStatus(order: Order) {
-    if (!session?.access_token || !canUpdate) return;
+    if (!token || !canUpdate) return;
+    if (order.fulfillment_type === 'delivery' && order.status === 'ready') return;
     const next = NEXT_STATUS[order.status];
-    if (!next) return;
+    if (!next || (order.fulfillment_type === 'delivery' && next === 'served')) return;
 
     setUpdatingId(order.id);
+    setError(null);
     try {
-      const updated = await updateOrderStatus(session.access_token, order.id, next);
-      setOrders((prev) => {
-        if (updated.status === 'served') {
-          return prev.filter((o) => o.id !== updated.id);
-        }
-        return prev.map((o) => (o.id === updated.id ? updated : o));
-      });
+      await updateOrderStatus(token, order.id, next);
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'deliveries'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update order');
     } finally {
@@ -98,13 +89,13 @@ export function OrderQueuePage() {
   }
 
   async function handleCancel(order: Order) {
-    if (!session?.access_token || !canUpdate || !CANCELLABLE.includes(order.status)) return;
+    if (!token || !canUpdate || !CANCELLABLE.includes(order.status)) return;
 
     setUpdatingId(order.id);
+    setError(null);
     try {
-      await cancelOrder(session.access_token, order.id);
-      setOrders((prev) => prev.filter((o) => o.id !== order.id));
-      setError(null);
+      await cancelOrder(token, order.id);
+      await queryClient.invalidateQueries({ queryKey: ['orders', 'queue'] });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel order');
     } finally {
@@ -132,14 +123,14 @@ export function OrderQueuePage() {
         </header>
         <button
           type="button"
-          onClick={() => void reload()}
+          onClick={() => void queueQuery.refetch()}
           className="rounded-md border border-[var(--color-brass)]/35 px-4 py-2 text-sm font-medium text-[var(--color-brass)] transition hover:bg-[var(--color-umber)]"
         >
           Refresh
         </button>
       </div>
 
-      {error && <p className="text-sm text-[#e8a0a0]">{error}</p>}
+      {loadError && <p className="text-sm text-[#e8a0a0]">{loadError}</p>}
 
       {orders.length === 0 ? (
         <p className="border border-dashed border-[var(--color-brass)]/30 bg-[var(--color-umber)]/40 px-8 py-12 text-center text-[var(--color-cream-muted)]">
@@ -153,15 +144,37 @@ export function OrderQueuePage() {
               className={`border p-5 transition ${STATUS_STYLES[order.status] ?? 'border-[var(--color-brass)]/15 bg-[var(--color-umber)]'}`}
             >
               <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
+                <div className="space-y-1">
                   <p className="font-[family-name:var(--font-display)] text-2xl text-[var(--color-cream)]">
                     Order #{order.id}
                   </p>
-                  <p className="mt-1 text-sm text-[var(--color-cream-muted)]">
-                    {order.table?.name ?? 'No table'} · {formatEtb(order.total)}
+                  <p className="text-sm text-[var(--color-cream-muted)]">
+                    {order.fulfillment_type === 'delivery' ? 'Delivery' : 'Dine-in'} ·{' '}
+                    {formatEtb(order.total)}
                   </p>
+                  {order.fulfillment_type === 'delivery' ? (
+                    <>
+                      <p className="text-sm text-[var(--color-cream)]">
+                        Address: {order.delivery_address ?? '—'}
+                      </p>
+                      <p className="text-sm text-[var(--color-cream-muted)]">
+                        Phone: {order.delivery_phone ?? '—'}
+                      </p>
+                      {order.delivery_notes && (
+                        <p className="text-sm text-[var(--color-brass)]">
+                          Notes: {order.delivery_notes}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-sm text-[var(--color-cream-muted)]">
+                      {order.table?.name ?? 'No table'}
+                    </p>
+                  )}
                   {order.user && (
-                    <p className="mt-0.5 text-sm text-[var(--color-brass)]">{order.user.email}</p>
+                    <p className="text-sm text-[var(--color-brass)]">
+                      {order.user.name ?? order.user.email}
+                    </p>
                   )}
                 </div>
                 <span className="border border-[var(--color-cream)]/20 bg-[var(--color-espresso)]/50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-[var(--color-cream)]">
@@ -178,15 +191,22 @@ export function OrderQueuePage() {
               </ul>
               {canUpdate && (
                 <div className="mt-5 flex flex-wrap gap-2">
-                  {NEXT_STATUS[order.status] && (
-                    <button
-                      type="button"
-                      disabled={updatingId === order.id}
-                      onClick={() => void advanceStatus(order)}
-                      className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
-                    >
-                      Mark as {STATUS_LABELS[NEXT_STATUS[order.status]!]}
-                    </button>
+                  {order.fulfillment_type === 'delivery' && order.status === 'ready' ? (
+                    <p className="text-sm text-[var(--color-brass)]">
+                      Ready for courier — open Deliveries to assign a courier and start the run.
+                    </p>
+                  ) : (
+                    NEXT_STATUS[order.status] &&
+                    !(order.fulfillment_type === 'delivery' && NEXT_STATUS[order.status] === 'served') && (
+                      <button
+                        type="button"
+                        disabled={updatingId === order.id}
+                        onClick={() => void advanceStatus(order)}
+                        className="rounded-md bg-[var(--color-brass)] px-4 py-2 text-sm font-semibold text-[var(--color-espresso)] transition hover:bg-[var(--color-brass-deep)] disabled:opacity-60"
+                      >
+                        Mark as {STATUS_LABELS[NEXT_STATUS[order.status]!]}
+                      </button>
+                    )
                   )}
                   {CANCELLABLE.includes(order.status) && (
                     <button
@@ -205,12 +225,22 @@ export function OrderQueuePage() {
         </ul>
       )}
 
-      <Link
-        to="/orders"
-        className="inline-block text-sm text-[var(--color-cream-muted)] transition hover:text-[var(--color-brass)]"
-      >
-        ← My orders
-      </Link>
+      <div className="flex flex-wrap gap-4">
+        <Link
+          to="/orders"
+          className="inline-block text-sm text-[var(--color-cream-muted)] transition hover:text-[var(--color-brass)]"
+        >
+          ← My orders
+        </Link>
+        {canManageDeliveries && (
+          <Link
+            to={ops.deliveries}
+            className="inline-block text-sm text-[var(--color-brass)] transition hover:underline"
+          >
+            Deliveries →
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

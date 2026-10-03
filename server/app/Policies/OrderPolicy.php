@@ -13,9 +13,18 @@ class OrderPolicy
         return $user->can(Permission::CAN_VIEW_ALL_ORDERS);
     }
 
+    public function viewDeliveries(User $user): bool
+    {
+        return $user->can(Permission::CAN_MANAGE_DELIVERIES);
+    }
+
     public function view(User $user, Order $order): bool
     {
-        return $user->can(Permission::CAN_VIEW_ALL_ORDERS) || $user->id === $order->user_id;
+        return $user->can(Permission::CAN_VIEW_ALL_ORDERS)
+            || $user->can(Permission::CAN_MANAGE_DELIVERIES)
+            || $user->can(Permission::CAN_MANAGE_PAYMENTS)
+            || $user->id === $order->user_id
+            || $user->id === $order->driver_id;
     }
 
     public function create(User $user): bool
@@ -25,7 +34,17 @@ class OrderPolicy
 
     public function updateStatus(User $user, Order $order): bool
     {
-        return $user->can(Permission::CAN_UPDATE_ORDER_STATUS);
+        return $user->can(Permission::CAN_UPDATE_ORDER_STATUS)
+            || $user->can(Permission::CAN_MANAGE_DELIVERIES)
+            || $user->can(Permission::CAN_ACCEPT_DELIVERY_ORDERS)
+            || $user->id === $order->user_id
+            || $user->id === $order->driver_id;
+    }
+
+    public function assignDriver(User $user, Order $order): bool
+    {
+        return $order->isDelivery()
+            && $user->can(Permission::CAN_MANAGE_DELIVERIES);
     }
 
     public function cancel(User $user, Order $order): bool
@@ -35,6 +54,7 @@ class OrderPolicy
         }
 
         return $user->id === $order->user_id
-            || $user->can(Permission::CAN_UPDATE_ORDER_STATUS);
+            || $user->can(Permission::CAN_UPDATE_ORDER_STATUS)
+            || $user->can(Permission::CAN_MANAGE_DELIVERIES);
     }
 }

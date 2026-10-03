@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
-import type { CreateReservationInput, Reservation, RestaurantTable } from '@intern/shared';
+import { useState } from 'react';
+import type { CreateReservationInput, Reservation } from '@intern/shared';
 import { PERMISSIONS } from '@intern/shared';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { cancelReservation, createReservation, fetchReservations, fetchTables } from '../services';
 import { useAuth } from '../store';
 import { ReservationsPageSkeleton } from '../components/ui';
@@ -22,14 +23,40 @@ const fieldClass =
 
 export function ReservationsPage() {
   const { session, hasPermission } = useAuth();
-  const [tables, setTables] = useState<RestaurantTable[]>([]);
-  const [reservations, setReservations] = useState<Reservation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const token = session?.access_token;
+  const canCreate = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
+  const canManageAll = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
+
+  const tablesQuery = useQuery({
+    queryKey: ['tables'],
+    queryFn: fetchTables,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const reservationsQuery = useQuery({
+    queryKey: ['reservations', token],
+    enabled: Boolean(token),
+    queryFn: () => fetchReservations(token!),
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+
+  const tables = tablesQuery.data ?? [];
+  const reservations = reservationsQuery.data ?? [];
+  const loading = (tablesQuery.isLoading || reservationsQuery.isLoading) && !tablesQuery.data;
+
+  const reload = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['reservations'] }),
+      queryClient.invalidateQueries({ queryKey: ['tables'] }),
+    ]);
+  };
+
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
-  const canCreate = hasPermission(PERMISSIONS.CAN_CREATE_RESERVATION);
-  const canManageAll = hasPermission(PERMISSIONS.CAN_MANAGE_TABLES);
 
   const [tableId, setTableId] = useState<number | ''>('');
   const [partySize, setPartySize] = useState(2);
@@ -41,45 +68,9 @@ export function ReservationsPage() {
   });
   const [notes, setNotes] = useState('');
 
-  const reload = useCallback(async () => {
-    if (!session?.access_token) return;
-    try {
-      const [tablesData, reservationsData] = await Promise.all([
-        fetchTables(),
-        fetchReservations(session.access_token),
-      ]);
-      setTables(tablesData);
-      setReservations(reservationsData);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load reservations');
-    }
-  }, [session?.access_token]);
-
-  useEffect(() => {
-    let mounted = true;
-    void (async () => {
-      try {
-        const tablesData = await fetchTables();
-        if (mounted) setTables(tablesData);
-        if (session?.access_token) {
-          const reservationsData = await fetchReservations(session.access_token);
-          if (mounted) setReservations(reservationsData);
-        }
-      } catch (err) {
-        if (mounted) setError(err instanceof Error ? err.message : 'Failed to load');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    })();
-    return () => {
-      mounted = false;
-    };
-  }, [session?.access_token]);
-
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!session?.access_token || !canCreate || tableId === '') return;
+    if (!token || !canCreate || tableId === '') return;
 
     setSubmitting(true);
     setError(null);
@@ -90,8 +81,11 @@ export function ReservationsPage() {
         starts_at: new Date(startsAt).toISOString(),
         notes: notes.trim() || undefined,
       };
-      const created = await createReservation(session.access_token, input);
-      setReservations((prev) => [created, ...prev]);
+      await createReservation(token, input);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['reservations'] }),
+        queryClient.invalidateQueries({ queryKey: ['tables'] }),
+      ]);
       setNotes('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create reservation');
@@ -101,11 +95,14 @@ export function ReservationsPage() {
   }
 
   async function handleCancel(reservation: Reservation) {
-    if (!session?.access_token || reservation.status === 'cancelled') return;
+    if (!token || reservation.status === 'cancelled') return;
     setCancellingId(reservation.id);
     try {
-      const updated = await cancelReservation(session.access_token, reservation.id);
-      setReservations((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+      await cancelReservation(token, reservation.id);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['reservations'] }),
+        queryClient.invalidateQueries({ queryKey: ['tables'] }),
+      ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel reservation');
     } finally {
